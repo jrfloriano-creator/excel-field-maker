@@ -47,6 +47,30 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        overdue: {
+          DEFAULT: "hsl(var(--overdue))",
+          foreground: "hsl(var(--overdue-foreground))",
+        },
+        ontime: {
+          DEFAULT: "hsl(var(--ontime))",
+          foreground: "hsl(var(--ontime-foreground))",
+        },
+        paid: {
+          DEFAULT: "hsl(var(--paid))",
+          foreground: "hsl(var(--paid-foreground))",
+        },
+        "late-paid": {
+          DEFAULT: "hsl(var(--late-paid))",
+          foreground: "hsl(var(--late-paid-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

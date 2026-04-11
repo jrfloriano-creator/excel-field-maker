@@ -1,22 +1,57 @@
 import { useState } from 'react';
-import { AppConfig, ChavePix, TelefoneAlerta } from '@/types/titulo';
+import { AppConfig, ChavePix, TelefoneAlerta, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Send } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
+import { calcularTitulo, formatCurrency, formatDate, getWhatsAppLink } from '@/lib/calculos';
 
 interface ConfigPanelProps {
   config: AppConfig;
   onUpdate: (data: Partial<AppConfig>) => void;
+  titulos?: Titulo[];
 }
 
-export function ConfigPanel({ config, onUpdate }: ConfigPanelProps) {
+export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
+
+  // Títulos que vencem amanhã
+  const amanha = new Date();
+  amanha.setDate(amanha.getDate() + 1);
+  const amanhaStr = amanha.toISOString().split('T')[0];
+
+  const titulosAmanha = titulos
+    .map(t => calcularTitulo(t, config.taxa))
+    .filter(t => t.vencimento === amanhaStr && t.situacao !== 'PAGO');
+
+  const handleSendAlerts = () => {
+    if (titulosAmanha.length === 0) {
+      toast.info('Nenhum título vence amanhã');
+      return;
+    }
+
+    const telefonesAtivos = config.telefonesAlerta.filter(t => t.ativo && t.numero);
+    if (telefonesAtivos.length === 0) {
+      toast.error('Nenhum telefone de alerta ativo');
+      return;
+    }
+
+    // Open WhatsApp for each phone + each titulo
+    telefonesAtivos.forEach(tel => {
+      titulosAmanha.forEach(titulo => {
+        const msg = `⚠️ Alerta de Vencimento\n\nCliente: ${titulo.cliente}\nValor: ${formatCurrency(titulo.valor)}\nVencimento: ${formatDate(titulo.vencimento)} (amanhã)`;
+        const link = `https://wa.me/55${tel.numero.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
+        window.open(link, '_blank');
+      });
+    });
+
+    toast.success(`${titulosAmanha.length} alerta(s) aberto(s) no WhatsApp`);
+  };
 
   const handleAddPix = () => {
     if (!novaPixNome || !novaPixChave) return;
@@ -118,6 +153,17 @@ export function ConfigPanel({ config, onUpdate }: ConfigPanelProps) {
           <p className="text-xs text-muted-foreground mt-2">
             Mensagem enviada via WhatsApp: Nome do Cliente e Valor do título a vencer no dia seguinte.
           </p>
+
+          {/* Botão para enviar alertas manualmente */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-2 text-paid border-paid/30 hover:bg-paid/10"
+            onClick={handleSendAlerts}
+          >
+            <Send className="h-4 w-4 mr-1" />
+            Enviar Alertas Agora ({titulosAmanha.length} título{titulosAmanha.length !== 1 ? 's' : ''} vencem amanhã)
+          </Button>
         </CardContent>
       </Card>
 
@@ -169,7 +215,6 @@ export function ConfigPanel({ config, onUpdate }: ConfigPanelProps) {
             variant="outline"
             size="sm"
             onClick={() => {
-              // Trigger PIN setup from parent
               const event = new CustomEvent('reset-pin');
               window.dispatchEvent(event);
             }}

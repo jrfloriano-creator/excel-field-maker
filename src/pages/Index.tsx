@@ -1,41 +1,104 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTitulos } from '@/hooks/useTitulos';
-import { calcularTitulo } from '@/lib/calculos';
+import { calcularTitulo, getMonthKey, formatMonthLabel } from '@/lib/calculos';
+import { hashPin, verifyPin } from '@/lib/storage';
 import { TituloCard } from '@/components/TituloCard';
 import { TituloForm } from '@/components/TituloForm';
 import { PagarForm } from '@/components/PagarForm';
 import { DashboardChart } from '@/components/DashboardChart';
+import { ConfigPanel } from '@/components/ConfigPanel';
+import { PinDialog } from '@/components/PinDialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Plus, BarChart3, List, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Titulo } from '@/types/titulo';
 
 type Tab = 'lista' | 'dashboard' | 'config';
 
 const Index = () => {
-  const { titulos, taxa, setTaxa, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
+  const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
   const [tab, setTab] = useState<Tab>('lista');
   const [showForm, setShowForm] = useState(false);
+  const [editingTitulo, setEditingTitulo] = useState<Titulo | null>(null);
   const [pagarId, setPagarId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'TODOS' | 'VENCIDO' | 'NO PRAZO' | 'PAGO'>('TODOS');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [showPin, setShowPin] = useState<{ mode: 'setup' | 'verify'; action: string } | null>(null);
+  const [configUnlocked, setConfigUnlocked] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  // Apply dark mode on load
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', config.darkMode);
+  }, [config.darkMode]);
+
+  // Listen for reset-pin event from ConfigPanel
+  useEffect(() => {
+    const handler = () => setShowPin({ mode: 'setup', action: 'reset' });
+    window.addEventListener('reset-pin', handler);
+    return () => window.removeEventListener('reset-pin', handler);
+  }, []);
 
   const titulosCalculados = titulos
-    .map(t => calcularTitulo(t, taxa))
+    .map(t => calcularTitulo(t, config.taxa))
     .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
 
+  // Generate month keys from all titulos
+  const monthKeys = Array.from(new Set(titulosCalculados.map(t => getMonthKey(t.vencimento)))).sort();
+
+  // Set default month
+  useEffect(() => {
+    if (!selectedMonth && monthKeys.length > 0) {
+      // Default to current month if exists, otherwise first
+      const now = new Date();
+      const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      setSelectedMonth(monthKeys.includes(currentKey) ? currentKey : monthKeys[0]);
+    }
+  }, [monthKeys, selectedMonth]);
+
+  // Filter by month, then by status
+  const titulosByMonth = selectedMonth
+    ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === selectedMonth)
+    : titulosCalculados;
+
   const titulosFiltrados = filtro === 'TODOS'
-    ? titulosCalculados
-    : titulosCalculados.filter(t => t.situacao === filtro);
+    ? titulosByMonth
+    : titulosByMonth.filter(t => t.situacao === filtro);
 
   const handleAdd = (data: { tipo: string; cliente: string; telefone: string; vencimento: string; valor: number }) => {
-    addTitulo(data);
-    setShowForm(false);
-    toast.success('Título adicionado!');
+    if (editingTitulo) {
+      updateTitulo(editingTitulo.id, data);
+      setEditingTitulo(null);
+      setShowForm(false);
+      toast.success('Título atualizado!');
+    } else {
+      addTitulo(data);
+      setShowForm(false);
+      toast.success('Título adicionado!');
+      // Update selected month to the new titulo's month
+      const newMonth = getMonthKey(data.vencimento);
+      if (!monthKeys.includes(newMonth)) {
+        setSelectedMonth(newMonth);
+      }
+    }
   };
 
   const handleDelete = (id: string) => {
-    deleteTitulo(id);
-    toast.success('Título removido');
+    if (config.pin) {
+      setPendingDeleteId(id);
+      setShowPin({ mode: 'verify', action: 'delete' });
+    } else {
+      deleteTitulo(id);
+      toast.success('Título removido');
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    const titulo = titulos.find(t => t.id === id);
+    if (titulo) {
+      setEditingTitulo(titulo);
+      setShowForm(true);
+    }
   };
 
   const handlePagar = (id: string) => {
@@ -50,6 +113,49 @@ const Index = () => {
     }
   };
 
+  const handleTabChange = (newTab: Tab) => {
+    if (newTab === 'config') {
+      if (config.pin && !configUnlocked) {
+        setShowPin({ mode: 'verify', action: 'config' });
+        return;
+      }
+      if (!config.pin) {
+        setShowPin({ mode: 'setup', action: 'config-first' });
+        return;
+      }
+    }
+    setTab(newTab);
+  };
+
+  const handlePinSuccess = (pin: string) => {
+    if (!showPin) return;
+
+    if (showPin.mode === 'setup') {
+      updateConfig({ pin: hashPin(pin) });
+      toast.success('Senha cadastrada!');
+      setShowPin(null);
+      if (showPin.action === 'config-first' || showPin.action === 'reset') {
+        setConfigUnlocked(true);
+        setTab('config');
+      }
+    } else {
+      // verify
+      if (config.pin && verifyPin(pin, config.pin)) {
+        setShowPin(null);
+        if (showPin.action === 'config') {
+          setConfigUnlocked(true);
+          setTab('config');
+        } else if (showPin.action === 'delete' && pendingDeleteId) {
+          deleteTitulo(pendingDeleteId);
+          setPendingDeleteId(null);
+          toast.success('Título removido');
+        }
+      } else {
+        toast.error('Senha incorreta');
+      }
+    }
+  };
+
   const pagarTitulo = pagarId ? titulosCalculados.find(t => t.id === pagarId) : null;
 
   return (
@@ -57,15 +163,40 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-primary text-primary-foreground px-4 py-3 shadow-md">
         <h1 className="text-lg font-bold tracking-tight">💰 Controle Financeiro</h1>
-        <p className="text-xs opacity-80">Taxa de juros: {(taxa * 100).toFixed(1)}% a.m.</p>
+        <p className="text-xs opacity-80">Taxa de juros: {(config.taxa * 100).toFixed(1)}% a.m.</p>
       </header>
 
+      {/* Month Tabs */}
+      {tab === 'lista' && monthKeys.length > 0 && (
+        <div className="bg-card border-b border-border px-2 py-2 overflow-x-auto">
+          <div className="flex gap-1 min-w-max">
+            {monthKeys.map(mk => (
+              <button
+                key={mk}
+                onClick={() => setSelectedMonth(mk)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                  selectedMonth === mk
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                }`}
+              >
+                {formatMonthLabel(mk)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Content */}
-      <main className="flex-1 px-4 py-4 pb-24 space-y-4">
+      <main className="flex-1 px-4 py-4 pb-28 space-y-4">
         {tab === 'lista' && (
           <>
             {showForm && (
-              <TituloForm onSubmit={handleAdd} onClose={() => setShowForm(false)} />
+              <TituloForm
+                onSubmit={handleAdd}
+                onClose={() => { setShowForm(false); setEditingTitulo(null); }}
+                editData={editingTitulo}
+              />
             )}
 
             {pagarId && pagarTitulo && (
@@ -89,10 +220,10 @@ const Index = () => {
                       : 'bg-secondary text-secondary-foreground'
                   }`}
                 >
-                  {f === 'TODOS' ? `Todos (${titulosCalculados.length})` :
-                   f === 'VENCIDO' ? `Vencidos (${titulosCalculados.filter(t => t.situacao === 'VENCIDO').length})` :
-                   f === 'NO PRAZO' ? `No Prazo (${titulosCalculados.filter(t => t.situacao === 'NO PRAZO').length})` :
-                   `Pagos (${titulosCalculados.filter(t => t.situacao === 'PAGO').length})`}
+                  {f === 'TODOS' ? `Todos (${titulosByMonth.length})` :
+                   f === 'VENCIDO' ? `Vencidos (${titulosByMonth.filter(t => t.situacao === 'VENCIDO').length})` :
+                   f === 'NO PRAZO' ? `No Prazo (${titulosByMonth.filter(t => t.situacao === 'NO PRAZO').length})` :
+                   `Pagos (${titulosByMonth.filter(t => t.situacao === 'PAGO').length})`}
                 </button>
               ))}
             </div>
@@ -109,7 +240,14 @@ const Index = () => {
             ) : (
               <div className="space-y-3">
                 {titulosFiltrados.map(t => (
-                  <TituloCard key={t.id} titulo={t} onDelete={handleDelete} onPagar={handlePagar} />
+                  <TituloCard
+                    key={t.id}
+                    titulo={t}
+                    onDelete={handleDelete}
+                    onPagar={handlePagar}
+                    onEdit={handleEdit}
+                    chavesPix={config.chavesPix}
+                  />
                 ))}
               </div>
             )}
@@ -117,8 +255,8 @@ const Index = () => {
             {/* FAB */}
             {!showForm && (
               <button
-                onClick={() => setShowForm(true)}
-                className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-20"
+                onClick={() => { setEditingTitulo(null); setShowForm(true); }}
+                className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-20"
               >
                 <Plus className="h-6 w-6" />
               </button>
@@ -131,20 +269,7 @@ const Index = () => {
         )}
 
         {tab === 'config' && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Configurações</h2>
-            <div>
-              <label className="text-sm text-muted-foreground">Taxa de juros mensal (%)</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                value={(taxa * 100).toFixed(1)}
-                onChange={e => setTaxa(parseFloat(e.target.value) / 100)}
-                className="mt-1"
-              />
-            </div>
-          </div>
+          <ConfigPanel config={config} onUpdate={updateConfig} />
         )}
       </main>
 
@@ -158,7 +283,7 @@ const Index = () => {
           ].map(item => (
             <button
               key={item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => handleTabChange(item.id)}
               className={`flex-1 flex flex-col items-center py-2 transition-colors ${
                 tab === item.id ? 'text-primary' : 'text-muted-foreground'
               }`}
@@ -169,6 +294,15 @@ const Index = () => {
           ))}
         </div>
       </nav>
+
+      {/* PIN Dialog */}
+      {showPin && (
+        <PinDialog
+          mode={showPin.mode}
+          onSuccess={handlePinSuccess}
+          onClose={() => { setShowPin(null); setPendingDeleteId(null); }}
+        />
+      )}
     </div>
   );
 };

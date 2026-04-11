@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X } from 'lucide-react';
+import { Titulo } from '@/types/titulo';
 
 interface TituloFormProps {
   onSubmit: (data: {
@@ -15,14 +16,25 @@ interface TituloFormProps {
     valor: number;
   }) => void;
   onClose: () => void;
+  editData?: Titulo | null;
 }
 
-export function TituloForm({ onSubmit, onClose }: TituloFormProps) {
-  const [tipo, setTipo] = useState('DUPLICATA');
+export function TituloForm({ onSubmit, onClose, editData }: TituloFormProps) {
+  const [tipo, setTipo] = useState('PROMISSÓRIA');
   const [cliente, setCliente] = useState('');
   const [telefone, setTelefone] = useState('');
   const [vencimento, setVencimento] = useState('');
   const [valor, setValor] = useState('');
+
+  useEffect(() => {
+    if (editData) {
+      setTipo(editData.tipo);
+      setCliente(editData.cliente);
+      setTelefone(editData.telefone);
+      setVencimento(editData.vencimento);
+      setValor(editData.valor.toString());
+    }
+  }, [editData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +51,7 @@ export function TituloForm({ onSubmit, onClose }: TituloFormProps) {
   return (
     <Card className="border-primary/20 shadow-lg">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Novo Título</CardTitle>
+        <CardTitle className="text-lg">{editData ? 'Editar Título' : 'Novo Título'}</CardTitle>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -51,10 +63,8 @@ export function TituloForm({ onSubmit, onClose }: TituloFormProps) {
             <Select value={tipo} onValueChange={setTipo}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="DUPLICATA">Duplicata</SelectItem>
-                <SelectItem value="BOLETO">Boleto</SelectItem>
                 <SelectItem value="PROMISSÓRIA">Promissória</SelectItem>
-                <SelectItem value="CHEQUE">Cheque</SelectItem>
+                <SelectItem value="CADERNO">Caderno</SelectItem>
                 <SelectItem value="OUTROS">Outros</SelectItem>
               </SelectContent>
             </Select>
@@ -77,7 +87,7 @@ export function TituloForm({ onSubmit, onClose }: TituloFormProps) {
               <Input type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" required />
             </div>
           </div>
-          <Button type="submit" className="w-full">Adicionar Título</Button>
+          <Button type="submit" className="w-full">{editData ? 'Salvar Alterações' : 'Adicionar Título'}</Button>
         </form>
       </CardContent>
     </Card>

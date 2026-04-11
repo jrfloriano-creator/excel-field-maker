@@ -116,7 +116,7 @@ export function ConfigPanel({ config, onUpdate }: ConfigPanelProps) {
             />
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Mensagem enviada: Nome do Cliente, Valor, e indicação se o cliente costuma atrasar.
+            Mensagem enviada via WhatsApp: Nome do Cliente e Valor do título a vencer no dia seguinte.
           </p>
         </CardContent>
       </Card>

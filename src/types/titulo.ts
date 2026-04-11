@@ -36,4 +36,5 @@ export interface AppConfig {
   darkMode: boolean;
   chavesPix: ChavePix[];
   telefonesAlerta: TelefoneAlerta[];
+  horarioAlerta: string; // HH:mm format
 }

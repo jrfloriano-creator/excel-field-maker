@@ -12,6 +12,7 @@ const DEFAULT_CONFIG: AppConfig = {
     { numero: '', ativo: false },
     { numero: '', ativo: false },
   ],
+  horarioAlerta: '08:00',
 };
 
 export function getTitulos(): Titulo[] {

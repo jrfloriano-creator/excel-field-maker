@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Titulo } from '@/types/titulo';
-import { getTitulos, saveTitulos, getTaxa, saveTaxa, generateId, getNextNumero } from '@/lib/storage';
+import { Titulo, AppConfig } from '@/types/titulo';
+import { getTitulos, saveTitulos, getConfig, saveConfig, generateId, getNextNumero } from '@/lib/storage';
 
 export function useTitulos() {
   const [titulos, setTitulos] = useState<Titulo[]>([]);
-  const [taxa, setTaxaState] = useState(0.01);
+  const [config, setConfigState] = useState<AppConfig>(getConfig());
 
   useEffect(() => {
     setTitulos(getTitulos());
-    setTaxaState(getTaxa());
+    setConfigState(getConfig());
   }, []);
 
   const addTitulo = (data: Omit<Titulo, 'id' | 'numero'>) => {
@@ -35,10 +35,11 @@ export function useTitulos() {
     saveTitulos(updated);
   };
 
-  const setTaxa = (value: number) => {
-    setTaxaState(value);
-    saveTaxa(value);
+  const updateConfig = (data: Partial<AppConfig>) => {
+    const updated = { ...config, ...data };
+    setConfigState(updated);
+    saveConfig(updated);
   };
 
-  return { titulos, taxa, setTaxa, addTitulo, updateTitulo, deleteTitulo };
+  return { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo };
 }

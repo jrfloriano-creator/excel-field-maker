@@ -1,17 +1,25 @@
-import { TituloComCalculo } from '@/types/titulo';
+import { TituloComCalculo, ChavePix } from '@/types/titulo';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatCurrency, formatDate, formatPhone, getWhatsAppLink } from '@/lib/calculos';
-import { MessageCircle, Trash2, CreditCard } from 'lucide-react';
+import { MessageCircle, Trash2, CreditCard, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState } from 'react';
 
 interface TituloCardProps {
   titulo: TituloComCalculo;
   onDelete: (id: string) => void;
   onPagar: (id: string) => void;
+  onEdit: (id: string) => void;
+  chavesPix: ChavePix[];
 }
 
-export function TituloCard({ titulo, onDelete, onPagar }: TituloCardProps) {
+export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix }: TituloCardProps) {
+  const [selectedPixId, setSelectedPixId] = useState<string>('');
+
+  const selectedPix = chavesPix.find(p => p.id === selectedPixId);
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -62,10 +70,33 @@ export function TituloCard({ titulo, onDelete, onPagar }: TituloCardProps) {
           <p className="text-xs text-muted-foreground mt-2">📱 {formatPhone(titulo.telefone)}</p>
         )}
 
+        {/* PIX selection for overdue titles */}
+        {titulo.situacao === 'VENCIDO' && titulo.telefone && chavesPix.length > 0 && (
+          <div className="mt-2">
+            <Select value={selectedPixId} onValueChange={setSelectedPixId}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Selecionar Chave PIX (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem PIX</SelectItem>
+                {chavesPix.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.nome}: {p.chave}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="flex gap-2 mt-3">
           {titulo.telefone && titulo.situacao === 'VENCIDO' && (
             <a
-              href={getWhatsAppLink(titulo.telefone, titulo.cliente, titulo.valorCorrigido, titulo.vencimento)}
+              href={getWhatsAppLink(
+                titulo.telefone,
+                titulo.cliente,
+                titulo.valorCorrigido,
+                titulo.vencimento,
+                selectedPix && selectedPixId !== 'none' ? selectedPix : undefined
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1"
@@ -82,6 +113,9 @@ export function TituloCard({ titulo, onDelete, onPagar }: TituloCardProps) {
               Pagar
             </Button>
           )}
+          <Button variant="ghost" size="sm" onClick={() => onEdit(titulo.id)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onDelete(titulo.id)}>
             <Trash2 className="h-4 w-4" />
           </Button>

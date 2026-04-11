@@ -269,7 +269,7 @@ const Index = () => {
         )}
 
         {tab === 'config' && (
-          <ConfigPanel config={config} onUpdate={updateConfig} />
+          <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />
         )}
       </main>
 

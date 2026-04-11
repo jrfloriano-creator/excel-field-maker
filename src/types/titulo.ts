@@ -18,3 +18,22 @@ export interface TituloComCalculo extends Titulo {
   valorJuros: number;
   valorCorrigido: number;
 }
+
+export interface ChavePix {
+  id: string;
+  nome: string;
+  chave: string;
+}
+
+export interface TelefoneAlerta {
+  numero: string;
+  ativo: boolean;
+}
+
+export interface AppConfig {
+  taxa: number;
+  pin: string | null; // 4-digit PIN hash
+  darkMode: boolean;
+  chavesPix: ChavePix[];
+  telefonesAlerta: TelefoneAlerta[];
+}

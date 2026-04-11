@@ -1,13 +1,17 @@
 import { Titulo, TituloComCalculo, Situacao } from '@/types/titulo';
 
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function calcularTitulo(titulo: Titulo, taxaMensal: number): TituloComCalculo {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  const vencimento = new Date(titulo.vencimento);
-  vencimento.setHours(0, 0, 0, 0);
+  const vencimento = parseLocalDate(titulo.vencimento);
 
   const diffMs = vencimento.getTime() - hoje.getTime();
-  const diasAVencer = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diasAVencer = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   let situacao: Situacao;
   if (titulo.dataPagamento && titulo.valorPago) {
@@ -21,10 +25,12 @@ export function calcularTitulo(titulo: Titulo, taxaMensal: number): TituloComCal
   let valorJuros = 0;
   if (situacao === 'VENCIDO') {
     const diasAtraso = Math.abs(diasAVencer);
-    valorJuros = titulo.valor * (taxaMensal / 30) * diasAtraso;
+    const taxaDiaria = taxaMensal / 30;
+    valorJuros = titulo.valor * taxaDiaria * diasAtraso;
+    valorJuros = Math.round(valorJuros * 100) / 100;
   }
 
-  const valorCorrigido = titulo.valor + valorJuros;
+  const valorCorrigido = Math.round((titulo.valor + valorJuros) * 100) / 100;
 
   return {
     ...titulo,
@@ -40,7 +46,7 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return date.toLocaleDateString('pt-BR');
 }
 
@@ -52,10 +58,22 @@ export function formatPhone(phone: string): string {
   return phone;
 }
 
-export function getWhatsAppLink(phone: string, cliente: string, valor: number, vencimento: string): string {
+export function getWhatsAppLink(phone: string, cliente: string, valor: number, vencimento: string, chavePix?: { nome: string; chave: string }): string {
   const digits = phone.replace(/\D/g, '');
-  const msg = encodeURIComponent(
-    `Olá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`
-  );
-  return `https://wa.me/55${digits}?text=${msg}`;
+  let msg = `Olá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
+  if (chavePix) {
+    msg += `\n\nChave PIX para pagamento:\n${chavePix.nome}: ${chavePix.chave}`;
+  }
+  return `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
+}
+
+export function getMonthKey(dateStr: string): string {
+  const [year, month] = dateStr.split('-');
+  return `${year}-${month}`;
+}
+
+export function formatMonthLabel(monthKey: string): string {
+  const [year, month] = monthKey.split('-');
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `${meses[parseInt(month) - 1]}/${year}`;
 }

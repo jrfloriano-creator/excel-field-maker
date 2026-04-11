@@ -106,7 +106,16 @@ export function ConfigPanel({ config, onUpdate }: ConfigPanelProps) {
               />
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 mt-2">
+            <Label className="text-xs whitespace-nowrap">⏰ Horário de envio:</Label>
+            <Input
+              type="time"
+              value={config.horarioAlerta || '08:00'}
+              onChange={e => onUpdate({ horarioAlerta: e.target.value })}
+              className="w-28"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
             Mensagem enviada: Nome do Cliente, Valor, e indicação se o cliente costuma atrasar.
           </p>
         </CardContent>

@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
-import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
+import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel } from '@/lib/calculos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Props {
@@ -14,12 +14,35 @@ export function Relatorios({ titulos, config }: Props) {
     [titulos, config.taxa]
   );
 
+  // Build month keys from payment date (for received) and due date (for overdue)
+  const monthKeys = useMemo(() => {
+    const keys = new Set<string>();
+    calculados.forEach(t => {
+      if (t.situacao === 'PAGO' && t.dataPagamento) {
+        keys.add(getMonthKey(t.dataPagamento));
+      } else if (t.situacao === 'VENCIDO') {
+        keys.add(getMonthKey(t.vencimento));
+      }
+    });
+    return Array.from(keys).sort();
+  }, [calculados]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+
+  useEffect(() => {
+    if (!selectedMonth && monthKeys.length > 0) {
+      const now = new Date();
+      const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      setSelectedMonth(monthKeys.includes(currentKey) ? currentKey : monthKeys[monthKeys.length - 1]);
+    }
+  }, [monthKeys, selectedMonth]);
+
   const recebidos = calculados
-    .filter(t => t.situacao === 'PAGO')
+    .filter(t => t.situacao === 'PAGO' && (!selectedMonth || (t.dataPagamento && getMonthKey(t.dataPagamento) === selectedMonth)))
     .sort((a, b) => (b.dataPagamento || '').localeCompare(a.dataPagamento || ''));
 
   const atrasados = calculados
-    .filter(t => t.situacao === 'VENCIDO')
+    .filter(t => t.situacao === 'VENCIDO' && (!selectedMonth || getMonthKey(t.vencimento) === selectedMonth))
     .sort((a, b) => a.diasAVencer - b.diasAVencer);
 
   const totalRecebido = recebidos.reduce((s, t) => s + (t.valorPago || 0), 0);
@@ -29,7 +52,39 @@ export function Relatorios({ titulos, config }: Props) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Relatórios</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Relatórios</h2>
+      </div>
+
+      {monthKeys.length > 0 && (
+        <div className="-mx-4 px-2 py-2 bg-card border-y border-border overflow-x-auto">
+          <div className="flex gap-1 min-w-max">
+            <button
+              onClick={() => setSelectedMonth('')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                selectedMonth === ''
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-accent'
+              }`}
+            >
+              Todos
+            </button>
+            {monthKeys.map(mk => (
+              <button
+                key={mk}
+                onClick={() => setSelectedMonth(mk)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                  selectedMonth === mk
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                }`}
+              >
+                {formatMonthLabel(mk)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recebidos */}
       <Card>
@@ -39,7 +94,7 @@ export function Relatorios({ titulos, config }: Props) {
         </CardHeader>
         <CardContent className="space-y-2">
           {recebidos.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">Nenhum título recebido ainda</p>
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum título recebido no período</p>
           ) : (
             recebidos.map(t => (
               <div key={t.id} className="border border-border rounded-md p-3 text-sm">
@@ -70,7 +125,7 @@ export function Relatorios({ titulos, config }: Props) {
         </CardHeader>
         <CardContent className="space-y-2">
           {atrasados.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">Nenhum título atrasado 🎉</p>
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum título atrasado no período 🎉</p>
           ) : (
             atrasados.map(t => (
               <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">

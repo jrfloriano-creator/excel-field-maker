@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
 import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel } from '@/lib/calculos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,14 +28,6 @@ export function Relatorios({ titulos, config }: Props) {
   }, [calculados]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-
-  useEffect(() => {
-    if (!selectedMonth && monthKeys.length > 0) {
-      const now = new Date();
-      const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      setSelectedMonth(monthKeys.includes(currentKey) ? currentKey : monthKeys[monthKeys.length - 1]);
-    }
-  }, [monthKeys, selectedMonth]);
 
   const recebidos = calculados
     .filter(t => t.situacao === 'PAGO' && (!selectedMonth || (t.dataPagamento && getMonthKey(t.dataPagamento) === selectedMonth)))

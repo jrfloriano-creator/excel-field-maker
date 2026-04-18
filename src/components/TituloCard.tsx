@@ -6,6 +6,7 @@ import { MessageCircle, Trash2, CreditCard, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 interface TituloCardProps {
   titulo: TituloComCalculo;
@@ -17,60 +18,74 @@ interface TituloCardProps {
 
 export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix }: TituloCardProps) {
   const [selectedPixId, setSelectedPixId] = useState<string>('');
-
   const selectedPix = chavesPix.find(p => p.id === selectedPixId);
 
+  const ownerClass = titulo.proprietario === 'RAMON'
+    ? 'bg-owner-ramon text-owner-ramon-foreground border-owner-ramon'
+    : 'bg-owner-tania text-owner-tania-foreground border-owner-tania';
+
   return (
-    <Card className="overflow-hidden">
+    <Card className={cn('overflow-hidden border-2', ownerClass)}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">{titulo.cliente}</p>
-            <p className="text-xs text-muted-foreground">{titulo.tipo} • Nº {titulo.numero}</p>
+            <p className="font-semibold truncate">{titulo.cliente}</p>
+            <p className="text-xs opacity-70">
+              {titulo.tipo} • Nº {titulo.numero} • {titulo.proprietario === 'RAMON' ? '🔵 Ramon' : '🟠 Tania'}
+            </p>
           </div>
           <StatusBadge situacao={titulo.situacao} />
         </div>
 
         <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
           <div>
-            <p className="text-muted-foreground text-xs">Vencimento</p>
+            <p className="opacity-70 text-xs">Emissão</p>
+            <p className="font-medium">{formatDate(titulo.dataEmissao)}</p>
+          </div>
+          <div>
+            <p className="opacity-70 text-xs">Vencimento</p>
             <p className="font-medium">{formatDate(titulo.vencimento)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground text-xs">Valor</p>
+            <p className="opacity-70 text-xs">Valor</p>
             <p className="font-medium">{formatCurrency(titulo.valor)}</p>
           </div>
           {titulo.situacao === 'VENCIDO' && (
             <>
               <div>
-                <p className="text-muted-foreground text-xs">Juros ({Math.abs(titulo.diasAVencer)}d)</p>
+                <p className="opacity-70 text-xs">Juros ({Math.abs(titulo.diasAVencer)}d)</p>
                 <p className="font-medium text-overdue">{formatCurrency(titulo.valorJuros)}</p>
               </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Valor Corrigido</p>
+              <div className="col-span-2">
+                <p className="opacity-70 text-xs">Valor Corrigido</p>
                 <p className="font-semibold text-overdue">{formatCurrency(titulo.valorCorrigido)}</p>
               </div>
             </>
           )}
           {titulo.situacao === 'PAGO' && titulo.dataPagamento && (
             <div>
-              <p className="text-muted-foreground text-xs">Pago em</p>
+              <p className="opacity-70 text-xs">Pago em</p>
               <p className="font-medium text-paid">{formatDate(titulo.dataPagamento)}</p>
             </div>
           )}
           {titulo.situacao === 'PAGO' && titulo.valorPago && (
             <div>
-              <p className="text-muted-foreground text-xs">Valor Pago</p>
+              <p className="opacity-70 text-xs">Valor Pago</p>
               <p className="font-medium text-paid">{formatCurrency(titulo.valorPago)}</p>
+            </div>
+          )}
+          {titulo.situacao === 'PAGO' && titulo.recebidoPor && (
+            <div className="col-span-2">
+              <p className="opacity-70 text-xs">Recebido por</p>
+              <p className="font-medium text-paid">{titulo.recebidoPor}</p>
             </div>
           )}
         </div>
 
         {titulo.telefone && (
-          <p className="text-xs text-muted-foreground mt-2">📱 {formatPhone(titulo.telefone)}</p>
+          <p className="text-xs opacity-70 mt-2">📱 {formatPhone(titulo.telefone)}</p>
         )}
 
-        {/* PIX selection for overdue titles */}
         {titulo.situacao === 'VENCIDO' && titulo.telefone && chavesPix.length > 0 && (
           <div className="mt-2">
             <Select value={selectedPixId} onValueChange={setSelectedPixId}>
@@ -101,14 +116,14 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix }: Tit
               rel="noopener noreferrer"
               className="flex-1"
             >
-              <Button variant="outline" size="sm" className="w-full text-paid border-paid/30 hover:bg-paid/10">
+              <Button variant="outline" size="sm" className="w-full text-paid border-paid/30 hover:bg-paid/10 bg-card">
                 <MessageCircle className="h-4 w-4" />
                 Cobrar
               </Button>
             </a>
           )}
           {titulo.situacao !== 'PAGO' && (
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => onPagar(titulo.id)}>
+            <Button variant="outline" size="sm" className="flex-1 bg-card" onClick={() => onPagar(titulo.id)}>
               <CreditCard className="h-4 w-4" />
               Pagar
             </Button>

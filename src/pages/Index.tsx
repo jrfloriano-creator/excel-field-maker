@@ -8,12 +8,13 @@ import { PagarForm } from '@/components/PagarForm';
 import { DashboardChart } from '@/components/DashboardChart';
 import { ConfigPanel } from '@/components/ConfigPanel';
 import { PinDialog } from '@/components/PinDialog';
+import { Relatorios } from '@/components/Relatorios';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, List, Settings2 } from 'lucide-react';
+import { Plus, BarChart3, List, Settings2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { Titulo } from '@/types/titulo';
+import { Titulo, Proprietario } from '@/types/titulo';
 
-type Tab = 'lista' | 'dashboard' | 'config';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'config';
 
 const Index = () => {
   const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
@@ -27,12 +28,10 @@ const Index = () => {
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  // Apply dark mode on load
   useEffect(() => {
     document.documentElement.classList.toggle('dark', config.darkMode);
   }, [config.darkMode]);
 
-  // Listen for reset-pin event from ConfigPanel
   useEffect(() => {
     const handler = () => setShowPin({ mode: 'setup', action: 'reset' });
     window.addEventListener('reset-pin', handler);
@@ -43,20 +42,16 @@ const Index = () => {
     .map(t => calcularTitulo(t, config.taxa))
     .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
 
-  // Generate month keys from all titulos
   const monthKeys = Array.from(new Set(titulosCalculados.map(t => getMonthKey(t.vencimento)))).sort();
 
-  // Set default month
   useEffect(() => {
     if (!selectedMonth && monthKeys.length > 0) {
-      // Default to current month if exists, otherwise first
       const now = new Date();
       const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       setSelectedMonth(monthKeys.includes(currentKey) ? currentKey : monthKeys[0]);
     }
   }, [monthKeys, selectedMonth]);
 
-  // Filter by month, then by status
   const titulosByMonth = selectedMonth
     ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === selectedMonth)
     : titulosCalculados;
@@ -65,7 +60,10 @@ const Index = () => {
     ? titulosByMonth
     : titulosByMonth.filter(t => t.situacao === filtro);
 
-  const handleAdd = (data: { tipo: string; cliente: string; telefone: string; vencimento: string; valor: number }) => {
+  const handleAdd = (data: {
+    tipo: string; cliente: string; telefone: string;
+    dataEmissao: string; vencimento: string; valor: number; proprietario: Proprietario;
+  }) => {
     if (editingTitulo) {
       updateTitulo(editingTitulo.id, data);
       setEditingTitulo(null);
@@ -75,7 +73,6 @@ const Index = () => {
       addTitulo(data);
       setShowForm(false);
       toast.success('Título adicionado!');
-      // Update selected month to the new titulo's month
       const newMonth = getMonthKey(data.vencimento);
       if (!monthKeys.includes(newMonth)) {
         setSelectedMonth(newMonth);
@@ -102,14 +99,18 @@ const Index = () => {
   };
 
   const handlePagar = (id: string) => {
+    if (config.funcionarios.length === 0) {
+      toast.error('Cadastre um funcionário em Configurações antes de receber títulos');
+      return;
+    }
     setPagarId(id);
   };
 
-  const handleConfirmPagar = (data: { dataPagamento: string; valorPago: number }) => {
+  const handleConfirmPagar = (data: { dataPagamento: string; valorPago: number; recebidoPor: string }) => {
     if (pagarId) {
       updateTitulo(pagarId, data);
       setPagarId(null);
-      toast.success('Pagamento registrado!');
+      toast.success(`Pagamento registrado por ${data.recebidoPor}!`);
     }
   };
 
@@ -139,7 +140,6 @@ const Index = () => {
         setTab('config');
       }
     } else {
-      // verify
       if (config.pin && verifyPin(pin, config.pin)) {
         setShowPin(null);
         if (showPin.action === 'config') {
@@ -160,13 +160,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-primary text-primary-foreground px-4 py-3 shadow-md">
         <h1 className="text-lg font-bold tracking-tight">💰 Controle Financeiro</h1>
         <p className="text-xs opacity-80">Taxa de juros: {(config.taxa * 100).toFixed(1)}% a.m.</p>
       </header>
 
-      {/* Month Tabs */}
       {tab === 'lista' && monthKeys.length > 0 && (
         <div className="bg-card border-b border-border px-2 py-2 overflow-x-auto">
           <div className="flex gap-1 min-w-max">
@@ -187,7 +185,6 @@ const Index = () => {
         </div>
       )}
 
-      {/* Content */}
       <main className="flex-1 px-4 py-4 pb-28 space-y-4">
         {tab === 'lista' && (
           <>
@@ -203,12 +200,12 @@ const Index = () => {
               <PagarForm
                 clienteNome={pagarTitulo.cliente}
                 valorOriginal={pagarTitulo.valorCorrigido}
+                funcionarios={config.funcionarios}
                 onSubmit={handleConfirmPagar}
                 onClose={() => setPagarId(null)}
               />
             )}
 
-            {/* Filter pills */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {(['TODOS', 'VENCIDO', 'NO PRAZO', 'PAGO'] as const).map(f => (
                 <button
@@ -228,7 +225,6 @@ const Index = () => {
               ))}
             </div>
 
-            {/* List */}
             {titulosFiltrados.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-4xl mb-2">📋</p>
@@ -252,7 +248,6 @@ const Index = () => {
               </div>
             )}
 
-            {/* FAB */}
             {!showForm && (
               <button
                 onClick={() => { setEditingTitulo(null); setShowForm(true); }}
@@ -264,21 +259,17 @@ const Index = () => {
           </>
         )}
 
-        {tab === 'dashboard' && (
-          <DashboardChart titulos={titulosCalculados} />
-        )}
-
-        {tab === 'config' && (
-          <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />
-        )}
+        {tab === 'dashboard' && <DashboardChart titulos={titulosCalculados} />}
+        {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}
+        {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />}
       </main>
 
-      {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30">
         <div className="max-w-lg mx-auto flex">
           {[
             { id: 'lista' as Tab, icon: List, label: 'Títulos' },
             { id: 'dashboard' as Tab, icon: BarChart3, label: 'Dashboard' },
+            { id: 'relatorios' as Tab, icon: FileText, label: 'Relatórios' },
             { id: 'config' as Tab, icon: Settings2, label: 'Config' },
           ].map(item => (
             <button
@@ -295,7 +286,6 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* PIN Dialog */}
       {showPin && (
         <PinDialog
           mode={showPin.mode}

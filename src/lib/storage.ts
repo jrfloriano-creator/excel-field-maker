@@ -13,11 +13,19 @@ const DEFAULT_CONFIG: AppConfig = {
     { numero: '', ativo: false },
   ],
   horarioAlerta: '08:00',
+  funcionarios: [],
 };
 
 export function getTitulos(): Titulo[] {
   const data = localStorage.getItem(TITULOS_KEY);
-  return data ? JSON.parse(data) : [];
+  if (!data) return [];
+  const parsed: Titulo[] = JSON.parse(data);
+  // Migration: ensure proprietario and dataEmissao exist
+  return parsed.map(t => ({
+    ...t,
+    proprietario: t.proprietario || 'TANIA',
+    dataEmissao: t.dataEmissao || t.vencimento,
+  }));
 }
 
 export function saveTitulos(titulos: Titulo[]): void {

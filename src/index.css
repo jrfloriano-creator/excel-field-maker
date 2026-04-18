@@ -48,6 +48,11 @@
     --late-paid: 48 96% 53%;
     --late-paid-foreground: 30 20% 15%;
 
+    --owner-tania: 28 100% 88%;
+    --owner-tania-foreground: 28 70% 20%;
+    --owner-ramon: 205 90% 88%;
+    --owner-ramon-foreground: 210 70% 20%;
+
     --border: 220 15% 90%;
     --input: 220 15% 90%;
     --ring: 220 70% 50%;
@@ -88,6 +93,11 @@
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+
+    --owner-tania: 28 60% 30%;
+    --owner-tania-foreground: 28 100% 92%;
+    --owner-ramon: 210 60% 30%;
+    --owner-ramon-foreground: 205 100% 92%;
 
     --border: 220 15% 20%;
     --input: 220 15% 20%;

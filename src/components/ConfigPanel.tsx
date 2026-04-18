@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppConfig, ChavePix, TelefoneAlerta, Titulo } from '@/types/titulo';
+import { AppConfig, ChavePix, Funcionario, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Trash2, Send } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
-import { calcularTitulo, formatCurrency, formatDate, getWhatsAppLink } from '@/lib/calculos';
+import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
+import { FuncionariosManager } from '@/components/FuncionariosManager';
 
 interface ConfigPanelProps {
   config: AppConfig;
@@ -85,6 +86,12 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
+
+      {/* Funcionários */}
+      <FuncionariosManager
+        funcionarios={config.funcionarios}
+        onUpdate={(funcionarios) => onUpdate({ funcionarios })}
+      />
 
       {/* Taxa de juros */}
       <Card>

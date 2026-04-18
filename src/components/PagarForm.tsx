@@ -3,22 +3,46 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X } from 'lucide-react';
+import { Funcionario } from '@/types/titulo';
+import { verifyPin } from '@/lib/storage';
+import { toast } from 'sonner';
 
 interface PagarFormProps {
   clienteNome: string;
   valorOriginal: number;
-  onSubmit: (data: { dataPagamento: string; valorPago: number }) => void;
+  funcionarios: Funcionario[];
+  onSubmit: (data: { dataPagamento: string; valorPago: number; recebidoPor: string }) => void;
   onClose: () => void;
 }
 
-export function PagarForm({ clienteNome, valorOriginal, onSubmit, onClose }: PagarFormProps) {
+export function PagarForm({ clienteNome, valorOriginal, funcionarios, onSubmit, onClose }: PagarFormProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
   const [valorPago, setValorPago] = useState(valorOriginal.toString());
+  const [funcionarioId, setFuncionarioId] = useState('');
+  const [pin, setPin] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ dataPagamento, valorPago: parseFloat(valorPago) });
+    if (funcionarios.length === 0) {
+      toast.error('Cadastre um funcionário em Configurações antes de receber títulos');
+      return;
+    }
+    const func = funcionarios.find(f => f.id === funcionarioId);
+    if (!func) {
+      toast.error('Selecione o funcionário que recebeu');
+      return;
+    }
+    if (pin.length !== 4 || !verifyPin(pin, func.pin)) {
+      toast.error('Senha do funcionário incorreta');
+      return;
+    }
+    onSubmit({
+      dataPagamento,
+      valorPago: parseFloat(valorPago),
+      recebidoPor: func.nome,
+    });
   };
 
   return (
@@ -39,6 +63,32 @@ export function PagarForm({ clienteNome, valorOriginal, onSubmit, onClose }: Pag
           <div>
             <Label className="text-xs">Valor Pago</Label>
             <Input type="number" step="0.01" value={valorPago} onChange={e => setValorPago(e.target.value)} required />
+          </div>
+          <div>
+            <Label className="text-xs">Recebido por *</Label>
+            <Select value={funcionarioId} onValueChange={setFuncionarioId}>
+              <SelectTrigger>
+                <SelectValue placeholder={funcionarios.length === 0 ? 'Nenhum funcionário cadastrado' : 'Selecione o funcionário'} />
+              </SelectTrigger>
+              <SelectContent>
+                {funcionarios.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Senha do funcionário (4 dígitos) *</Label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="••••"
+              value={pin}
+              onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="text-center text-xl tracking-[0.5em]"
+              required
+            />
           </div>
           <Button type="submit" className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">Confirmar Pagamento</Button>
         </form>

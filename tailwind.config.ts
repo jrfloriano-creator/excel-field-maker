@@ -71,6 +71,14 @@ export default {
           DEFAULT: "hsl(var(--late-paid))",
           foreground: "hsl(var(--late-paid-foreground))",
         },
+        "owner-tania": {
+          DEFAULT: "hsl(var(--owner-tania))",
+          foreground: "hsl(var(--owner-tania-foreground))",
+        },
+        "owner-ramon": {
+          DEFAULT: "hsl(var(--owner-ramon))",
+          foreground: "hsl(var(--owner-ramon-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

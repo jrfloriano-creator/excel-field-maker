@@ -5,13 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X } from 'lucide-react';
-import { Titulo, Proprietario } from '@/types/titulo';
+import { Titulo, Proprietario, Cliente, ProprietarioConfig } from '@/types/titulo';
 import { toast } from 'sonner';
 
 interface TituloFormProps {
   onSubmit: (data: {
     tipo: string;
     cliente: string;
+    clienteId?: string;
     telefone: string;
     dataEmissao: string;
     vencimento: string;
@@ -20,22 +21,24 @@ interface TituloFormProps {
   }) => void;
   onClose: () => void;
   editData?: Titulo | null;
+  clientes: Cliente[];
+  proprietarios: ProprietarioConfig[];
 }
 
-export function TituloForm({ onSubmit, onClose, editData }: TituloFormProps) {
+export function TituloForm({ onSubmit, onClose, editData, clientes, proprietarios }: TituloFormProps) {
   const today = new Date().toISOString().split('T')[0];
   const [tipo, setTipo] = useState('PROMISSÓRIA');
-  const [cliente, setCliente] = useState('');
+  const [clienteId, setClienteId] = useState<string>('');
   const [telefone, setTelefone] = useState('');
   const [dataEmissao, setDataEmissao] = useState(today);
   const [vencimento, setVencimento] = useState('');
   const [valor, setValor] = useState('');
-  const [proprietario, setProprietario] = useState<Proprietario | ''>('');
+  const [proprietario, setProprietario] = useState<Proprietario>('');
 
   useEffect(() => {
     if (editData) {
       setTipo(editData.tipo);
-      setCliente(editData.cliente);
+      setClienteId(editData.clienteId || '');
       setTelefone(editData.telefone);
       setDataEmissao(editData.dataEmissao || today);
       setVencimento(editData.vencimento);
@@ -44,16 +47,30 @@ export function TituloForm({ onSubmit, onClose, editData }: TituloFormProps) {
     }
   }, [editData]);
 
+  // Auto-fill telefone ao selecionar cliente
+  useEffect(() => {
+    if (clienteId && !editData) {
+      const c = clientes.find(c => c.id === clienteId);
+      if (c) setTelefone(c.telefone || '');
+    }
+  }, [clienteId, clientes, editData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cliente || !vencimento || !valor || !dataEmissao) return;
+    const cliente = clientes.find(c => c.id === clienteId);
+    if (!cliente) {
+      toast.error('Selecione um cliente cadastrado');
+      return;
+    }
+    if (!vencimento || !valor || !dataEmissao) return;
     if (!proprietario) {
-      toast.error('Selecione Tania ou Ramon');
+      toast.error('Selecione um proprietário');
       return;
     }
     onSubmit({
       tipo,
-      cliente: cliente.toUpperCase(),
+      cliente: cliente.nome,
+      clienteId: cliente.id,
       telefone,
       dataEmissao,
       vencimento,
@@ -71,16 +88,32 @@ export function TituloForm({ onSubmit, onClose, editData }: TituloFormProps) {
         </Button>
       </CardHeader>
       <CardContent>
+        {clientes.length === 0 && (
+          <div className="mb-3 p-3 rounded-md bg-warning/10 text-xs">
+            Cadastre um cliente na aba <strong>Clientes</strong> antes de criar um título.
+          </div>
+        )}
+        {proprietarios.length === 0 && (
+          <div className="mb-3 p-3 rounded-md bg-warning/10 text-xs">
+            Cadastre um proprietário em <strong>Configurações</strong>.
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <Label className="text-xs">Proprietário *</Label>
-            <Select value={proprietario} onValueChange={(v) => setProprietario(v as Proprietario)}>
+            <Select value={proprietario} onValueChange={(v) => setProprietario(v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione Tania ou Ramon" />
+                <SelectValue placeholder="Selecione o proprietário" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="TANIA">🟠 Tania</SelectItem>
-                <SelectItem value="RAMON">🔵 Ramon</SelectItem>
+                {proprietarios.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block h-3 w-3 rounded-full border" style={{ backgroundColor: p.cor }} />
+                      {p.nome}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -97,7 +130,16 @@ export function TituloForm({ onSubmit, onClose, editData }: TituloFormProps) {
           </div>
           <div>
             <Label className="text-xs">Cliente *</Label>
-            <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nome do cliente" required />
+            <Select value={clienteId} onValueChange={setClienteId} disabled={clientes.length === 0}>
+              <SelectTrigger>
+                <SelectValue placeholder={clientes.length === 0 ? 'Cadastre clientes primeiro' : 'Selecione o cliente'} />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label className="text-xs">Telefone</Label>

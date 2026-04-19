@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
 import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel } from '@/lib/calculos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,6 @@ export function Relatorios({ titulos, config }: Props) {
     [titulos, config.taxa]
   );
 
-  // Build month keys from payment date (for received) and due date (for overdue)
   const monthKeys = useMemo(() => {
     const keys = new Set<string>();
     calculados.forEach(t => {
@@ -27,20 +26,37 @@ export function Relatorios({ titulos, config }: Props) {
     return Array.from(keys).sort();
   }, [calculados]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  // 'TODOS' como sentinela; default = mês atual se houver
+  const [selectedMonth, setSelectedMonth] = useState<string>('TODOS');
+
+  useEffect(() => {
+    if (selectedMonth !== 'TODOS') return;
+    if (monthKeys.length === 0) return;
+    const now = new Date();
+    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (monthKeys.includes(currentKey)) {
+      setSelectedMonth(currentKey);
+    }
+    // se mês atual não tem dados, mantém TODOS
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthKeys.length]);
+
+  const matchMonth = (key: string) => selectedMonth === 'TODOS' || key === selectedMonth;
 
   const recebidos = calculados
-    .filter(t => t.situacao === 'PAGO' && (!selectedMonth || (t.dataPagamento && getMonthKey(t.dataPagamento) === selectedMonth)))
+    .filter(t => t.situacao === 'PAGO' && t.dataPagamento && matchMonth(getMonthKey(t.dataPagamento)))
     .sort((a, b) => (b.dataPagamento || '').localeCompare(a.dataPagamento || ''));
 
   const atrasados = calculados
-    .filter(t => t.situacao === 'VENCIDO' && (!selectedMonth || getMonthKey(t.vencimento) === selectedMonth))
+    .filter(t => t.situacao === 'VENCIDO' && matchMonth(getMonthKey(t.vencimento)))
     .sort((a, b) => a.diasAVencer - b.diasAVencer);
 
   const totalRecebido = recebidos.reduce((s, t) => s + (t.valorPago || 0), 0);
   const totalAtrasadoOrig = atrasados.reduce((s, t) => s + t.valor, 0);
   const totalAtrasadoJuros = atrasados.reduce((s, t) => s + t.valorJuros, 0);
   const totalAtrasadoCorrigido = atrasados.reduce((s, t) => s + t.valorCorrigido, 0);
+
+  const ownerName = (id: string) => config.proprietarios.find(p => p.id === id)?.nome || '—';
 
   return (
     <div className="space-y-4">
@@ -52,9 +68,9 @@ export function Relatorios({ titulos, config }: Props) {
         <div className="-mx-4 px-2 py-2 bg-card border-y border-border overflow-x-auto">
           <div className="flex gap-1 min-w-max">
             <button
-              onClick={() => setSelectedMonth('')}
+              onClick={() => setSelectedMonth('TODOS')}
               className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                selectedMonth === ''
+                selectedMonth === 'TODOS'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-accent'
               }`}
@@ -78,7 +94,6 @@ export function Relatorios({ titulos, config }: Props) {
         </div>
       )}
 
-      {/* Recebidos */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">✅ Títulos Recebidos ({recebidos.length})</CardTitle>
@@ -97,7 +112,7 @@ export function Relatorios({ titulos, config }: Props) {
                 <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
                   <p>📅 {t.dataPagamento ? formatDate(t.dataPagamento) : '-'}</p>
                   <p>👤 {t.recebidoPor || '—'}</p>
-                  <p className="col-span-2">{t.proprietario === 'RAMON' ? '🔵 Ramon' : '🟠 Tania'} • Nº {t.numero}</p>
+                  <p className="col-span-2">{ownerName(t.proprietario)} • Nº {t.numero}</p>
                 </div>
               </div>
             ))
@@ -105,7 +120,6 @@ export function Relatorios({ titulos, config }: Props) {
         </CardContent>
       </Card>
 
-      {/* Atrasados */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">⚠️ Títulos Atrasados ({atrasados.length})</CardTitle>
@@ -141,7 +155,7 @@ export function Relatorios({ titulos, config }: Props) {
                     <p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p>
                   </div>
                   <p className="col-span-2 text-muted-foreground">
-                    {t.proprietario === 'RAMON' ? '🔵 Ramon' : '🟠 Tania'} • Venc: {formatDate(t.vencimento)}
+                    {ownerName(t.proprietario)} • Venc: {formatDate(t.vencimento)}
                   </p>
                 </div>
               </div>

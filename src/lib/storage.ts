@@ -1,7 +1,16 @@
-import { Titulo, AppConfig, ChavePix, TelefoneAlerta } from '@/types/titulo';
+import { Titulo, AppConfig, Cliente, ProprietarioConfig } from '@/types/titulo';
 
 const TITULOS_KEY = 'financeiro_titulos';
 const CONFIG_KEY = 'financeiro_config';
+
+// IDs padrão para proprietários legacy
+const LEGACY_TANIA_ID = 'legacy-tania';
+const LEGACY_RAMON_ID = 'legacy-ramon';
+
+const DEFAULT_PROPRIETARIOS: ProprietarioConfig[] = [
+  { id: LEGACY_TANIA_ID, nome: 'Tania', cor: '#FFD9B3' },
+  { id: LEGACY_RAMON_ID, nome: 'Ramon', cor: '#BFE0FA' },
+];
 
 const DEFAULT_CONFIG: AppConfig = {
   taxa: 0.01,
@@ -14,18 +23,26 @@ const DEFAULT_CONFIG: AppConfig = {
   ],
   horarioAlerta: '08:00',
   funcionarios: [],
+  proprietarios: DEFAULT_PROPRIETARIOS,
+  clientes: [],
 };
 
 export function getTitulos(): Titulo[] {
   const data = localStorage.getItem(TITULOS_KEY);
   if (!data) return [];
-  const parsed: Titulo[] = JSON.parse(data);
-  // Migration: ensure proprietario and dataEmissao exist
-  return parsed.map(t => ({
-    ...t,
-    proprietario: t.proprietario || 'TANIA',
-    dataEmissao: t.dataEmissao || t.vencimento,
-  }));
+  const parsed: any[] = JSON.parse(data);
+  return parsed.map(t => {
+    // Migração: TANIA/RAMON -> ids legacy
+    let proprietario = t.proprietario;
+    if (proprietario === 'TANIA') proprietario = LEGACY_TANIA_ID;
+    else if (proprietario === 'RAMON') proprietario = LEGACY_RAMON_ID;
+    else if (!proprietario) proprietario = LEGACY_TANIA_ID;
+    return {
+      ...t,
+      proprietario,
+      dataEmissao: t.dataEmissao || t.vencimento,
+    } as Titulo;
+  });
 }
 
 export function saveTitulos(titulos: Titulo[]): void {
@@ -36,7 +53,13 @@ export function getConfig(): AppConfig {
   const data = localStorage.getItem(CONFIG_KEY);
   if (!data) return { ...DEFAULT_CONFIG };
   const parsed = JSON.parse(data);
-  return { ...DEFAULT_CONFIG, ...parsed };
+  const merged: AppConfig = { ...DEFAULT_CONFIG, ...parsed };
+  // Garante proprietários default se ausentes
+  if (!merged.proprietarios || merged.proprietarios.length === 0) {
+    merged.proprietarios = DEFAULT_PROPRIETARIOS;
+  }
+  if (!merged.clientes) merged.clientes = [];
+  return merged;
 }
 
 export function saveConfig(config: AppConfig): void {
@@ -52,7 +75,6 @@ export function getNextNumero(titulos: Titulo[]): number {
   return Math.max(...titulos.map(t => t.numero)) + 1;
 }
 
-// Simple PIN hash (not cryptographic, just obfuscation for localStorage)
 export function hashPin(pin: string): string {
   let hash = 0;
   for (let i = 0; i < pin.length; i++) {
@@ -65,4 +87,10 @@ export function hashPin(pin: string): string {
 
 export function verifyPin(pin: string, storedHash: string): boolean {
   return hashPin(pin) === storedHash;
+}
+
+// Helpers de cliente
+export function findCliente(clientes: Cliente[], id?: string): Cliente | undefined {
+  if (!id) return undefined;
+  return clientes.find(c => c.id === id);
 }

@@ -1,18 +1,40 @@
-export type Proprietario = 'TANIA' | 'RAMON';
+// Proprietário agora é um id (string) referenciando um Proprietario cadastrado
+export type Proprietario = string;
+
+export interface ProprietarioConfig {
+  id: string;
+  nome: string;
+  // Tailwind/HSL hue value 0-360 used to generate background color
+  cor: string; // hex like #fde2c4
+  corFundo?: string; // optional explicit background hsl
+}
+
+export interface Cliente {
+  id: string;
+  nome: string;
+  telefone: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  cidade: string;
+  estado: string; // sigla UF
+}
 
 export interface Titulo {
   id: string;
   numero: number;
   tipo: string;
-  cliente: string;
+  cliente: string; // nome (snapshot)
+  clienteId?: string; // referencia ao cadastro
   telefone: string;
   dataEmissao: string; // ISO date string
   vencimento: string; // ISO date string
   valor: number;
-  proprietario: Proprietario;
-  dataPagamento?: string; // ISO date string
+  proprietario: Proprietario; // id do proprietario
+  dataPagamento?: string;
   valorPago?: number;
-  recebidoPor?: string; // funcionario nome
+  recebidoPor?: string;
 }
 
 export type Situacao = 'VENCIDO' | 'NO PRAZO' | 'PAGO';
@@ -38,15 +60,17 @@ export interface TelefoneAlerta {
 export interface Funcionario {
   id: string;
   nome: string;
-  pin: string; // hashed
+  pin: string;
 }
 
 export interface AppConfig {
   taxa: number;
-  pin: string | null; // 4-digit PIN hash (admin/config)
+  pin: string | null;
   darkMode: boolean;
   chavesPix: ChavePix[];
   telefonesAlerta: TelefoneAlerta[];
-  horarioAlerta: string; // HH:mm format
+  horarioAlerta: string;
   funcionarios: Funcionario[];
+  proprietarios: ProprietarioConfig[];
+  clientes: Cliente[];
 }

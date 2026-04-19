@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppConfig, ChavePix, Funcionario, Titulo } from '@/types/titulo';
+import { AppConfig, ChavePix, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { FuncionariosManager } from '@/components/FuncionariosManager';
+import { ProprietariosManager } from '@/components/ProprietariosManager';
 
 interface ConfigPanelProps {
   config: AppConfig;
@@ -21,7 +22,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
 
-  // Títulos que vencem amanhã
   const amanha = new Date();
   amanha.setDate(amanha.getDate() + 1);
   const amanhaStr = amanha.toISOString().split('T')[0];
@@ -35,14 +35,11 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
       toast.info('Nenhum título vence amanhã');
       return;
     }
-
     const telefonesAtivos = config.telefonesAlerta.filter(t => t.ativo && t.numero);
     if (telefonesAtivos.length === 0) {
       toast.error('Nenhum telefone de alerta ativo');
       return;
     }
-
-    // Open WhatsApp for each phone + each titulo
     telefonesAtivos.forEach(tel => {
       titulosAmanha.forEach(titulo => {
         const msg = `⚠️ Alerta de Vencimento\n\nCliente: ${titulo.cliente}\nValor: ${formatCurrency(titulo.valor)}\nVencimento: ${formatDate(titulo.vencimento)} (amanhã)`;
@@ -50,7 +47,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
         window.open(link, '_blank');
       });
     });
-
     toast.success(`${titulosAmanha.length} alerta(s) aberto(s) no WhatsApp`);
   };
 
@@ -87,13 +83,16 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
 
-      {/* Funcionários */}
+      <ProprietariosManager
+        proprietarios={config.proprietarios}
+        onUpdate={(proprietarios) => onUpdate({ proprietarios })}
+      />
+
       <FuncionariosManager
         funcionarios={config.funcionarios}
         onUpdate={(funcionarios) => onUpdate({ funcionarios })}
       />
 
-      {/* Taxa de juros */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Taxa de Juros Mensal (%)</CardTitle>
@@ -109,7 +108,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
         </CardContent>
       </Card>
 
-      {/* Dark Mode */}
       <Card>
         <CardContent className="p-4 flex items-center justify-between">
           <div>
@@ -126,7 +124,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
         </CardContent>
       </Card>
 
-      {/* Telefones para alerta */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">📱 Telefones para Alerta Diário</CardTitle>
@@ -142,10 +139,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
                 onChange={e => handleTelefoneChange(i, e.target.value)}
                 className="flex-1"
               />
-              <Switch
-                checked={tel.ativo}
-                onCheckedChange={() => handleTelefoneToggle(i)}
-              />
+              <Switch checked={tel.ativo} onCheckedChange={() => handleTelefoneToggle(i)} />
             </div>
           ))}
           <div className="flex items-center gap-2 mt-2">
@@ -157,11 +151,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
               className="w-28"
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Mensagem enviada via WhatsApp: Nome do Cliente e Valor do título a vencer no dia seguinte.
-          </p>
-
-          {/* Botão para enviar alertas manualmente */}
           <Button
             variant="outline"
             size="sm"
@@ -174,7 +163,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
         </CardContent>
       </Card>
 
-      {/* Chaves PIX */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">🔑 Chaves PIX ({config.chavesPix.length}/5)</CardTitle>
@@ -193,16 +181,8 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
           ))}
           {config.chavesPix.length < 5 && (
             <div className="space-y-2">
-              <Input
-                placeholder="Nome da chave (ex: Banco X)"
-                value={novaPixNome}
-                onChange={e => setNovaPixNome(e.target.value)}
-              />
-              <Input
-                placeholder="Chave PIX"
-                value={novaPixChave}
-                onChange={e => setNovaPixChave(e.target.value)}
-              />
+              <Input placeholder="Nome da chave (ex: Banco X)" value={novaPixNome} onChange={e => setNovaPixNome(e.target.value)} />
+              <Input placeholder="Chave PIX" value={novaPixChave} onChange={e => setNovaPixChave(e.target.value)} />
               <Button variant="outline" size="sm" className="w-full" onClick={handleAddPix}>
                 <Plus className="h-4 w-4 mr-1" /> Adicionar Chave PIX
               </Button>
@@ -211,7 +191,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
         </CardContent>
       </Card>
 
-      {/* Alterar senha */}
       <Card>
         <CardContent className="p-4">
           <p className="text-sm font-medium">🔐 Senha de Segurança</p>

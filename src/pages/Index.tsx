@@ -9,12 +9,13 @@ import { DashboardChart } from '@/components/DashboardChart';
 import { ConfigPanel } from '@/components/ConfigPanel';
 import { PinDialog } from '@/components/PinDialog';
 import { Relatorios } from '@/components/Relatorios';
+import { ClientesManager } from '@/components/ClientesManager';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, List, Settings2, FileText } from 'lucide-react';
+import { Plus, BarChart3, List, Settings2, FileText, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Titulo, Proprietario } from '@/types/titulo';
 
-type Tab = 'lista' | 'dashboard' | 'relatorios' | 'config';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'config';
 
 const Index = () => {
   const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
@@ -61,7 +62,7 @@ const Index = () => {
     : titulosByMonth.filter(t => t.situacao === filtro);
 
   const handleAdd = (data: {
-    tipo: string; cliente: string; telefone: string;
+    tipo: string; cliente: string; clienteId?: string; telefone: string;
     dataEmissao: string; vencimento: string; valor: number; proprietario: Proprietario;
   }) => {
     if (editingTitulo) {
@@ -130,7 +131,6 @@ const Index = () => {
 
   const handlePinSuccess = (pin: string) => {
     if (!showPin) return;
-
     if (showPin.mode === 'setup') {
       updateConfig({ pin: hashPin(pin) });
       toast.success('Senha cadastrada!');
@@ -193,6 +193,8 @@ const Index = () => {
                 onSubmit={handleAdd}
                 onClose={() => { setShowForm(false); setEditingTitulo(null); }}
                 editData={editingTitulo}
+                clientes={config.clientes}
+                proprietarios={config.proprietarios}
               />
             )}
 
@@ -243,6 +245,7 @@ const Index = () => {
                     onPagar={handlePagar}
                     onEdit={handleEdit}
                     chavesPix={config.chavesPix}
+                    proprietarios={config.proprietarios}
                   />
                 ))}
               </div>
@@ -261,6 +264,12 @@ const Index = () => {
 
         {tab === 'dashboard' && <DashboardChart titulos={titulosCalculados} />}
         {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}
+        {tab === 'clientes' && (
+          <ClientesManager
+            clientes={config.clientes}
+            onUpdate={(clientes) => updateConfig({ clientes })}
+          />
+        )}
         {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />}
       </main>
 
@@ -268,7 +277,8 @@ const Index = () => {
         <div className="max-w-lg mx-auto flex">
           {[
             { id: 'lista' as Tab, icon: List, label: 'Títulos' },
-            { id: 'dashboard' as Tab, icon: BarChart3, label: 'Dashboard' },
+            { id: 'clientes' as Tab, icon: Users, label: 'Clientes' },
+            { id: 'dashboard' as Tab, icon: BarChart3, label: 'Dash' },
             { id: 'relatorios' as Tab, icon: FileText, label: 'Relatórios' },
             { id: 'config' as Tab, icon: Settings2, label: 'Config' },
           ].map(item => (

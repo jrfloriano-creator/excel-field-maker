@@ -30,9 +30,9 @@ async function loadFromOPFS(): Promise<Uint8Array | null> {
 async function saveToOPFS(data: Uint8Array): Promise<boolean> {
   try {
     if (!opfsHandle) return false;
-    // @ts-expect-error createWritable existe nos browsers modernos
     const writable = await opfsHandle.createWritable();
-    await writable.write(data);
+    // Cast para satisfazer tipos do TS DOM lib (SharedArrayBuffer vs ArrayBuffer)
+    await writable.write(data as unknown as BufferSource);
     await writable.close();
     return true;
   } catch {

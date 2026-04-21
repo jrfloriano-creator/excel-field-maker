@@ -124,6 +124,8 @@ export function TituloForm({ onSubmit, onClose, editData, clientes, proprietario
               <SelectContent>
                 <SelectItem value="PROMISSÓRIA">Promissória</SelectItem>
                 <SelectItem value="CADERNO">Caderno</SelectItem>
+                <SelectItem value="CHEQUE">Cheque</SelectItem>
+                <SelectItem value="BOLETO">Boleto</SelectItem>
                 <SelectItem value="OUTROS">Outros</SelectItem>
               </SelectContent>
             </Select>

@@ -1,9 +1,11 @@
 import { Titulo, AppConfig, Cliente, ProprietarioConfig } from '@/types/titulo';
+import { getDB, kvGet, kvSet, schedulePersist } from './sqlite';
 
-const TITULOS_KEY = 'financeiro_titulos';
-const CONFIG_KEY = 'financeiro_config';
+const CONFIG_KEY = 'config';
+const LS_TITULOS_KEY = 'financeiro_titulos';
+const LS_CONFIG_KEY = 'financeiro_config';
+const LS_MIGRATED_FLAG = 'financeiro_sqlite_migrated';
 
-// IDs padrão para proprietários legacy
 const LEGACY_TANIA_ID = 'legacy-tania';
 const LEGACY_RAMON_ID = 'legacy-ramon';
 
@@ -27,43 +29,67 @@ const DEFAULT_CONFIG: AppConfig = {
   clientes: [],
 };
 
+function normalizeTitulo(t: any): Titulo {
+  let proprietario = t.proprietario;
+  if (proprietario === 'TANIA') proprietario = LEGACY_TANIA_ID;
+  else if (proprietario === 'RAMON') proprietario = LEGACY_RAMON_ID;
+  else if (!proprietario) proprietario = LEGACY_TANIA_ID;
+  return {
+    ...t,
+    proprietario,
+    dataEmissao: t.dataEmissao || t.vencimento,
+  } as Titulo;
+}
+
 export function getTitulos(): Titulo[] {
-  const data = localStorage.getItem(TITULOS_KEY);
-  if (!data) return [];
-  const parsed: any[] = JSON.parse(data);
-  return parsed.map(t => {
-    // Migração: TANIA/RAMON -> ids legacy
-    let proprietario = t.proprietario;
-    if (proprietario === 'TANIA') proprietario = LEGACY_TANIA_ID;
-    else if (proprietario === 'RAMON') proprietario = LEGACY_RAMON_ID;
-    else if (!proprietario) proprietario = LEGACY_TANIA_ID;
-    return {
-      ...t,
-      proprietario,
-      dataEmissao: t.dataEmissao || t.vencimento,
-    } as Titulo;
-  });
+  const stmt = getDB().prepare('SELECT data FROM titulos');
+  const out: Titulo[] = [];
+  while (stmt.step()) {
+    const row = stmt.getAsObject() as { data: string };
+    try {
+      out.push(normalizeTitulo(JSON.parse(row.data)));
+    } catch {
+      // ignora linhas inválidas
+    }
+  }
+  stmt.free();
+  return out;
 }
 
 export function saveTitulos(titulos: Titulo[]): void {
-  localStorage.setItem(TITULOS_KEY, JSON.stringify(titulos));
+  const db = getDB();
+  db.exec('BEGIN');
+  try {
+    db.run('DELETE FROM titulos');
+    const ins = db.prepare('INSERT INTO titulos(id, data) VALUES(?, ?)');
+    for (const t of titulos) ins.run([t.id, JSON.stringify(t)]);
+    ins.free();
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  schedulePersist();
 }
 
 export function getConfig(): AppConfig {
-  const data = localStorage.getItem(CONFIG_KEY);
-  if (!data) return { ...DEFAULT_CONFIG };
-  const parsed = JSON.parse(data);
-  const merged: AppConfig = { ...DEFAULT_CONFIG, ...parsed };
-  // Garante proprietários default se ausentes
-  if (!merged.proprietarios || merged.proprietarios.length === 0) {
-    merged.proprietarios = DEFAULT_PROPRIETARIOS;
+  const raw = kvGet(CONFIG_KEY);
+  if (!raw) return { ...DEFAULT_CONFIG };
+  try {
+    const parsed = JSON.parse(raw);
+    const merged: AppConfig = { ...DEFAULT_CONFIG, ...parsed };
+    if (!merged.proprietarios || merged.proprietarios.length === 0) {
+      merged.proprietarios = DEFAULT_PROPRIETARIOS;
+    }
+    if (!merged.clientes) merged.clientes = [];
+    return merged;
+  } catch {
+    return { ...DEFAULT_CONFIG };
   }
-  if (!merged.clientes) merged.clientes = [];
-  return merged;
 }
 
 export function saveConfig(config: AppConfig): void {
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  kvSet(CONFIG_KEY, JSON.stringify(config));
 }
 
 export function generateId(): string {
@@ -89,8 +115,37 @@ export function verifyPin(pin: string, storedHash: string): boolean {
   return hashPin(pin) === storedHash;
 }
 
-// Helpers de cliente
 export function findCliente(clientes: Cliente[], id?: string): Cliente | undefined {
   if (!id) return undefined;
   return clientes.find(c => c.id === id);
+}
+
+/** Migra dados existentes do localStorage para o SQLite (uma única vez). */
+export function migrateFromLocalStorageIfNeeded(): boolean {
+  if (localStorage.getItem(LS_MIGRATED_FLAG) === '1') return false;
+  let migrated = false;
+
+  const titulosRaw = localStorage.getItem(LS_TITULOS_KEY);
+  if (titulosRaw) {
+    try {
+      const arr = JSON.parse(titulosRaw) as any[];
+      saveTitulos(arr.map(normalizeTitulo));
+      migrated = true;
+    } catch (e) {
+      console.warn('Falha ao migrar títulos do localStorage', e);
+    }
+  }
+
+  const configRaw = localStorage.getItem(LS_CONFIG_KEY);
+  if (configRaw) {
+    try {
+      kvSet(CONFIG_KEY, configRaw);
+      migrated = true;
+    } catch (e) {
+      console.warn('Falha ao migrar config do localStorage', e);
+    }
+  }
+
+  localStorage.setItem(LS_MIGRATED_FLAG, '1');
+  return migrated;
 }

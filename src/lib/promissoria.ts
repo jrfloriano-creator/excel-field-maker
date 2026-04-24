@@ -230,18 +230,20 @@ function desenharNota(
   pdf.text(nota.vencimentoLongo, bx + 12, cy);
   dotted(pdf, bx + 12, cy + 0.8, bx + bw);
 
-  // Linha 3: ............ pagarei por esta única via de NOTA PROMISSÓRIA
+  // Linha 3: ............ pagarei  por esta única via de   NOTA PROMISSÓRIA
   cy += 6;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  const tituloW = pdf.getTextWidth('NOTA PROMISSÓRIA');
+  pdf.text('NOTA PROMISSÓRIA', bx + bw, cy, { align: 'right' });
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
-  const txtPagar = 'pagarei';
-  const txtFinal = 'por esta única via de';
-  // pontilhado à esquerda
-  dotted(pdf, bx, cy + 0.8, bx + bw - 70);
-  pdf.text(txtPagar, bx + bw - 68, cy);
-  pdf.text(txtFinal, bx + bw - 55, cy);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('NOTA PROMISSÓRIA', bx + bw, cy, { align: 'right' });
+  const txtFinal = 'pagarei por esta única via de';
+  const txtFinalW = pdf.getTextWidth(txtFinal);
+  const finalX = bx + bw - tituloW - 2 - txtFinalW;
+  pdf.text(txtFinal, finalX, cy);
+  // pontilhado à esquerda até onde começa "pagarei"
+  dotted(pdf, bx, cy + 0.8, finalX - 1);
 
   // Linha 4: a {credor} ............... CPF/CNPJ {cpf}
   cy += 6;

@@ -137,6 +137,7 @@ export function ClientesManager({ clientes, onUpdate }: Props) {
                 placeholder="000.000.000-00"
               />
             </div>
+            <div>
               <Label className="text-xs">CEP</Label>
               <div className="flex gap-2">
                 <Input

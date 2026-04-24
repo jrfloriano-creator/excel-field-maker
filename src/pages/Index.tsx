@@ -167,22 +167,37 @@ const Index = () => {
         <p className="text-xs opacity-80">Taxa de juros: {(config.taxa * 100).toFixed(1)}% a.m.</p>
       </header>
 
-      {tab === 'lista' && monthKeys.length > 0 && (
+      {(tab === 'lista' || tab === 'dashboard') && monthKeys.length > 0 && (
         <div className="bg-card border-b border-border px-2 py-2 overflow-x-auto">
           <div className="flex gap-1 min-w-max">
-            {monthKeys.map(mk => (
+            {tab === 'dashboard' && (
               <button
-                key={mk}
-                onClick={() => setSelectedMonth(mk)}
+                onClick={() => setDashboardMonth('')}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                  selectedMonth === mk
+                  dashboardMonth === ''
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-accent'
                 }`}
               >
-                {formatMonthLabel(mk)}
+                Todos
               </button>
-            ))}
+            )}
+            {monthKeys.map(mk => {
+              const active = tab === 'lista' ? selectedMonth === mk : dashboardMonth === mk;
+              return (
+                <button
+                  key={mk}
+                  onClick={() => tab === 'lista' ? setSelectedMonth(mk) : setDashboardMonth(mk)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                  }`}
+                >
+                  {formatMonthLabel(mk)}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

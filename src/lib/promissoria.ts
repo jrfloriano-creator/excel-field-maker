@@ -299,31 +299,32 @@ function desenharNota(
   pdf.setFont('helvetica', 'italic');
   pdf.text(hojeStr, bx + bw - 18, cy);
 
-  // Linha 8: CPF/CNPJ {cpf devedor}      ENDEREÇO {endereço}
+  // Linha 8: CPF/CNPJ {cpf devedor}
   cy += 6;
   pdf.setFont('helvetica', 'bold');
   pdf.text('CPF/CNPJ', bx, cy);
   pdf.setFont('helvetica', 'italic');
   pdf.text(data.devedor.cpfCnpj || '', bx + 18, cy);
+  dotted(pdf, bx + 18, cy + 0.8, bx + bw);
+
+  // Linha 9: ENDEREÇO {endereço completo}
+  cy += 6;
   pdf.setFont('helvetica', 'bold');
-  pdf.text('ENDEREÇO', bx + bw - 90, cy);
+  pdf.text('ENDEREÇO', bx, cy);
   pdf.setFont('helvetica', 'italic');
-  const enderecoLinha = [
+  const enderecoCompleto = [
     data.devedor.logradouro,
     data.devedor.numero,
-  ].filter(Boolean).join(', ');
-  pdf.text(enderecoLinha, bx + bw - 72, cy);
-
-  // Linha 9: {bairro - cidade/UF}    ASS. DO EMITENTE ___________
-  cy += 6;
-  pdf.setFont('helvetica', 'italic');
-  const linhaCid = [
     data.devedor.bairro,
-    data.devedor.cidade && data.devedor.estado ? `${data.devedor.cidade}/${data.devedor.estado}` : '',
-  ].filter(Boolean).join(' - ');
-  pdf.text(linhaCid, bx, cy);
+    data.devedor.cidade && data.devedor.estado ? `${data.devedor.cidade}/${data.devedor.estado}` : ''
+  ].filter(Boolean).join(', ');
+  pdf.text(enderecoCompleto, bx + 20, cy);
+  dotted(pdf, bx + 20, cy + 0.8, bx + bw);
+
+  // Linha 10: ASS. DO EMITENTE (alinhado à esquerda)
+  cy += 6;
   pdf.setFont('helvetica', 'bold');
-  pdf.text('ASS. DO EMITENTE', bx + bw - 80, cy);
-  dotted(pdf, bx + bw - 52, cy + 0.8, bx + bw);
+  pdf.text('ASS. DO EMITENTE', bx, cy);
+  dotted(pdf, bx + 32, cy + 0.8, bx + 110);
 }
 

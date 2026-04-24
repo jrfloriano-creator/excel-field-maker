@@ -10,12 +10,13 @@ import { ConfigPanel } from '@/components/ConfigPanel';
 import { PinDialog } from '@/components/PinDialog';
 import { Relatorios } from '@/components/Relatorios';
 import { ClientesManager } from '@/components/ClientesManager';
+import { PromissoriaTab } from '@/components/PromissoriaTab';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, List, Settings2, FileText, Users } from 'lucide-react';
+import { Plus, BarChart3, List, Settings2, FileText, Users, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Titulo, Proprietario } from '@/types/titulo';
 
-type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'config';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'config';
 
 const Index = () => {
   const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
@@ -293,6 +294,7 @@ const Index = () => {
             onUpdate={(clientes) => updateConfig({ clientes })}
           />
         )}
+        {tab === 'promissoria' && <PromissoriaTab config={config} />}
         {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />}
       </main>
 
@@ -301,6 +303,7 @@ const Index = () => {
           {[
             { id: 'lista' as Tab, icon: List, label: 'Títulos' },
             { id: 'clientes' as Tab, icon: Users, label: 'Clientes' },
+            { id: 'promissoria' as Tab, icon: ScrollText, label: 'Promissória' },
             { id: 'dashboard' as Tab, icon: BarChart3, label: 'Dash' },
             { id: 'relatorios' as Tab, icon: FileText, label: 'Relatórios' },
             { id: 'config' as Tab, icon: Settings2, label: 'Config' },

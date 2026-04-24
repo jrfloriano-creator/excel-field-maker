@@ -19,7 +19,7 @@ interface Props {
 }
 
 const empty: Omit<Cliente, 'id'> = {
-  nome: '', telefone: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
+  nome: '', telefone: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
 };
 
 export function ClientesManager({ clientes, onUpdate }: Props) {
@@ -130,6 +130,13 @@ export function ClientesManager({ clientes, onUpdate }: Props) {
               />
             </div>
             <div>
+              <Label className="text-xs">CPF/CNPJ</Label>
+              <Input
+                value={data.cpfCnpj || ''}
+                onChange={e => setData({ ...data, cpfCnpj: e.target.value })}
+                placeholder="000.000.000-00"
+              />
+            </div>
               <Label className="text-xs">CEP</Label>
               <div className="flex gap-2">
                 <Input

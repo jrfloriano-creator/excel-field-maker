@@ -25,6 +25,7 @@ const Index = () => {
   const [pagarId, setPagarId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'TODOS' | 'VENCIDO' | 'NO PRAZO' | 'PAGO'>('TODOS');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [dashboardMonth, setDashboardMonth] = useState<string>('');
   const [showPin, setShowPin] = useState<{ mode: 'setup' | 'verify'; action: string } | null>(null);
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -46,12 +47,13 @@ const Index = () => {
   const monthKeys = Array.from(new Set(titulosCalculados.map(t => getMonthKey(t.vencimento)))).sort();
 
   useEffect(() => {
-    if (!selectedMonth && monthKeys.length > 0) {
-      const now = new Date();
-      const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      setSelectedMonth(monthKeys.includes(currentKey) ? currentKey : monthKeys[0]);
-    }
-  }, [monthKeys, selectedMonth]);
+    if (monthKeys.length === 0) return;
+    const now = new Date();
+    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const defaultKey = monthKeys.includes(currentKey) ? currentKey : monthKeys[0];
+    if (!selectedMonth) setSelectedMonth(defaultKey);
+    if (!dashboardMonth) setDashboardMonth(defaultKey);
+  }, [monthKeys, selectedMonth, dashboardMonth]);
 
   const titulosByMonth = selectedMonth
     ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === selectedMonth)
@@ -165,22 +167,37 @@ const Index = () => {
         <p className="text-xs opacity-80">Taxa de juros: {(config.taxa * 100).toFixed(1)}% a.m.</p>
       </header>
 
-      {tab === 'lista' && monthKeys.length > 0 && (
+      {(tab === 'lista' || tab === 'dashboard') && monthKeys.length > 0 && (
         <div className="bg-card border-b border-border px-2 py-2 overflow-x-auto">
           <div className="flex gap-1 min-w-max">
-            {monthKeys.map(mk => (
+            {tab === 'dashboard' && (
               <button
-                key={mk}
-                onClick={() => setSelectedMonth(mk)}
+                onClick={() => setDashboardMonth('')}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                  selectedMonth === mk
+                  dashboardMonth === ''
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-accent'
                 }`}
               >
-                {formatMonthLabel(mk)}
+                Todos
               </button>
-            ))}
+            )}
+            {monthKeys.map(mk => {
+              const active = tab === 'lista' ? selectedMonth === mk : dashboardMonth === mk;
+              return (
+                <button
+                  key={mk}
+                  onClick={() => tab === 'lista' ? setSelectedMonth(mk) : setDashboardMonth(mk)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                  }`}
+                >
+                  {formatMonthLabel(mk)}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -262,7 +279,13 @@ const Index = () => {
           </>
         )}
 
-        {tab === 'dashboard' && <DashboardChart titulos={titulosCalculados} />}
+        {tab === 'dashboard' && (
+          <DashboardChart
+            titulos={dashboardMonth
+              ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === dashboardMonth)
+              : titulosCalculados}
+          />
+        )}
         {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}
         {tab === 'clientes' && (
           <ClientesManager

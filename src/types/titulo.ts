@@ -13,12 +13,18 @@ export interface Cliente {
   id: string;
   nome: string;
   telefone: string;
+  cpfCnpj?: string;
   cep: string;
   logradouro: string;
   numero: string;
   bairro: string;
   cidade: string;
   estado: string; // sigla UF
+}
+
+export interface CredorConfig {
+  nome: string;
+  cpfCnpj: string;
 }
 
 export interface Titulo {
@@ -73,4 +79,5 @@ export interface AppConfig {
   funcionarios: Funcionario[];
   proprietarios: ProprietarioConfig[];
   clientes: Cliente[];
+  credor?: CredorConfig;
 }

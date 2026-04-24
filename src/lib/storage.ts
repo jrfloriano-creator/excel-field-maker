@@ -27,6 +27,7 @@ const DEFAULT_CONFIG: AppConfig = {
   funcionarios: [],
   proprietarios: DEFAULT_PROPRIETARIOS,
   clientes: [],
+  credor: { nome: '', cpfCnpj: '' },
 };
 
 function normalizeTitulo(t: any): Titulo {

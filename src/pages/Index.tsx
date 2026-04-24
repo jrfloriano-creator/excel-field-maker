@@ -47,12 +47,13 @@ const Index = () => {
   const monthKeys = Array.from(new Set(titulosCalculados.map(t => getMonthKey(t.vencimento)))).sort();
 
   useEffect(() => {
-    if (!selectedMonth && monthKeys.length > 0) {
-      const now = new Date();
-      const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      setSelectedMonth(monthKeys.includes(currentKey) ? currentKey : monthKeys[0]);
-    }
-  }, [monthKeys, selectedMonth]);
+    if (monthKeys.length === 0) return;
+    const now = new Date();
+    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const defaultKey = monthKeys.includes(currentKey) ? currentKey : monthKeys[0];
+    if (!selectedMonth) setSelectedMonth(defaultKey);
+    if (!dashboardMonth) setDashboardMonth(defaultKey);
+  }, [monthKeys, selectedMonth, dashboardMonth]);
 
   const titulosByMonth = selectedMonth
     ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === selectedMonth)

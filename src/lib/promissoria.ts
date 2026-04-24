@@ -262,18 +262,19 @@ function desenharNota(
   // Linha 5: Ou à sua ordem, a quantia de [valor extenso]
   cy += 6;
   pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
   pdf.text('Ou à sua ordem, a quantia de', bx, cy);
-  pdf.roundedRect(bx + 50, cy - 4, bw - 50, 5.5, 1, 1);
+  const labelW = pdf.getTextWidth('Ou à sua ordem, a quantia de') + 2;
+  pdf.roundedRect(bx + labelW, cy - 4, bw - labelW, 5.5, 1, 1);
   pdf.setFont('helvetica', 'italic');
   const extenso = nota.valorExtenso;
-  // primeira linha do extenso dentro da caixa
-  const linhasExt = pdf.splitTextToSize(extenso, bw - 54);
-  pdf.text(linhasExt[0] || '', bx + 52, cy);
+  const linhasExt = pdf.splitTextToSize(extenso, bw - labelW - 4);
+  pdf.text(linhasExt[0] || '', bx + labelW + 2, cy);
 
-  // segunda linha (continuação) sublinhada pontilhada
+  // segunda linha (continuação) sobre pontilhado
   cy += 6;
   if (linhasExt[1]) {
-    pdf.text(linhasExt[1], bx + 2, cy);
+    pdf.text(linhasExt.slice(1).join(' '), bx + 2, cy);
   }
   dotted(pdf, bx, cy + 0.8, bx + bw);
 

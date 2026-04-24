@@ -279,7 +279,13 @@ const Index = () => {
           </>
         )}
 
-        {tab === 'dashboard' && <DashboardChart titulos={titulosCalculados} />}
+        {tab === 'dashboard' && (
+          <DashboardChart
+            titulos={dashboardMonth
+              ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === dashboardMonth)
+              : titulosCalculados}
+          />
+        )}
         {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}
         {tab === 'clientes' && (
           <ClientesManager

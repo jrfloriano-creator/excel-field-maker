@@ -95,6 +95,31 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
 
       <Card>
         <CardHeader className="pb-2">
+          <CardTitle className="text-sm">📝 Credor (Notas Promissórias)</CardTitle>
+          <p className="text-xs text-muted-foreground">Dados usados na emissão das promissórias</p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div>
+            <Label className="text-xs">Nome Completo</Label>
+            <Input
+              value={config.credor?.nome || ''}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '' }), nome: e.target.value } })}
+              placeholder="Nome do credor"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">CPF/CNPJ</Label>
+            <Input
+              value={config.credor?.cpfCnpj || ''}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '' }), cpfCnpj: e.target.value } })}
+              placeholder="000.000.000-00"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm">Taxa de Juros Mensal (%)</CardTitle>
         </CardHeader>
         <CardContent>

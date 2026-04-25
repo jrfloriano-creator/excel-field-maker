@@ -11,14 +11,16 @@ import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { FuncionariosManager } from '@/components/FuncionariosManager';
 import { ProprietariosManager } from '@/components/ProprietariosManager';
+import { BackupPanel } from '@/components/BackupPanel';
 
 interface ConfigPanelProps {
   config: AppConfig;
   onUpdate: (data: Partial<AppConfig>) => void;
   titulos?: Titulo[];
+  onImportTitulos?: (titulos: Titulo[]) => void;
 }
 
-export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps) {
+export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
 

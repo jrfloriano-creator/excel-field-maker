@@ -103,7 +103,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
             <Label className="text-xs">Nome Completo</Label>
             <Input
               value={config.credor?.nome || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '' }), nome: e.target.value } })}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), nome: e.target.value } })}
               placeholder="Nome do credor"
             />
           </div>
@@ -111,8 +111,16 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
             <Label className="text-xs">CPF/CNPJ</Label>
             <Input
               value={config.credor?.cpfCnpj || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '' }), cpfCnpj: e.target.value } })}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cpfCnpj: e.target.value } })}
               placeholder="000.000.000-00"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Cidade/Estado (Pagável em)</Label>
+            <Input
+              value={config.credor?.cidadeEstado || ''}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cidadeEstado: e.target.value } })}
+              placeholder="Ex: São Paulo/SP"
             />
           </div>
         </CardContent>

@@ -32,6 +32,25 @@ export function dateToLong(d: Date): string {
   return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
+const numerosExtenso = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez',
+  'onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove','vinte',
+  'vinte e um','vinte e dois','vinte e três','vinte e quatro','vinte e cinco','vinte e seis',
+  'vinte e sete','vinte e oito','vinte e nove','trinta','trinta e um'];
+
+function anoExtenso(ano: number): string {
+  // Ex: 2025 -> "dois mil e vinte e cinco"
+  const milhar = Math.floor(ano / 1000);
+  const resto = ano % 1000;
+  const milhares = milhar === 1 ? 'mil' : `${tresDigitos(milhar)} mil`;
+  if (resto === 0) return milhares;
+  return `${milhares} e ${tresDigitos(resto)}`;
+}
+
+export function dateToLongExtenso(d: Date): string {
+  const dia = numerosExtenso[d.getDate()] || String(d.getDate());
+  return `${dia} de ${meses[d.getMonth()]} de ${anoExtenso(d.getFullYear())}`;
+}
+
 export function formatBRL(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }

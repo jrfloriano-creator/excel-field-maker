@@ -294,8 +294,8 @@ const Index = () => {
             onUpdate={(clientes) => updateConfig({ clientes })}
           />
         )}
-        {tab === 'promissoria' && <PromissoriaTab config={config} />}
-        {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />}
+        {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => novos.forEach(n => addTitulo(n))} />}
+        {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30">

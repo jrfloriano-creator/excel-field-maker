@@ -19,7 +19,7 @@ import { Titulo, Proprietario } from '@/types/titulo';
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'config';
 
 const Index = () => {
-  const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
+  const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo, replaceTitulos } = useTitulos();
   const [tab, setTab] = useState<Tab>('lista');
   const [showForm, setShowForm] = useState(false);
   const [editingTitulo, setEditingTitulo] = useState<Titulo | null>(null);
@@ -294,8 +294,8 @@ const Index = () => {
             onUpdate={(clientes) => updateConfig({ clientes })}
           />
         )}
-        {tab === 'promissoria' && <PromissoriaTab config={config} />}
-        {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} />}
+        {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => novos.forEach(n => addTitulo(n))} />}
+        {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30">

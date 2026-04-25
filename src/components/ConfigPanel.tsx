@@ -11,14 +11,16 @@ import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { FuncionariosManager } from '@/components/FuncionariosManager';
 import { ProprietariosManager } from '@/components/ProprietariosManager';
+import { BackupPanel } from '@/components/BackupPanel';
 
 interface ConfigPanelProps {
   config: AppConfig;
   onUpdate: (data: Partial<AppConfig>) => void;
   titulos?: Titulo[];
+  onImportTitulos?: (titulos: Titulo[]) => void;
 }
 
-export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps) {
+export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
 
@@ -103,7 +105,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
             <Label className="text-xs">Nome Completo</Label>
             <Input
               value={config.credor?.nome || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '' }), nome: e.target.value } })}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), nome: e.target.value } })}
               placeholder="Nome do credor"
             />
           </div>
@@ -111,8 +113,16 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
             <Label className="text-xs">CPF/CNPJ</Label>
             <Input
               value={config.credor?.cpfCnpj || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '' }), cpfCnpj: e.target.value } })}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cpfCnpj: e.target.value } })}
               placeholder="000.000.000-00"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Cidade/Estado (Pagável em)</Label>
+            <Input
+              value={config.credor?.cidadeEstado || ''}
+              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cidadeEstado: e.target.value } })}
+              placeholder="Ex: São Paulo/SP"
             />
           </div>
         </CardContent>
@@ -215,6 +225,13 @@ export function ConfigPanel({ config, onUpdate, titulos = [] }: ConfigPanelProps
           )}
         </CardContent>
       </Card>
+
+      <BackupPanel
+        titulos={titulos}
+        config={config}
+        onImportTitulos={(t) => onImportTitulos?.(t)}
+        onImportConfig={(patch) => onUpdate(patch)}
+      />
 
       <Card>
         <CardContent className="p-4">

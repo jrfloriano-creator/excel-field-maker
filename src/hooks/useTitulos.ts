@@ -35,11 +35,16 @@ export function useTitulos() {
     saveTitulos(updated);
   };
 
+  const replaceTitulos = (novos: Titulo[]) => {
+    setTitulos(novos);
+    saveTitulos(novos);
+  };
+
   const updateConfig = (data: Partial<AppConfig>) => {
     const updated = { ...config, ...data };
     setConfigState(updated);
     saveConfig(updated);
   };
 
-  return { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo };
+  return { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo, replaceTitulos };
 }

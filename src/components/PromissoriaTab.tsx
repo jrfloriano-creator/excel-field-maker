@@ -1,44 +1,52 @@
-import { useMemo, useState } from 'react';
-import { AppConfig, Cliente } from '@/types/titulo';
+import { useEffect, useMemo, useState } from 'react';
+import { AppConfig, Cliente, Titulo } from '@/types/titulo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileDown, Printer } from 'lucide-react';
+import { FileDown, Printer, DatabaseBackup } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularNotas, formatBRL, gerarPromissoriaPDF, dateToLong } from '@/lib/promissoria';
 
 interface Props {
   config: AppConfig;
+  onAddTitulos?: (titulos: Omit<Titulo, 'id' | 'numero'>[]) => void;
 }
 
-export function PromissoriaTab({ config }: Props) {
-  const [quantidade, setQuantidade] = useState(1);
+export function PromissoriaTab({ config, onAddTitulos }: Props) {
+  const [quantidade, setQuantidade] = useState<string>('');
   const [cidadeEstado, setCidadeEstado] = useState('');
   const [primeiroVencimento, setPrimeiroVencimento] = useState('');
   const [valorTotal, setValorTotal] = useState('');
   const [clienteId, setClienteId] = useState('');
+
+  const credor = config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' };
+
+  // Preenche cidade/estado a partir do credor (uma vez)
+  useEffect(() => {
+    if (!cidadeEstado && credor.cidadeEstado) setCidadeEstado(credor.cidadeEstado);
+  }, [credor.cidadeEstado, cidadeEstado]);
 
   const devedor: Cliente | undefined = useMemo(
     () => config.clientes.find(c => c.id === clienteId),
     [config.clientes, clienteId]
   );
 
-  const credor = config.credor || { nome: '', cpfCnpj: '' };
   const valorNum = parseFloat(valorTotal.replace(',', '.')) || 0;
+  const qtdNum = parseInt(quantidade) || 0;
 
   const notas = useMemo(() => {
-    if (!devedor || !primeiroVencimento || valorNum <= 0 || quantidade < 1) return [];
+    if (!devedor || !primeiroVencimento || valorNum <= 0 || qtdNum < 1) return [];
     return calcularNotas({
-      quantidade,
+      quantidade: qtdNum,
       cidadeEstado,
       primeiroVencimento,
       valorTotal: valorNum,
       credor,
       devedor,
     });
-  }, [quantidade, cidadeEstado, primeiroVencimento, valorNum, credor, devedor]);
+  }, [qtdNum, cidadeEstado, primeiroVencimento, valorNum, credor, devedor]);
 
   const validar = (): boolean => {
     if (!devedor) { toast.error('Selecione o devedor (cliente)'); return false; }
@@ -46,14 +54,14 @@ export function PromissoriaTab({ config }: Props) {
     if (!cidadeEstado) { toast.error('Informe Cidade/Estado'); return false; }
     if (!primeiroVencimento) { toast.error('Informe a data do 1º vencimento'); return false; }
     if (valorNum <= 0) { toast.error('Informe o valor total'); return false; }
-    if (quantidade < 1) { toast.error('Quantidade inválida'); return false; }
+    if (qtdNum < 1) { toast.error('Quantidade inválida'); return false; }
     return true;
   };
 
   const handlePDF = () => {
     if (!validar() || !devedor) return;
     const pdf = gerarPromissoriaPDF(
-      { quantidade, cidadeEstado, primeiroVencimento, valorTotal: valorNum, credor, devedor },
+      { quantidade: qtdNum, cidadeEstado, primeiroVencimento, valorTotal: valorNum, credor, devedor },
       notas
     );
     pdf.save(`promissorias-${devedor.nome.replace(/\s+/g, '_')}.pdf`);
@@ -63,7 +71,7 @@ export function PromissoriaTab({ config }: Props) {
   const handleImprimir = () => {
     if (!validar() || !devedor) return;
     const pdf = gerarPromissoriaPDF(
-      { quantidade, cidadeEstado, primeiroVencimento, valorTotal: valorNum, credor, devedor },
+      { quantidade: qtdNum, cidadeEstado, primeiroVencimento, valorTotal: valorNum, credor, devedor },
       notas
     );
     const blobUrl = pdf.output('bloburl');
@@ -73,6 +81,24 @@ export function PromissoriaTab({ config }: Props) {
     } else {
       toast.error('Bloqueado pelo navegador. Permita popups.');
     }
+  };
+
+  const handleSalvarComoTitulos = () => {
+    if (!validar() || !devedor || !onAddTitulos) return;
+    const hoje = new Date().toISOString().split('T')[0];
+    const proprietarioPadrao = config.proprietarios[0]?.id || '';
+    const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
+      tipo: `Promissória ${n.numero}`,
+      cliente: devedor.nome,
+      clienteId: devedor.id,
+      telefone: devedor.telefone || '',
+      dataEmissao: hoje,
+      vencimento: n.vencimento.toISOString().split('T')[0],
+      valor: n.valor,
+      proprietario: proprietarioPadrao,
+    }));
+    onAddTitulos(novos);
+    toast.success(`${novos.length} título(s) adicionado(s) ao banco`);
   };
 
   return (
@@ -96,10 +122,12 @@ export function PromissoriaTab({ config }: Props) {
             <Label className="text-xs">Quantidade de Notas Promissórias</Label>
             <Input
               type="number"
+              inputMode="numeric"
               min={1}
               max={60}
               value={quantidade}
-              onChange={e => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+              placeholder="Digite a quantidade"
+              onChange={e => setQuantidade(e.target.value.replace(/[^0-9]/g, ''))}
             />
           </div>
           <div>
@@ -128,9 +156,9 @@ export function PromissoriaTab({ config }: Props) {
               onChange={e => setValorTotal(e.target.value)}
               placeholder="0,00"
             />
-            {quantidade > 0 && valorNum > 0 && (
+            {qtdNum > 0 && valorNum > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {quantidade}x de aprox. {formatBRL(valorNum / quantidade)}
+                {qtdNum}x de aprox. {formatBRL(valorNum / qtdNum)}
               </p>
             )}
           </div>
@@ -159,7 +187,7 @@ export function PromissoriaTab({ config }: Props) {
             <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
               <p>📱 {devedor.telefone || '—'}</p>
               <p>🪪 CPF/CNPJ: {devedor.cpfCnpj || '— (cadastre no cliente)'}</p>
-              <p>📍 {[devedor.logradouro, devedor.numero, devedor.bairro, devedor.cidade && `${devedor.cidade}/${devedor.estado}`].filter(Boolean).join(', ') || '—'}</p>
+              <p>📍 {[devedor.logradouro, devedor.numero, devedor.bairro, devedor.cidade && `${devedor.cidade}/${devedor.estado}`, devedor.cep && `CEP ${devedor.cep}`].filter(Boolean).join(', ') || '—'}</p>
             </div>
           )}
         </CardContent>
@@ -172,6 +200,7 @@ export function PromissoriaTab({ config }: Props) {
         <CardContent className="text-xs space-y-1">
           <p><strong>Nome:</strong> {credor.nome || '— (configure)'}</p>
           <p><strong>CPF/CNPJ:</strong> {credor.cpfCnpj || '— (configure)'}</p>
+          <p><strong>Cidade/Estado:</strong> {credor.cidadeEstado || '— (configure)'}</p>
         </CardContent>
       </Card>
 
@@ -202,6 +231,15 @@ export function PromissoriaTab({ config }: Props) {
           <Printer className="h-4 w-4 mr-1" /> Imprimir
         </Button>
       </div>
+
+      <Button
+        variant="secondary"
+        className="w-full"
+        onClick={handleSalvarComoTitulos}
+        disabled={notas.length === 0}
+      >
+        <DatabaseBackup className="h-4 w-4 mr-1" /> Salvar como Títulos no Banco de Dados
+      </Button>
     </div>
   );
 }

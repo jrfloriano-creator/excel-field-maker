@@ -25,6 +25,7 @@ export interface Cliente {
 export interface CredorConfig {
   nome: string;
   cpfCnpj: string;
+  cidadeEstado?: string;
 }
 
 export interface Titulo {

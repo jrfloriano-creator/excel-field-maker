@@ -126,7 +126,7 @@ export function calcularNotas(data: PromissoriaData): NotaCalculada[] {
       numero: `${i + 1}/${quantidade}`,
       vencimento: venc,
       valor,
-      vencimentoLongo: dateToLong(venc),
+      vencimentoLongo: dateToLongExtenso(venc),
       valorExtenso: valorPorExtenso(valor),
     });
   }

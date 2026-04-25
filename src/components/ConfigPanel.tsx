@@ -226,6 +226,13 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
         </CardContent>
       </Card>
 
+      <BackupPanel
+        titulos={titulos}
+        config={config}
+        onImportTitulos={(t) => onImportTitulos?.(t)}
+        onImportConfig={(patch) => onUpdate(patch)}
+      />
+
       <Card>
         <CardContent className="p-4">
           <p className="text-sm font-medium">🔐 Senha de Segurança</p>

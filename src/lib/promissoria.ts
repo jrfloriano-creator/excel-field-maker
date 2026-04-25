@@ -326,23 +326,30 @@ function desenharNota(
   pdf.text(data.devedor.cpfCnpj || '', bx + 18, cy);
   dotted(pdf, bx + 18, cy + 0.8, bx + bw);
 
-  // Linha 9: ENDEREÇO {endereço completo}
+  // Linha 9: ENDEREÇO  {endereço completo + CEP}
   cy += 6;
   pdf.setFont('helvetica', 'bold');
   pdf.text('ENDEREÇO', bx, cy);
   pdf.setFont('helvetica', 'italic');
-  const enderecoCompleto = [
+  const enderecoPartes = [
     data.devedor.logradouro,
     data.devedor.numero,
     data.devedor.bairro,
-    data.devedor.cidade && data.devedor.estado ? `${data.devedor.cidade}/${data.devedor.estado}` : ''
-  ].filter(Boolean).join(', ');
-  pdf.text(enderecoCompleto, bx + 20, cy);
-  dotted(pdf, bx + 20, cy + 0.8, bx + bw);
+    data.devedor.cidade && data.devedor.estado ? `${data.devedor.cidade}/${data.devedor.estado}` : '',
+    data.devedor.cep ? `CEP ${data.devedor.cep}` : '',
+  ].filter(Boolean);
+  const enderecoCompleto = enderecoPartes.join(', ');
+  // espaço entre o rótulo e o conteúdo (rótulo ~22mm, valor começa em +26)
+  const endX = bx + 26;
+  pdf.text(enderecoCompleto, endX, cy);
+  dotted(pdf, endX, cy + 0.8, bx + bw);
 
-  // Linha 10: ASS. DO EMITENTE (alinhado à esquerda)
-  cy += 6;
+  // Pula 3 linhas e coloca a assinatura na última linha, alinhada à esquerda
+  cy += 6 * 3;
+  // garante que ficamos dentro da nota
+  if (cy > y + h - 4) cy = y + h - 4;
   pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
   pdf.text('ASS. DO EMITENTE', bx, cy);
   dotted(pdf, bx + 32, cy + 0.8, bx + 110);
 }

@@ -19,7 +19,7 @@ import { Titulo, Proprietario } from '@/types/titulo';
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'config';
 
 const Index = () => {
-  const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo } = useTitulos();
+  const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo, replaceTitulos } = useTitulos();
   const [tab, setTab] = useState<Tab>('lista');
   const [showForm, setShowForm] = useState(false);
   const [editingTitulo, setEditingTitulo] = useState<Titulo | null>(null);

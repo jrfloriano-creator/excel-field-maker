@@ -247,6 +247,8 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
         onImportConfig={(patch) => onUpdate(patch)}
       />
 
+      <EmailPanel config={config} titulos={titulos} onUpdate={onUpdate} />
+
       <Card>
         <CardContent className="p-4">
           <p className="text-sm font-medium">🔐 Senha de Segurança</p>

@@ -23,6 +23,19 @@ export function useTitulos() {
     return novo;
   };
 
+  const addTitulos = (lista: Omit<Titulo, 'id' | 'numero'>[]) => {
+    let prox = getNextNumero(titulos);
+    const novos: Titulo[] = lista.map(d => ({
+      ...d,
+      id: generateId(),
+      numero: prox++,
+    }));
+    const updated = [...titulos, ...novos];
+    setTitulos(updated);
+    saveTitulos(updated);
+    return novos;
+  };
+
   const updateTitulo = (id: string, data: Partial<Titulo>) => {
     const updated = titulos.map(t => t.id === id ? { ...t, ...data } : t);
     setTitulos(updated);
@@ -46,5 +59,5 @@ export function useTitulos() {
     saveConfig(updated);
   };
 
-  return { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo, replaceTitulos };
+  return { titulos, config, updateConfig, addTitulo, addTitulos, updateTitulo, deleteTitulo, replaceTitulos };
 }

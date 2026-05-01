@@ -12,6 +12,7 @@ import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { FuncionariosManager } from '@/components/FuncionariosManager';
 import { ProprietariosManager } from '@/components/ProprietariosManager';
 import { BackupPanel } from '@/components/BackupPanel';
+import { EmailPanel } from '@/components/EmailPanel';
 
 interface ConfigPanelProps {
   config: AppConfig;

@@ -19,7 +19,7 @@ interface Props {
 }
 
 const empty: Omit<Cliente, 'id'> = {
-  nome: '', telefone: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
+  nome: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
 };
 
 export function ClientesManager({ clientes, onUpdate }: Props) {
@@ -128,6 +128,25 @@ export function ClientesManager({ clientes, onUpdate }: Props) {
                 onChange={e => setData({ ...data, telefone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
                 placeholder="11999999999"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">E-mail</Label>
+                <Input
+                  type="email"
+                  value={data.email || ''}
+                  onChange={e => setData({ ...data, email: e.target.value })}
+                  placeholder="cliente@email.com"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Aniversário</Label>
+                <Input
+                  type="date"
+                  value={data.dataNascimento || ''}
+                  onChange={e => setData({ ...data, dataNascimento: e.target.value })}
+                />
+              </div>
             </div>
             <div>
               <Label className="text-xs">CPF/CNPJ</Label>

@@ -161,6 +161,19 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
       </Card>
 
       <Card>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-sm">🤖 Avatar de Ajuda</p>
+            <p className="text-xs text-muted-foreground">Mascote com dicas em cada aba</p>
+          </div>
+          <Switch
+            checked={config.avatarAjudaAtivo ?? true}
+            onCheckedChange={(checked) => onUpdate({ avatarAjudaAtivo: checked })}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">📱 Telefones para Alerta Diário</CardTitle>
           <p className="text-xs text-muted-foreground">Receba alertas de boletos a vencer no dia seguinte</p>

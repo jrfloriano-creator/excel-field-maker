@@ -13,6 +13,8 @@ export interface Cliente {
   id: string;
   nome: string;
   telefone: string;
+  email?: string;
+  dataNascimento?: string; // ISO date YYYY-MM-DD
   cpfCnpj?: string;
   cep: string;
   logradouro: string;
@@ -81,4 +83,6 @@ export interface AppConfig {
   proprietarios: ProprietarioConfig[];
   clientes: Cliente[];
   credor?: CredorConfig;
+  textoCobrancaEmail?: string;
+  avatarAjudaAtivo?: boolean;
 }

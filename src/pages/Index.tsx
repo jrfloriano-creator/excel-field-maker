@@ -11,6 +11,7 @@ import { PinDialog } from '@/components/PinDialog';
 import { Relatorios } from '@/components/Relatorios';
 import { ClientesManager } from '@/components/ClientesManager';
 import { PromissoriaTab } from '@/components/PromissoriaTab';
+import { AvatarAjuda } from '@/components/AvatarAjuda';
 import { Button } from '@/components/ui/button';
 import { Plus, BarChart3, List, Settings2, FileText, Users, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,7 +20,7 @@ import { Titulo, Proprietario } from '@/types/titulo';
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'config';
 
 const Index = () => {
-  const { titulos, config, updateConfig, addTitulo, updateTitulo, deleteTitulo, replaceTitulos } = useTitulos();
+  const { titulos, config, updateConfig, addTitulo, addTitulos, updateTitulo, deleteTitulo, replaceTitulos } = useTitulos();
   const [tab, setTab] = useState<Tab>('lista');
   const [showForm, setShowForm] = useState(false);
   const [editingTitulo, setEditingTitulo] = useState<Titulo | null>(null);
@@ -294,7 +295,7 @@ const Index = () => {
             onUpdate={(clientes) => updateConfig({ clientes })}
           />
         )}
-        {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => novos.forEach(n => addTitulo(n))} />}
+        {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
         {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} />}
       </main>
 
@@ -321,6 +322,8 @@ const Index = () => {
           ))}
         </div>
       </nav>
+
+      <AvatarAjuda ativo={config.avatarAjudaAtivo ?? true} tab={tab} />
 
       {showPin && (
         <PinDialog

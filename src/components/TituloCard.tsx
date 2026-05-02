@@ -112,7 +112,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
             <a
               href={getWhatsAppLink(
                 titulo.telefone,
-                titulo.cliente,
+                nomeWhats,
                 titulo.valorCorrigido,
                 titulo.vencimento,
                 selectedPix && selectedPixId !== 'none' ? selectedPix : undefined

@@ -19,7 +19,7 @@ interface Props {
 }
 
 const empty: Omit<Cliente, 'id'> = {
-  nome: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
+  nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
 };
 
 export function ClientesManager({ clientes, onUpdate }: Props) {

@@ -231,35 +231,116 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtrados.map(c => (
-            <Card key={c.id}>
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{c.nome}</p>
-                    {c.telefone && <p className="text-xs text-muted-foreground">📱 {c.telefone}</p>}
-                    {(c.logradouro || c.cidade) && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        📍 {[c.logradouro, c.numero].filter(Boolean).join(', ')}
-                        {c.bairro ? ` - ${c.bairro}` : ''}
-                        {c.cidade ? `, ${c.cidade}` : ''}{c.estado ? `/${c.estado}` : ''}
-                      </p>
-                    )}
+          {filtrados.map(c => {
+            const titulosDoCliente = titulos.filter(t => t.clienteId === c.id);
+            const enviarRelacao = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              if (!c.telefone) { toast.error('Cliente sem telefone'); return; }
+              if (titulosDoCliente.length === 0) { toast.info('Nenhum título cadastrado para este cliente'); return; }
+              const apelido = (c.apelido && c.apelido.trim()) || c.nome;
+              const ordenados = [...titulosDoCliente].sort(
+                (a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime()
+              );
+              const linhas = ordenados.map((t, i) => {
+                const status = t.dataPagamento ? '✅ PAGO' : 'EM ABERTO';
+                return `${i + 1}. ${t.tipo} | Emissão: ${formatDate(t.dataEmissao)} | Venc.: ${formatDate(t.vencimento)} | Valor: ${formatCurrency(t.valor)} | ${status}`;
+              }).join('\n');
+              const msg = `Conforme solicitado ${apelido}, segue a relação de suas parcelas:\n\n${linhas}`;
+              const digits = c.telefone.replace(/\D/g, '');
+              const link = `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
+              window.open(link, '_blank');
+            };
+            return (
+              <Card
+                key={c.id}
+                className="cursor-pointer hover:bg-accent/30 transition-colors"
+                onClick={() => setViewing(c)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{c.nome}</p>
+                      {c.apelido && <p className="text-xs text-muted-foreground italic">"{c.apelido}"</p>}
+                      {c.telefone && <p className="text-xs text-muted-foreground">📱 {c.telefone}</p>}
+                      {(c.logradouro || c.cidade) && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          📍 {[c.logradouro, c.numero].filter(Boolean).join(', ')}
+                          {c.bairro ? ` - ${c.bairro}` : ''}
+                          {c.cidade ? `, ${c.cidade}` : ''}{c.estado ? `/${c.estado}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-7 text-[10px] px-2"
+                        onClick={enviarRelacao}
+                        title="Enviar títulos em aberto via WhatsApp"
+                      >
+                        <MessageCircle className="h-3 w-3 mr-1" />
+                        Enviar títulos
+                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => open(c)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemove(c.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => open(c)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemove(c.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{viewing?.nome}</DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-2 text-sm">
+              {viewing.apelido && <p><strong>Apelido:</strong> {viewing.apelido}</p>}
+              {viewing.telefone && <p><strong>Telefone:</strong> {viewing.telefone}</p>}
+              {viewing.email && <p><strong>E-mail:</strong> {viewing.email}</p>}
+              {viewing.dataNascimento && <p><strong>Aniversário:</strong> {formatDate(viewing.dataNascimento)}</p>}
+              {viewing.cpfCnpj && <p><strong>CPF/CNPJ:</strong> {viewing.cpfCnpj}</p>}
+              {(viewing.logradouro || viewing.cidade) && (
+                <p>
+                  <strong>Endereço:</strong>{' '}
+                  {[viewing.logradouro, viewing.numero, viewing.bairro,
+                    viewing.cidade && viewing.estado ? `${viewing.cidade}/${viewing.estado}` : '',
+                    viewing.cep ? `CEP ${viewing.cep}` : ''
+                  ].filter(Boolean).join(', ')}
+                </p>
+              )}
+              <div className="pt-2">
+                <p className="font-semibold">Títulos ({titulos.filter(t => t.clienteId === viewing.id).length})</p>
+                <div className="space-y-1 max-h-48 overflow-y-auto mt-1">
+                  {titulos
+                    .filter(t => t.clienteId === viewing.id)
+                    .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime())
+                    .map(t => (
+                      <div key={t.id} className="text-xs border border-border rounded p-1.5">
+                        <div className="flex justify-between">
+                          <span>{t.tipo}</span>
+                          <span className="font-semibold">{formatCurrency(t.valor)}</span>
+                        </div>
+                        <p className="text-muted-foreground">
+                          Venc.: {formatDate(t.vencimento)} {t.dataPagamento ? '— ✅ PAGO' : '— EM ABERTO'}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

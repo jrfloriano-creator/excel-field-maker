@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, Send } from 'lucide-react';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { openGmailCompose } from '@/lib/email';

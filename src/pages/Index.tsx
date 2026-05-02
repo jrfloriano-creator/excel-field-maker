@@ -265,6 +265,7 @@ const Index = () => {
                     onEdit={handleEdit}
                     chavesPix={config.chavesPix}
                     proprietarios={config.proprietarios}
+                    clientes={config.clientes}
                   />
                 ))}
               </div>

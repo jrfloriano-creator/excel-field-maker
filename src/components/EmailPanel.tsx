@@ -124,6 +124,32 @@ export function EmailPanel({ config, titulos, onUpdate }: Props) {
         </CardHeader>
         <CardContent className="space-y-2">
           <div>
+            <Label className="text-xs">Selecionar cliente cadastrado (opcional)</Label>
+            <Select
+              value=""
+              onValueChange={(id) => {
+                const c = config.clientes.find(x => x.id === id);
+                if (c?.email) setEmailLivreTo(c.email);
+                else if (c) toast.error(`${c.nome} não tem e-mail cadastrado`);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha um cliente..." />
+              </SelectTrigger>
+              <SelectContent>
+                {config.clientes.length === 0 ? (
+                  <div className="p-2 text-xs text-muted-foreground">Nenhum cliente cadastrado</div>
+                ) : (
+                  config.clientes.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome} {c.email ? `— ${c.email}` : '(sem e-mail)'}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label className="text-xs">Para</Label>
             <Input
               type="email"

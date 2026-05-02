@@ -27,11 +27,18 @@ interface TituloFormProps {
 
 export function TituloForm({ onSubmit, onClose, editData, clientes, proprietarios }: TituloFormProps) {
   const today = new Date().toISOString().split('T')[0];
+  const addDaysISO = (iso: string, days: number) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + days);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  };
   const [tipo, setTipo] = useState('PROMISSÓRIA');
   const [clienteId, setClienteId] = useState<string>('');
   const [telefone, setTelefone] = useState('');
   const [dataEmissao, setDataEmissao] = useState(today);
-  const [vencimento, setVencimento] = useState('');
+  const [vencimento, setVencimento] = useState(addDaysISO(today, 30));
+  const [vencimentoTocado, setVencimentoTocado] = useState(false);
   const [valor, setValor] = useState('');
   const [proprietario, setProprietario] = useState<Proprietario>('');
 
@@ -42,10 +49,19 @@ export function TituloForm({ onSubmit, onClose, editData, clientes, proprietario
       setTelefone(editData.telefone);
       setDataEmissao(editData.dataEmissao || today);
       setVencimento(editData.vencimento);
+      setVencimentoTocado(true);
       setValor(editData.valor.toString());
       setProprietario(editData.proprietario || '');
     }
   }, [editData]);
+
+  // Auto-atualiza vencimento (+30d) quando emissão muda, exceto se editando ou já editado manualmente
+  useEffect(() => {
+    if (editData) return;
+    if (vencimentoTocado) return;
+    if (!dataEmissao) return;
+    setVencimento(addDaysISO(dataEmissao, 30));
+  }, [dataEmissao, vencimentoTocado, editData]);
 
   // Auto-fill telefone ao selecionar cliente
   useEffect(() => {
@@ -154,7 +170,12 @@ export function TituloForm({ onSubmit, onClose, editData, clientes, proprietario
             </div>
             <div>
               <Label className="text-xs">Vencimento *</Label>
-              <Input type="date" value={vencimento} onChange={e => setVencimento(e.target.value)} required />
+              <Input
+                type="date"
+                value={vencimento}
+                onChange={e => { setVencimento(e.target.value); setVencimentoTocado(true); }}
+                required
+              />
             </div>
           </div>
           <div>

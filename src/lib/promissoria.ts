@@ -174,10 +174,7 @@ function desenharNota(
   w: number,
   h: number,
 ) {
-  // Fundo amarelo claro
-  pdf.setFillColor(255, 247, 200);
-  pdf.rect(x, y, w, h, 'F');
-
+  // Sem fundo (impressão branca)
   // Borda externa
   pdf.setDrawColor(120);
   pdf.setLineWidth(0.4);

@@ -62,7 +62,7 @@ export function getWhatsAppLink(phone: string, cliente: string, valor: number, v
   const digits = phone.replace(/\D/g, '');
   let msg = `Olá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
   if (chavePix) {
-    msg += `\n\nChave PIX para pagamento:\n${chavePix.nome}: ${chavePix.chave}`;
+    msg += `\n\nou utilize a Chave PIX a seguir para o pagamento:\n${chavePix.nome}: ${chavePix.chave}`;
   }
   return `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
 }

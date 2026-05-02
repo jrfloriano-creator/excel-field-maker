@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, Send } from 'lucide-react';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { openGmailCompose } from '@/lib/email';
@@ -122,6 +123,32 @@ export function EmailPanel({ config, titulos, onUpdate }: Props) {
           <CardTitle className="text-sm">✉️ Enviar E-mail (Gmail)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          <div>
+            <Label className="text-xs">Selecionar cliente cadastrado (opcional)</Label>
+            <Select
+              value=""
+              onValueChange={(id) => {
+                const c = config.clientes.find(x => x.id === id);
+                if (c?.email) setEmailLivreTo(c.email);
+                else if (c) toast.error(`${c.nome} não tem e-mail cadastrado`);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha um cliente..." />
+              </SelectTrigger>
+              <SelectContent>
+                {config.clientes.length === 0 ? (
+                  <div className="p-2 text-xs text-muted-foreground">Nenhum cliente cadastrado</div>
+                ) : (
+                  config.clientes.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome} {c.email ? `— ${c.email}` : '(sem e-mail)'}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-xs">Para</Label>
             <Input

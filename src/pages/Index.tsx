@@ -27,7 +27,7 @@ const Index = () => {
   const [pagarId, setPagarId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'TODOS' | 'VENCIDO' | 'NO PRAZO' | 'PAGO'>('TODOS');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [dashboardMonth, setDashboardMonth] = useState<string>('');
+  const [dashboardMonth, setDashboardMonth] = useState<string | null>(null);
   const [showPin, setShowPin] = useState<{ mode: 'setup' | 'verify'; action: string } | null>(null);
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -54,7 +54,7 @@ const Index = () => {
     const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const defaultKey = monthKeys.includes(currentKey) ? currentKey : monthKeys[0];
     if (!selectedMonth) setSelectedMonth(defaultKey);
-    if (!dashboardMonth) setDashboardMonth(defaultKey);
+    if (dashboardMonth === null) setDashboardMonth(defaultKey);
   }, [monthKeys, selectedMonth, dashboardMonth]);
 
   const titulosByMonth = selectedMonth
@@ -265,6 +265,7 @@ const Index = () => {
                     onEdit={handleEdit}
                     chavesPix={config.chavesPix}
                     proprietarios={config.proprietarios}
+                    clientes={config.clientes}
                   />
                 ))}
               </div>
@@ -293,6 +294,7 @@ const Index = () => {
           <ClientesManager
             clientes={config.clientes}
             onUpdate={(clientes) => updateConfig({ clientes })}
+            titulos={titulos}
           />
         )}
         {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => addTitulos(novos)} />}

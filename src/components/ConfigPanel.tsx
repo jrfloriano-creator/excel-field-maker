@@ -135,11 +135,15 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
         </CardHeader>
         <CardContent>
           <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={(config.taxa * 100).toFixed(1)}
-            onChange={e => onUpdate({ taxa: parseFloat(e.target.value) / 100 })}
+            type="text"
+            inputMode="decimal"
+            value={config.taxa === 0 ? '' : String(config.taxa * 100)}
+            placeholder="Ex: 1.5"
+            onChange={e => {
+              const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+              const num = parseFloat(raw);
+              onUpdate({ taxa: isNaN(num) ? 0 : num / 100 });
+            }}
           />
         </CardContent>
       </Card>
@@ -191,15 +195,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
               <Switch checked={tel.ativo} onCheckedChange={() => handleTelefoneToggle(i)} />
             </div>
           ))}
-          <div className="flex items-center gap-2 mt-2">
-            <Label className="text-xs whitespace-nowrap">⏰ Horário de envio:</Label>
-            <Input
-              type="time"
-              value={config.horarioAlerta || '08:00'}
-              onChange={e => onUpdate({ horarioAlerta: e.target.value })}
-              className="w-28"
-            />
-          </div>
           <Button
             variant="outline"
             size="sm"

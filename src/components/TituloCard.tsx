@@ -1,4 +1,4 @@
-import { TituloComCalculo, ChavePix, ProprietarioConfig } from '@/types/titulo';
+import { TituloComCalculo, ChavePix, ProprietarioConfig, Cliente } from '@/types/titulo';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatCurrency, formatDate, formatPhone, getWhatsAppLink } from '@/lib/calculos';
@@ -15,11 +15,14 @@ interface TituloCardProps {
   onEdit: (id: string) => void;
   chavesPix: ChavePix[];
   proprietarios: ProprietarioConfig[];
+  clientes?: Cliente[];
 }
 
-export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, proprietarios }: TituloCardProps) {
+export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, proprietarios, clientes }: TituloCardProps) {
   const [selectedPixId, setSelectedPixId] = useState<string>('');
   const selectedPix = chavesPix.find(p => p.id === selectedPixId);
+  const clienteRef = clientes?.find(c => c.id === titulo.clienteId);
+  const nomeWhats = (clienteRef?.apelido && clienteRef.apelido.trim()) || titulo.cliente;
 
   const propConfig = proprietarios.find(p => p.id === titulo.proprietario);
   const bgColor = propConfig?.cor || '#e5e7eb';
@@ -109,7 +112,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
             <a
               href={getWhatsAppLink(
                 titulo.telefone,
-                titulo.cliente,
+                nomeWhats,
                 titulo.valorCorrigido,
                 titulo.vencimento,
                 selectedPix && selectedPixId !== 'none' ? selectedPix : undefined
@@ -118,7 +121,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
               rel="noopener noreferrer"
               className="flex-1"
             >
-              <Button variant="outline" size="sm" className="w-full bg-card text-foreground">
+              <Button variant="outline" size="sm" className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive">
                 <MessageCircle className="h-4 w-4" />
                 Cobrar
               </Button>

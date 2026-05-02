@@ -195,15 +195,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
               <Switch checked={tel.ativo} onCheckedChange={() => handleTelefoneToggle(i)} />
             </div>
           ))}
-          <div className="flex items-center gap-2 mt-2">
-            <Label className="text-xs whitespace-nowrap">⏰ Horário de envio:</Label>
-            <Input
-              type="time"
-              value={config.horarioAlerta || '08:00'}
-              onChange={e => onUpdate({ horarioAlerta: e.target.value })}
-              className="w-28"
-            />
-          </div>
           <Button
             variant="outline"
             size="sm"

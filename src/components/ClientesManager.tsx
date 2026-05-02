@@ -121,6 +121,14 @@ export function ClientesManager({ clientes, onUpdate }: Props) {
               <Input value={data.nome} onChange={e => setData({ ...data, nome: e.target.value })} placeholder="Nome completo" />
             </div>
             <div>
+              <Label className="text-xs">Apelido</Label>
+              <Input
+                value={data.apelido || ''}
+                onChange={e => setData({ ...data, apelido: e.target.value })}
+                placeholder="Como o cliente é chamado (usado no WhatsApp)"
+              />
+            </div>
+            <div>
               <Label className="text-xs">Contato (Celular)</Label>
               <Input
                 type="tel"

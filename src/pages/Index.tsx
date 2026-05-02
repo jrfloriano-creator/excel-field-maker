@@ -27,7 +27,7 @@ const Index = () => {
   const [pagarId, setPagarId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'TODOS' | 'VENCIDO' | 'NO PRAZO' | 'PAGO'>('TODOS');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [dashboardMonth, setDashboardMonth] = useState<string>('');
+  const [dashboardMonth, setDashboardMonth] = useState<string | null>(null);
   const [showPin, setShowPin] = useState<{ mode: 'setup' | 'verify'; action: string } | null>(null);
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);

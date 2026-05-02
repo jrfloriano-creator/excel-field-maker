@@ -223,6 +223,14 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
         </Card>
       )}
 
+      <Button
+        className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+        onClick={handleSalvarComoTitulos}
+        disabled={notas.length === 0}
+      >
+        <DatabaseBackup className="h-4 w-4 mr-1" /> Salvar como Títulos no Banco de Dados
+      </Button>
+
       <div className="grid grid-cols-2 gap-2">
         <Button variant="outline" onClick={handlePDF}>
           <FileDown className="h-4 w-4 mr-1" /> Criar PDF
@@ -231,15 +239,6 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
           <Printer className="h-4 w-4 mr-1" /> Imprimir
         </Button>
       </div>
-
-      <Button
-        variant="secondary"
-        className="w-full"
-        onClick={handleSalvarComoTitulos}
-        disabled={notas.length === 0}
-      >
-        <DatabaseBackup className="h-4 w-4 mr-1" /> Salvar como Títulos no Banco de Dados
-      </Button>
     </div>
   );
 }

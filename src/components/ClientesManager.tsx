@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Cliente } from '@/types/titulo';
+import { Cliente, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Pencil, X, Search, UserPlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Trash2, Pencil, X, Search, UserPlus, MessageCircle } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
+import { formatCurrency, formatDate } from '@/lib/calculos';
 
 const ESTADOS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
@@ -16,13 +18,15 @@ const ESTADOS = [
 interface Props {
   clientes: Cliente[];
   onUpdate: (clientes: Cliente[]) => void;
+  titulos?: Titulo[];
 }
 
 const empty: Omit<Cliente, 'id'> = {
   nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
 };
 
-export function ClientesManager({ clientes, onUpdate }: Props) {
+export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
+  const [viewing, setViewing] = useState<Cliente | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [data, setData] = useState<Omit<Cliente, 'id'>>(empty);

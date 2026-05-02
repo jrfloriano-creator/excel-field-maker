@@ -12,6 +12,7 @@ export interface ProprietarioConfig {
 export interface Cliente {
   id: string;
   nome: string;
+  apelido?: string;
   telefone: string;
   email?: string;
   dataNascimento?: string; // ISO date YYYY-MM-DD

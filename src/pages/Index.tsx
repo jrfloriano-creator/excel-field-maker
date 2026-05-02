@@ -294,6 +294,7 @@ const Index = () => {
           <ClientesManager
             clientes={config.clientes}
             onUpdate={(clientes) => updateConfig({ clientes })}
+            titulos={titulos}
           />
         )}
         {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => addTitulos(novos)} />}

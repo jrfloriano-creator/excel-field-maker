@@ -54,7 +54,7 @@ const Index = () => {
     const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const defaultKey = monthKeys.includes(currentKey) ? currentKey : monthKeys[0];
     if (!selectedMonth) setSelectedMonth(defaultKey);
-    if (!dashboardMonth) setDashboardMonth(defaultKey);
+    if (dashboardMonth === null) setDashboardMonth(defaultKey);
   }, [monthKeys, selectedMonth, dashboardMonth]);
 
   const titulosByMonth = selectedMonth

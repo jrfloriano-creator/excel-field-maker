@@ -118,7 +118,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
               rel="noopener noreferrer"
               className="flex-1"
             >
-              <Button variant="outline" size="sm" className="w-full bg-card text-foreground">
+              <Button variant="outline" size="sm" className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive">
                 <MessageCircle className="h-4 w-4" />
                 Cobrar
               </Button>

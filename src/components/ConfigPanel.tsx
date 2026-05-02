@@ -135,11 +135,15 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
         </CardHeader>
         <CardContent>
           <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={(config.taxa * 100).toFixed(1)}
-            onChange={e => onUpdate({ taxa: parseFloat(e.target.value) / 100 })}
+            type="text"
+            inputMode="decimal"
+            value={config.taxa === 0 ? '' : String(config.taxa * 100)}
+            placeholder="Ex: 1.5"
+            onChange={e => {
+              const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+              const num = parseFloat(raw);
+              onUpdate({ taxa: isNaN(num) ? 0 : num / 100 });
+            }}
           />
         </CardContent>
       </Card>

@@ -170,7 +170,12 @@ export function TituloForm({ onSubmit, onClose, editData, clientes, proprietario
             </div>
             <div>
               <Label className="text-xs">Vencimento *</Label>
-              <Input type="date" value={vencimento} onChange={e => setVencimento(e.target.value)} required />
+              <Input
+                type="date"
+                value={vencimento}
+                onChange={e => { setVencimento(e.target.value); setVencimentoTocado(true); }}
+                required
+              />
             </div>
           </div>
           <div>

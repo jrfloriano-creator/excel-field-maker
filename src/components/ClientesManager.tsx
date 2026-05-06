@@ -19,6 +19,7 @@ interface Props {
   clientes: Cliente[];
   onUpdate: (clientes: Cliente[]) => void;
   titulos?: Titulo[];
+  requirePin?: (kind: 'edit' | 'delete', id: string) => void;
 }
 
 const empty: Omit<Cliente, 'id'> = {

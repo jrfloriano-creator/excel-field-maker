@@ -266,7 +266,14 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{c.nome}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate">{c.nome}</p>
+                        {incompleto && (
+                          <span className="text-[10px] bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-medium" title={`Faltando: ${camposFaltando.join(', ')}`}>
+                            ⚠ Incompleto
+                          </span>
+                        )}
+                      </div>
                       {c.apelido && <p className="text-xs text-muted-foreground italic">"{c.apelido}"</p>}
                       {c.telefone && <p className="text-xs text-muted-foreground">📱 {c.telefone}</p>}
                       {(c.logradouro || c.cidade) && (

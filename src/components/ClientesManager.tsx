@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Cliente, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,13 +19,14 @@ interface Props {
   clientes: Cliente[];
   onUpdate: (clientes: Cliente[]) => void;
   titulos?: Titulo[];
+  requirePin?: (kind: 'edit' | 'delete', id: string) => void;
 }
 
 const empty: Omit<Cliente, 'id'> = {
   nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
 };
 
-export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
+export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }: Props) {
   const [viewing, setViewing] = useState<Cliente | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
@@ -33,7 +34,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
   const [busca, setBusca] = useState('');
   const [loadingCep, setLoadingCep] = useState(false);
 
-  const open = (c?: Cliente) => {
+  const doOpen = (c?: Cliente) => {
     if (c) {
       setEditing(c);
       setData({ ...c });
@@ -43,6 +44,24 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
     }
     setShowForm(true);
   };
+
+  const open = (c?: Cliente) => {
+    if (c && requirePin) {
+      requirePin('edit', c.id);
+      return;
+    }
+    doOpen(c);
+  };
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      const c = clientes.find(x => x.id === id);
+      if (c) doOpen(c);
+    };
+    window.addEventListener('cliente-edit-unlock', handler);
+    return () => window.removeEventListener('cliente-edit-unlock', handler);
+  }, [clientes]);
 
   const close = () => {
     setShowForm(false);
@@ -93,6 +112,10 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
   };
 
   const handleRemove = (id: string) => {
+    if (requirePin) {
+      requirePin('delete', id);
+      return;
+    }
     onUpdate(clientes.filter(c => c.id !== id));
     toast.success('Cliente removido');
   };
@@ -250,6 +273,13 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
               const link = `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
               window.open(link, '_blank');
             };
+            const camposFaltando: string[] = [];
+            if (!c.telefone) camposFaltando.push('telefone');
+            if (!c.cpfCnpj) camposFaltando.push('CPF/CNPJ');
+            if (!c.cep) camposFaltando.push('CEP');
+            if (!c.logradouro) camposFaltando.push('endereço');
+            if (!c.cidade || !c.estado) camposFaltando.push('cidade/UF');
+            const incompleto = camposFaltando.length > 0;
             return (
               <Card
                 key={c.id}
@@ -259,7 +289,14 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{c.nome}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate">{c.nome}</p>
+                        {incompleto && (
+                          <span className="text-[10px] bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-medium" title={`Faltando: ${camposFaltando.join(', ')}`}>
+                            ⚠ Incompleto
+                          </span>
+                        )}
+                      </div>
                       {c.apelido && <p className="text-xs text-muted-foreground italic">"{c.apelido}"</p>}
                       {c.telefone && <p className="text-xs text-muted-foreground">📱 {c.telefone}</p>}
                       {(c.logradouro || c.cidade) && (

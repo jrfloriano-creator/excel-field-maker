@@ -31,6 +31,8 @@ const Index = () => {
   const [showPin, setShowPin] = useState<{ mode: 'setup' | 'verify'; action: string } | null>(null);
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+  const [pendingClientAction, setPendingClientAction] = useState<null | { kind: 'edit' | 'delete'; id: string }>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', config.darkMode);
@@ -95,11 +97,20 @@ const Index = () => {
     }
   };
 
-  const handleEdit = (id: string) => {
+  const doEdit = (id: string) => {
     const titulo = titulos.find(t => t.id === id);
     if (titulo) {
       setEditingTitulo(titulo);
       setShowForm(true);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    if (config.pin) {
+      setPendingEditId(id);
+      setShowPin({ mode: 'verify', action: 'edit' });
+    } else {
+      doEdit(id);
     }
   };
 
@@ -153,6 +164,18 @@ const Index = () => {
           deleteTitulo(pendingDeleteId);
           setPendingDeleteId(null);
           toast.success('Título removido');
+        } else if (showPin.action === 'edit' && pendingEditId) {
+          doEdit(pendingEditId);
+          setPendingEditId(null);
+        } else if (showPin.action === 'cliente' && pendingClientAction) {
+          if (pendingClientAction.kind === 'delete') {
+            updateConfig({ clientes: config.clientes.filter(c => c.id !== pendingClientAction.id) });
+            toast.success('Cliente removido');
+          } else {
+            // sinaliza desbloqueio para ClientesManager via evento
+            window.dispatchEvent(new CustomEvent('cliente-edit-unlock', { detail: pendingClientAction.id }));
+          }
+          setPendingClientAction(null);
         }
       } else {
         toast.error('Senha incorreta');
@@ -295,6 +318,10 @@ const Index = () => {
             clientes={config.clientes}
             onUpdate={(clientes) => updateConfig({ clientes })}
             titulos={titulos}
+            requirePin={config.pin ? (kind, id) => {
+              setPendingClientAction({ kind, id });
+              setShowPin({ mode: 'verify', action: 'cliente' });
+            } : undefined}
           />
         )}
         {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => addTitulos(novos)} />}

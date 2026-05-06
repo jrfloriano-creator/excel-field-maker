@@ -70,10 +70,15 @@ export function Relatorios({ titulos, config }: Props) {
     .filter(t => t.situacao === 'VENCIDO' && aplicaFiltros(t, t.vencimento))
     .sort((a, b) => a.diasAVencer - b.diasAVencer);
 
+  const noPrazo = calculados
+    .filter(t => t.situacao === 'NO PRAZO' && aplicaFiltros(t, t.vencimento))
+    .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
+
   const totalRecebido = recebidos.reduce((s, t) => s + (t.valorPago || 0), 0);
   const totalAtrasadoOrig = atrasados.reduce((s, t) => s + t.valor, 0);
   const totalAtrasadoJuros = atrasados.reduce((s, t) => s + t.valorJuros, 0);
   const totalAtrasadoCorrigido = atrasados.reduce((s, t) => s + t.valorCorrigido, 0);
+  const totalNoPrazo = noPrazo.reduce((s, t) => s + t.valor, 0);
 
   const ownerName = (id: string) => config.proprietarios.find(p => p.id === id)?.nome || '—';
 
@@ -151,6 +156,24 @@ export function Relatorios({ titulos, config }: Props) {
       ]),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [239, 68, 68] },
+      margin: { left: 14, right: 14 },
+    });
+
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
+    if (cursorY > 250) { doc.addPage(); cursorY = 20; }
+
+    doc.setFontSize(12);
+    doc.text(`Títulos No Prazo (${noPrazo.length}) — Total: ${formatCurrency(totalNoPrazo)}`, 14, cursorY);
+    cursorY += 4;
+    autoTable(doc, {
+      startY: cursorY,
+      head: [['Nº', 'Cliente', 'Tipo', 'Proprietário', 'Vencimento', 'Valor']],
+      body: noPrazo.map(t => [
+        String(t.numero), t.cliente, t.tipo, ownerName(t.proprietario),
+        formatDate(t.vencimento), formatCurrency(t.valor),
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
       margin: { left: 14, right: 14 },
     });
 
@@ -305,6 +328,30 @@ export function Relatorios({ titulos, config }: Props) {
                     {ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}
                   </p>
                 </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">⏳ Títulos No Prazo ({noPrazo.length})</CardTitle>
+          <p className="text-xs text-muted-foreground">Total a receber: <strong>{formatCurrency(totalNoPrazo)}</strong></p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {noPrazo.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum título em aberto</p>
+          ) : (
+            noPrazo.map(t => (
+              <div key={t.id} className="border border-border rounded-md p-3 text-sm">
+                <div className="flex justify-between items-start mb-1">
+                  <p className="font-semibold truncate">{t.cliente}</p>
+                  <p className="font-semibold whitespace-nowrap">{formatCurrency(t.valor)}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {ownerName(t.proprietario)} • {t.tipo} • Nº {t.numero} • Venc: {formatDate(t.vencimento)}
+                </p>
               </div>
             ))
           )}

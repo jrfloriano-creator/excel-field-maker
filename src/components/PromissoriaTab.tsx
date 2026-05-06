@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileDown, Printer, DatabaseBackup } from 'lucide-react';
+import { FileDown, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularNotas, formatBRL, gerarPromissoriaPDF, dateToLong } from '@/lib/promissoria';
 
@@ -48,14 +48,47 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     });
   }, [qtdNum, cidadeEstado, primeiroVencimento, valorNum, credor, devedor]);
 
+  const camposFaltandoDevedor = (c?: Cliente): string[] => {
+    if (!c) return [];
+    const f: string[] = [];
+    if (!c.cpfCnpj) f.push('CPF/CNPJ');
+    if (!c.cep) f.push('CEP');
+    if (!c.logradouro) f.push('endereço');
+    if (!c.cidade || !c.estado) f.push('cidade/UF');
+    return f;
+  };
+
   const validar = (): boolean => {
     if (!devedor) { toast.error('Selecione o devedor (cliente)'); return false; }
+    const faltando = camposFaltandoDevedor(devedor);
+    if (faltando.length > 0) {
+      toast.error(`Cliente com dados faltando: ${faltando.join(', ')}. Complete o cadastro antes.`);
+      return false;
+    }
     if (!credor.nome || !credor.cpfCnpj) { toast.error('Cadastre o credor em Configurações'); return false; }
     if (!cidadeEstado) { toast.error('Informe Cidade/Estado'); return false; }
     if (!primeiroVencimento) { toast.error('Informe a data do 1º vencimento'); return false; }
     if (valorNum <= 0) { toast.error('Informe o valor total'); return false; }
     if (qtdNum < 1) { toast.error('Quantidade inválida'); return false; }
     return true;
+  };
+
+  const salvarComoTitulos = () => {
+    if (!devedor || !onAddTitulos) return;
+    const hoje = new Date().toISOString().split('T')[0];
+    const proprietarioPadrao = config.proprietarios[0]?.id || '';
+    const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
+      tipo: `Promissória ${n.numero}`,
+      cliente: devedor.nome,
+      clienteId: devedor.id,
+      telefone: devedor.telefone || '',
+      dataEmissao: hoje,
+      vencimento: n.vencimento.toISOString().split('T')[0],
+      valor: n.valor,
+      proprietario: proprietarioPadrao,
+    }));
+    onAddTitulos(novos);
+    toast.success(`${novos.length} título(s) salvo(s) no banco`);
   };
 
   const handlePDF = () => {
@@ -65,6 +98,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       notas
     );
     pdf.save(`promissorias-${devedor.nome.replace(/\s+/g, '_')}.pdf`);
+    salvarComoTitulos();
     toast.success('PDF gerado!');
   };
 
@@ -81,24 +115,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     } else {
       toast.error('Bloqueado pelo navegador. Permita popups.');
     }
-  };
-
-  const handleSalvarComoTitulos = () => {
-    if (!validar() || !devedor || !onAddTitulos) return;
-    const hoje = new Date().toISOString().split('T')[0];
-    const proprietarioPadrao = config.proprietarios[0]?.id || '';
-    const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
-      tipo: `Promissória ${n.numero}`,
-      cliente: devedor.nome,
-      clienteId: devedor.id,
-      telefone: devedor.telefone || '',
-      dataEmissao: hoje,
-      vencimento: n.vencimento.toISOString().split('T')[0],
-      valor: n.valor,
-      proprietario: proprietarioPadrao,
-    }));
-    onAddTitulos(novos);
-    toast.success(`${novos.length} título(s) adicionado(s) ao banco`);
+    salvarComoTitulos();
   };
 
   return (
@@ -223,19 +240,15 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
         </Card>
       )}
 
-      <Button
-        className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-        onClick={handleSalvarComoTitulos}
-        disabled={notas.length === 0}
-      >
-        <DatabaseBackup className="h-4 w-4 mr-1" /> Salvar como Títulos no Banco de Dados
-      </Button>
+      <p className="text-[11px] text-muted-foreground text-center">
+        Ao clicar em "Criar PDF" ou "Imprimir", as promissórias são salvas automaticamente no Banco de Títulos.
+      </p>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={handlePDF}>
+        <Button variant="outline" onClick={handlePDF} disabled={notas.length === 0}>
           <FileDown className="h-4 w-4 mr-1" /> Criar PDF
         </Button>
-        <Button onClick={handleImprimir}>
+        <Button onClick={handleImprimir} disabled={notas.length === 0}>
           <Printer className="h-4 w-4 mr-1" /> Imprimir
         </Button>
       </div>

@@ -20,13 +20,19 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
 
   const data = [
     { name: 'Vencido', value: vencidos.length, color: 'hsl(0, 72%, 51%)' },
-    { name: 'No Prazo', value: noPrazo.length, color: 'hsl(38, 92%, 50%)' },
+    { name: 'No Prazo', value: noPrazo.length, color: 'hsl(217, 91%, 55%)' },
     { name: 'Pago', value: pagos.length, color: 'hsl(142, 60%, 40%)' },
     { name: 'Pagos em Atraso', value: pagosEmAtraso.length, color: 'hsl(48, 96%, 53%)' },
   ].filter(d => d.value > 0);
 
   const totalValor = titulos.reduce((s, t) => s + t.valor, 0);
   const totalJuros = titulos.reduce((s, t) => s + t.valorJuros, 0);
+
+  const tiposBreakdown = titulos.reduce<Record<string, number>>((acc, t) => {
+    const key = t.tipo.replace(/\s+\d+$/, '').trim() || t.tipo;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
 
   if (titulos.length === 0) {
     return (
@@ -45,6 +51,13 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{titulos.length}</p>
             <p className="text-xs text-muted-foreground">Total Títulos</p>
+            {Object.keys(tiposBreakdown).length > 0 && (
+              <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5 text-left">
+                {Object.entries(tiposBreakdown).sort((a,b)=>b[1]-a[1]).map(([k,v]) => (
+                  <p key={k} className="truncate">• {k} — {v}</p>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -90,7 +103,10 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend formatter={(value: string) => {
+                const item = data.find(d => d.name === value);
+                return `${value}: ${item?.value ?? 0}`;
+              }} />
             </PieChart>
           </ResponsiveContainer>
         </CardContent>

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus, Trash2, Send } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
@@ -86,182 +87,200 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
 
-      <ProprietariosManager
-        proprietarios={config.proprietarios}
-        onUpdate={(proprietarios) => onUpdate({ proprietarios })}
-      />
+      <Tabs defaultValue="cadastros" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 h-auto">
+          <TabsTrigger value="cadastros" className="text-xs px-1 py-2">👥 Cadastros</TabsTrigger>
+          <TabsTrigger value="financeiro" className="text-xs px-1 py-2">💰 Financeiro</TabsTrigger>
+          <TabsTrigger value="alertas" className="text-xs px-1 py-2">🔔 Alertas</TabsTrigger>
+          <TabsTrigger value="aparencia" className="text-xs px-1 py-2">🎨 Aparência</TabsTrigger>
+          <TabsTrigger value="sistema" className="text-xs px-1 py-2">⚙️ Sistema</TabsTrigger>
+        </TabsList>
 
-      <FuncionariosManager
-        funcionarios={config.funcionarios}
-        onUpdate={(funcionarios) => onUpdate({ funcionarios })}
-      />
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">📝 Credor (Notas Promissórias)</CardTitle>
-          <p className="text-xs text-muted-foreground">Dados usados na emissão das promissórias</p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div>
-            <Label className="text-xs">Nome Completo</Label>
-            <Input
-              value={config.credor?.nome || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), nome: e.target.value } })}
-              placeholder="Nome do credor"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">CPF/CNPJ</Label>
-            <Input
-              value={config.credor?.cpfCnpj || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cpfCnpj: e.target.value } })}
-              placeholder="000.000.000-00"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Cidade/Estado (Pagável em)</Label>
-            <Input
-              value={config.credor?.cidadeEstado || ''}
-              onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cidadeEstado: e.target.value } })}
-              placeholder="Ex: São Paulo/SP"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Taxa de Juros Mensal (%)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Input
-            type="text"
-            inputMode="decimal"
-            value={config.taxa === 0 ? '' : String(config.taxa * 100)}
-            placeholder="Ex: 1.5"
-            onChange={e => {
-              const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-              const num = parseFloat(raw);
-              onUpdate({ taxa: isNaN(num) ? 0 : num / 100 });
-            }}
+        <TabsContent value="cadastros" className="space-y-4 mt-4">
+          <ProprietariosManager
+            proprietarios={config.proprietarios}
+            onUpdate={(proprietarios) => onUpdate({ proprietarios })}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-sm">🌙 Fundo Escuro</p>
-            <p className="text-xs text-muted-foreground">Ativar modo escuro</p>
-          </div>
-          <Switch
-            checked={config.darkMode}
-            onCheckedChange={(checked) => {
-              onUpdate({ darkMode: checked });
-              document.documentElement.classList.toggle('dark', checked);
-            }}
+          <FuncionariosManager
+            funcionarios={config.funcionarios}
+            onUpdate={(funcionarios) => onUpdate({ funcionarios })}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-sm">🤖 Avatar de Ajuda</p>
-            <p className="text-xs text-muted-foreground">Mascote com dicas em cada aba</p>
-          </div>
-          <Switch
-            checked={config.avatarAjudaAtivo ?? true}
-            onCheckedChange={(checked) => onUpdate({ avatarAjudaAtivo: checked })}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">📱 Telefones para Alerta Diário</CardTitle>
-          <p className="text-xs text-muted-foreground">Receba alertas de boletos a vencer no dia seguinte</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {config.telefonesAlerta.map((tel, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input
-                type="tel"
-                placeholder={`Telefone ${i + 1}`}
-                value={tel.numero}
-                onChange={e => handleTelefoneChange(i, e.target.value)}
-                className="flex-1"
-              />
-              <Switch checked={tel.ativo} onCheckedChange={() => handleTelefoneToggle(i)} />
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full mt-2 text-paid border-paid/30 hover:bg-paid/10"
-            onClick={handleSendAlerts}
-          >
-            <Send className="h-4 w-4 mr-1" />
-            Enviar Alertas Agora ({titulosAmanha.length} título{titulosAmanha.length !== 1 ? 's' : ''} vencem amanhã)
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">🔑 Chaves PIX ({config.chavesPix.length}/5)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {config.chavesPix.map(pix => (
-            <div key={pix.id} className="flex items-center gap-2 p-2 bg-secondary rounded-md">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{pix.nome}</p>
-                <p className="text-xs text-muted-foreground truncate">{pix.chave}</p>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">📝 Credor (Notas Promissórias)</CardTitle>
+              <p className="text-xs text-muted-foreground">Dados usados na emissão das promissórias</p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div>
+                <Label className="text-xs">Nome Completo</Label>
+                <Input
+                  value={config.credor?.nome || ''}
+                  onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), nome: e.target.value } })}
+                  placeholder="Nome do credor"
+                />
               </div>
-              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemovePix(pix.id)}>
-                <Trash2 className="h-4 w-4" />
+              <div>
+                <Label className="text-xs">CPF/CNPJ</Label>
+                <Input
+                  value={config.credor?.cpfCnpj || ''}
+                  onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cpfCnpj: e.target.value } })}
+                  placeholder="000.000.000-00"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Cidade/Estado (Pagável em)</Label>
+                <Input
+                  value={config.credor?.cidadeEstado || ''}
+                  onChange={e => onUpdate({ credor: { ...(config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' }), cidadeEstado: e.target.value } })}
+                  placeholder="Ex: São Paulo/SP"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="financeiro" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Taxa de Juros Mensal (%)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={config.taxa === 0 ? '' : String(config.taxa * 100)}
+                placeholder="Ex: 1.5"
+                onChange={e => {
+                  const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                  const num = parseFloat(raw);
+                  onUpdate({ taxa: isNaN(num) ? 0 : num / 100 });
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">🔑 Chaves PIX ({config.chavesPix.length}/5)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {config.chavesPix.map(pix => (
+                <div key={pix.id} className="flex items-center gap-2 p-2 bg-secondary rounded-md">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{pix.nome}</p>
+                    <p className="text-xs text-muted-foreground truncate">{pix.chave}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemovePix(pix.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {config.chavesPix.length < 5 && (
+                <div className="space-y-2">
+                  <Input placeholder="Nome da chave (ex: Banco X)" value={novaPixNome} onChange={e => setNovaPixNome(e.target.value)} />
+                  <Input placeholder="Chave PIX" value={novaPixChave} onChange={e => setNovaPixChave(e.target.value)} />
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleAddPix}>
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar Chave PIX
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="alertas" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">📱 Telefones para Alerta Diário</CardTitle>
+              <p className="text-xs text-muted-foreground">Receba alertas de boletos a vencer no dia seguinte</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {config.telefonesAlerta.map((tel, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    type="tel"
+                    placeholder={`Telefone ${i + 1}`}
+                    value={tel.numero}
+                    onChange={e => handleTelefoneChange(i, e.target.value)}
+                    className="flex-1"
+                  />
+                  <Switch checked={tel.ativo} onCheckedChange={() => handleTelefoneToggle(i)} />
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2 text-paid border-paid/30 hover:bg-paid/10"
+                onClick={handleSendAlerts}
+              >
+                <Send className="h-4 w-4 mr-1" />
+                Enviar Alertas Agora ({titulosAmanha.length} título{titulosAmanha.length !== 1 ? 's' : ''} vencem amanhã)
               </Button>
-            </div>
-          ))}
-          {config.chavesPix.length < 5 && (
-            <div className="space-y-2">
-              <Input placeholder="Nome da chave (ex: Banco X)" value={novaPixNome} onChange={e => setNovaPixNome(e.target.value)} />
-              <Input placeholder="Chave PIX" value={novaPixChave} onChange={e => setNovaPixChave(e.target.value)} />
-              <Button variant="outline" size="sm" className="w-full" onClick={handleAddPix}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar Chave PIX
+            </CardContent>
+          </Card>
+
+          <EmailPanel config={config} titulos={titulos} onUpdate={onUpdate} />
+        </TabsContent>
+
+        <TabsContent value="aparencia" className="space-y-4 mt-4">
+          <Card>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">🌙 Fundo Escuro</p>
+                <p className="text-xs text-muted-foreground">Ativar modo escuro</p>
+              </div>
+              <Switch
+                checked={config.darkMode}
+                onCheckedChange={(checked) => {
+                  onUpdate({ darkMode: checked });
+                  document.documentElement.classList.toggle('dark', checked);
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">🤖 Avatar de Ajuda</p>
+                <p className="text-xs text-muted-foreground">Mascote com dicas em cada aba</p>
+              </div>
+              <Switch
+                checked={config.avatarAjudaAtivo ?? true}
+                onCheckedChange={(checked) => onUpdate({ avatarAjudaAtivo: checked })}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sistema" className="space-y-4 mt-4">
+          <BackupPanel
+            titulos={titulos}
+            config={config}
+            onImportTitulos={(t) => onImportTitulos?.(t)}
+            onImportConfig={(patch) => onUpdate(patch)}
+          />
+
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm font-medium">🔐 Senha de Segurança</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                {config.pin ? 'Senha cadastrada. Usada para excluir títulos e acessar configurações.' : 'Nenhuma senha cadastrada.'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const event = new CustomEvent('reset-pin');
+                  window.dispatchEvent(event);
+                }}
+              >
+                {config.pin ? 'Alterar Senha' : 'Criar Senha'}
               </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <BackupPanel
-        titulos={titulos}
-        config={config}
-        onImportTitulos={(t) => onImportTitulos?.(t)}
-        onImportConfig={(patch) => onUpdate(patch)}
-      />
-
-      <EmailPanel config={config} titulos={titulos} onUpdate={onUpdate} />
-
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-sm font-medium">🔐 Senha de Segurança</p>
-          <p className="text-xs text-muted-foreground mb-2">
-            {config.pin ? 'Senha cadastrada. Usada para excluir títulos e acessar configurações.' : 'Nenhuma senha cadastrada.'}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const event = new CustomEvent('reset-pin');
-              window.dispatchEvent(event);
-            }}
-          >
-            {config.pin ? 'Alterar Senha' : 'Criar Senha'}
-          </Button>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -20,13 +20,19 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
 
   const data = [
     { name: 'Vencido', value: vencidos.length, color: 'hsl(0, 72%, 51%)' },
-    { name: 'No Prazo', value: noPrazo.length, color: 'hsl(38, 92%, 50%)' },
+    { name: 'No Prazo', value: noPrazo.length, color: 'hsl(217, 91%, 55%)' },
     { name: 'Pago', value: pagos.length, color: 'hsl(142, 60%, 40%)' },
     { name: 'Pagos em Atraso', value: pagosEmAtraso.length, color: 'hsl(48, 96%, 53%)' },
   ].filter(d => d.value > 0);
 
   const totalValor = titulos.reduce((s, t) => s + t.valor, 0);
   const totalJuros = titulos.reduce((s, t) => s + t.valorJuros, 0);
+
+  const tiposBreakdown = titulos.reduce<Record<string, number>>((acc, t) => {
+    const key = t.tipo.replace(/\s+\d+$/, '').trim() || t.tipo;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
 
   if (titulos.length === 0) {
     return (

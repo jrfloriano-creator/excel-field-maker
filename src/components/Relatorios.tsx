@@ -70,10 +70,15 @@ export function Relatorios({ titulos, config }: Props) {
     .filter(t => t.situacao === 'VENCIDO' && aplicaFiltros(t, t.vencimento))
     .sort((a, b) => a.diasAVencer - b.diasAVencer);
 
+  const noPrazo = calculados
+    .filter(t => t.situacao === 'NO PRAZO' && aplicaFiltros(t, t.vencimento))
+    .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
+
   const totalRecebido = recebidos.reduce((s, t) => s + (t.valorPago || 0), 0);
   const totalAtrasadoOrig = atrasados.reduce((s, t) => s + t.valor, 0);
   const totalAtrasadoJuros = atrasados.reduce((s, t) => s + t.valorJuros, 0);
   const totalAtrasadoCorrigido = atrasados.reduce((s, t) => s + t.valorCorrigido, 0);
+  const totalNoPrazo = noPrazo.reduce((s, t) => s + t.valor, 0);
 
   const ownerName = (id: string) => config.proprietarios.find(p => p.id === id)?.nome || '—';
 

@@ -103,7 +103,10 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend formatter={(value: string) => {
+                const item = data.find(d => d.name === value);
+                return `${value}: ${item?.value ?? 0}`;
+              }} />
             </PieChart>
           </ResponsiveContainer>
         </CardContent>

@@ -97,11 +97,20 @@ const Index = () => {
     }
   };
 
-  const handleEdit = (id: string) => {
+  const doEdit = (id: string) => {
     const titulo = titulos.find(t => t.id === id);
     if (titulo) {
       setEditingTitulo(titulo);
       setShowForm(true);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    if (config.pin) {
+      setPendingEditId(id);
+      setShowPin({ mode: 'verify', action: 'edit' });
+    } else {
+      doEdit(id);
     }
   };
 

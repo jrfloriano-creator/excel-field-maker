@@ -164,6 +164,18 @@ const Index = () => {
           deleteTitulo(pendingDeleteId);
           setPendingDeleteId(null);
           toast.success('Título removido');
+        } else if (showPin.action === 'edit' && pendingEditId) {
+          doEdit(pendingEditId);
+          setPendingEditId(null);
+        } else if (showPin.action === 'cliente' && pendingClientAction) {
+          if (pendingClientAction.kind === 'delete') {
+            updateConfig({ clientes: config.clientes.filter(c => c.id !== pendingClientAction.id) });
+            toast.success('Cliente removido');
+          } else {
+            // sinaliza desbloqueio para ClientesManager via evento
+            window.dispatchEvent(new CustomEvent('cliente-edit-unlock', { detail: pendingClientAction.id }));
+          }
+          setPendingClientAction(null);
         }
       } else {
         toast.error('Senha incorreta');

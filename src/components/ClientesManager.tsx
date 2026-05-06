@@ -112,6 +112,10 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
   };
 
   const handleRemove = (id: string) => {
+    if (requirePin) {
+      requirePin('delete', id);
+      return;
+    }
     onUpdate(clientes.filter(c => c.id !== id));
     toast.success('Cliente removido');
   };

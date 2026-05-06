@@ -31,6 +31,8 @@ const Index = () => {
   const [showPin, setShowPin] = useState<{ mode: 'setup' | 'verify'; action: string } | null>(null);
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+  const [pendingClientAction, setPendingClientAction] = useState<null | { kind: 'edit' | 'delete'; id: string }>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', config.darkMode);

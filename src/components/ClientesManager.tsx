@@ -26,7 +26,7 @@ const empty: Omit<Cliente, 'id'> = {
   nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
 };
 
-export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
+export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }: Props) {
   const [viewing, setViewing] = useState<Cliente | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);

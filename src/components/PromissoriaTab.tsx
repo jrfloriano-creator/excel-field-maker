@@ -48,8 +48,23 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     });
   }, [qtdNum, cidadeEstado, primeiroVencimento, valorNum, credor, devedor]);
 
+  const camposFaltandoDevedor = (c?: Cliente): string[] => {
+    if (!c) return [];
+    const f: string[] = [];
+    if (!c.cpfCnpj) f.push('CPF/CNPJ');
+    if (!c.cep) f.push('CEP');
+    if (!c.logradouro) f.push('endereço');
+    if (!c.cidade || !c.estado) f.push('cidade/UF');
+    return f;
+  };
+
   const validar = (): boolean => {
     if (!devedor) { toast.error('Selecione o devedor (cliente)'); return false; }
+    const faltando = camposFaltandoDevedor(devedor);
+    if (faltando.length > 0) {
+      toast.error(`Cliente com dados faltando: ${faltando.join(', ')}. Complete o cadastro antes.`);
+      return false;
+    }
     if (!credor.nome || !credor.cpfCnpj) { toast.error('Cadastre o credor em Configurações'); return false; }
     if (!cidadeEstado) { toast.error('Informe Cidade/Estado'); return false; }
     if (!primeiroVencimento) { toast.error('Informe a data do 1º vencimento'); return false; }

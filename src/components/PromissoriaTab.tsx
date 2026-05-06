@@ -73,6 +73,24 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     return true;
   };
 
+  const salvarComoTitulos = () => {
+    if (!devedor || !onAddTitulos) return;
+    const hoje = new Date().toISOString().split('T')[0];
+    const proprietarioPadrao = config.proprietarios[0]?.id || '';
+    const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
+      tipo: `Promissória ${n.numero}`,
+      cliente: devedor.nome,
+      clienteId: devedor.id,
+      telefone: devedor.telefone || '',
+      dataEmissao: hoje,
+      vencimento: n.vencimento.toISOString().split('T')[0],
+      valor: n.valor,
+      proprietario: proprietarioPadrao,
+    }));
+    onAddTitulos(novos);
+    toast.success(`${novos.length} título(s) salvo(s) no banco`);
+  };
+
   const handlePDF = () => {
     if (!validar() || !devedor) return;
     const pdf = gerarPromissoriaPDF(
@@ -80,6 +98,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       notas
     );
     pdf.save(`promissorias-${devedor.nome.replace(/\s+/g, '_')}.pdf`);
+    salvarComoTitulos();
     toast.success('PDF gerado!');
   };
 
@@ -96,24 +115,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     } else {
       toast.error('Bloqueado pelo navegador. Permita popups.');
     }
-  };
-
-  const handleSalvarComoTitulos = () => {
-    if (!validar() || !devedor || !onAddTitulos) return;
-    const hoje = new Date().toISOString().split('T')[0];
-    const proprietarioPadrao = config.proprietarios[0]?.id || '';
-    const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
-      tipo: `Promissória ${n.numero}`,
-      cliente: devedor.nome,
-      clienteId: devedor.id,
-      telefone: devedor.telefone || '',
-      dataEmissao: hoje,
-      vencimento: n.vencimento.toISOString().split('T')[0],
-      valor: n.valor,
-      proprietario: proprietarioPadrao,
-    }));
-    onAddTitulos(novos);
-    toast.success(`${novos.length} título(s) adicionado(s) ao banco`);
+    salvarComoTitulos();
   };
 
   return (

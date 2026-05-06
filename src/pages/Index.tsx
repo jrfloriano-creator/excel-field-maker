@@ -318,6 +318,10 @@ const Index = () => {
             clientes={config.clientes}
             onUpdate={(clientes) => updateConfig({ clientes })}
             titulos={titulos}
+            requirePin={config.pin ? (kind, id) => {
+              setPendingClientAction({ kind, id });
+              setShowPin({ mode: 'verify', action: 'cliente' });
+            } : undefined}
           />
         )}
         {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => addTitulos(novos)} />}

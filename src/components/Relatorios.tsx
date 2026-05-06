@@ -159,6 +159,24 @@ export function Relatorios({ titulos, config }: Props) {
       margin: { left: 14, right: 14 },
     });
 
+    cursorY = (doc as any).lastAutoTable.finalY + 10;
+    if (cursorY > 250) { doc.addPage(); cursorY = 20; }
+
+    doc.setFontSize(12);
+    doc.text(`Títulos No Prazo (${noPrazo.length}) — Total: ${formatCurrency(totalNoPrazo)}`, 14, cursorY);
+    cursorY += 4;
+    autoTable(doc, {
+      startY: cursorY,
+      head: [['Nº', 'Cliente', 'Tipo', 'Proprietário', 'Vencimento', 'Valor']],
+      body: noPrazo.map(t => [
+        String(t.numero), t.cliente, t.tipo, ownerName(t.proprietario),
+        formatDate(t.vencimento), formatCurrency(t.valor),
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      margin: { left: 14, right: 14 },
+    });
+
     doc.save(`relatorio-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 

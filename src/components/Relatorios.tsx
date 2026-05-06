@@ -333,6 +333,30 @@ export function Relatorios({ titulos, config }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">⏳ Títulos No Prazo ({noPrazo.length})</CardTitle>
+          <p className="text-xs text-muted-foreground">Total a receber: <strong>{formatCurrency(totalNoPrazo)}</strong></p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {noPrazo.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum título em aberto</p>
+          ) : (
+            noPrazo.map(t => (
+              <div key={t.id} className="border border-border rounded-md p-3 text-sm">
+                <div className="flex justify-between items-start mb-1">
+                  <p className="font-semibold truncate">{t.cliente}</p>
+                  <p className="font-semibold whitespace-nowrap">{formatCurrency(t.valor)}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {ownerName(t.proprietario)} • {t.tipo} • Nº {t.numero} • Venc: {formatDate(t.vencimento)}
+                </p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -51,6 +51,13 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{titulos.length}</p>
             <p className="text-xs text-muted-foreground">Total Títulos</p>
+            {Object.keys(tiposBreakdown).length > 0 && (
+              <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5 text-left">
+                {Object.entries(tiposBreakdown).sort((a,b)=>b[1]-a[1]).map(([k,v]) => (
+                  <p key={k} className="truncate">• {k} — {v}</p>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>

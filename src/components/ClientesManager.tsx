@@ -34,7 +34,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
   const [busca, setBusca] = useState('');
   const [loadingCep, setLoadingCep] = useState(false);
 
-  const open = (c?: Cliente) => {
+  const doOpen = (c?: Cliente) => {
     if (c) {
       setEditing(c);
       setData({ ...c });
@@ -44,6 +44,24 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
     }
     setShowForm(true);
   };
+
+  const open = (c?: Cliente) => {
+    if (c && requirePin) {
+      requirePin('edit', c.id);
+      return;
+    }
+    doOpen(c);
+  };
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      const c = clientes.find(x => x.id === id);
+      if (c) doOpen(c);
+    };
+    window.addEventListener('cliente-edit-unlock', handler);
+    return () => window.removeEventListener('cliente-edit-unlock', handler);
+  }, [clientes]);
 
   const close = () => {
     setShowForm(false);

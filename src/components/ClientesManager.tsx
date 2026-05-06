@@ -250,6 +250,13 @@ export function ClientesManager({ clientes, onUpdate, titulos = [] }: Props) {
               const link = `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
               window.open(link, '_blank');
             };
+            const camposFaltando: string[] = [];
+            if (!c.telefone) camposFaltando.push('telefone');
+            if (!c.cpfCnpj) camposFaltando.push('CPF/CNPJ');
+            if (!c.cep) camposFaltando.push('CEP');
+            if (!c.logradouro) camposFaltando.push('endereço');
+            if (!c.cidade || !c.estado) camposFaltando.push('cidade/UF');
+            const incompleto = camposFaltando.length > 0;
             return (
               <Card
                 key={c.id}

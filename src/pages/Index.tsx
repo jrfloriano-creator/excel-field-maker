@@ -122,7 +122,7 @@ const Index = () => {
     setPagarId(id);
   };
 
-  const handleConfirmPagar = (data: { dataPagamento: string; valorPago: number; recebidoPor: string }) => {
+  const handleConfirmPagar = (data: { dataPagamento: string; valorPago: number; recebidoPor: string; formaPagamento?: string }) => {
     if (pagarId) {
       updateTitulo(pagarId, data);
       setPagarId(null);
@@ -245,6 +245,7 @@ const Index = () => {
                 clienteNome={pagarTitulo.cliente}
                 valorOriginal={pagarTitulo.valorCorrigido}
                 funcionarios={config.funcionarios}
+                formasPagamento={config.formasPagamento || []}
                 onSubmit={handleConfirmPagar}
                 onClose={() => setPagarId(null)}
               />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FormaPagamento } from '@/types/titulo';
 import { AppConfig, ChavePix, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

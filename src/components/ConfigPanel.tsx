@@ -47,6 +47,10 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
     onUpdate({ formasPagamento: formasPagamento.filter(f => f.id !== id) });
   };
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: 'cadastros' } }));
+  }, []);
+
   const amanha = new Date();
   amanha.setDate(amanha.getDate() + 1);
   const amanhaStr = amanha.toISOString().split('T')[0];

@@ -207,6 +207,34 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">💳 Formas de Pagamento ({formasPagamento.length})</CardTitle>
+              <p className="text-xs text-muted-foreground">Usadas ao registrar pagamento de títulos</p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {formasPagamento.map(f => (
+                <div key={f.id} className="flex items-center gap-2 p-2 bg-secondary rounded-md">
+                  <p className="text-sm flex-1 truncate">{f.nome}</p>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemoveForma(f.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: Dinheiro, PIX, Cartão"
+                  value={novaForma}
+                  onChange={e => setNovaForma(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddForma(); } }}
+                />
+                <Button variant="outline" size="sm" onClick={handleAddForma}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="alertas" className="space-y-4 mt-4">

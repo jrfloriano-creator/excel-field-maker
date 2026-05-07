@@ -48,13 +48,17 @@ export function DashboardChart({ titulos }: DashboardChartProps) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{titulos.length}</p>
-            <p className="text-xs text-muted-foreground">Total Títulos</p>
-            {Object.keys(tiposBreakdown).length > 0 && (
-              <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5 text-left">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground text-center mb-2">Total de Títulos por Tipo</p>
+            {Object.keys(tiposBreakdown).length === 0 ? (
+              <p className="text-xs text-center text-muted-foreground">—</p>
+            ) : (
+              <div className="space-y-1 text-sm">
                 {Object.entries(tiposBreakdown).sort((a,b)=>b[1]-a[1]).map(([k,v]) => (
-                  <p key={k} className="truncate">• {k} — {v}</p>
+                  <div key={k} className="flex justify-between">
+                    <span className="truncate">{k}</span>
+                    <span className="font-semibold">{v}</span>
+                  </div>
                 ))}
               </div>
             )}

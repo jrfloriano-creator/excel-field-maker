@@ -10,7 +10,7 @@ import { ConfigPanel } from '@/components/ConfigPanel';
 import { PinDialog } from '@/components/PinDialog';
 import { Relatorios } from '@/components/Relatorios';
 import { ClientesManager } from '@/components/ClientesManager';
-import { PromissoriaTab } from '@/components/PromissoriaTab';
+import { PromissoriaTabs } from '@/components/PromissoriaTabs';
 import { AvatarAjuda } from '@/components/AvatarAjuda';
 import { Button } from '@/components/ui/button';
 import { Plus, BarChart3, List, Settings2, FileText, Users, ScrollText } from 'lucide-react';
@@ -324,7 +324,7 @@ const Index = () => {
             } : undefined}
           />
         )}
-        {tab === 'promissoria' && <PromissoriaTab config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
+        {tab === 'promissoria' && <PromissoriaTabs config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
         {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} />}
       </main>
 

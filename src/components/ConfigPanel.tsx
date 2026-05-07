@@ -26,6 +26,26 @@ interface ConfigPanelProps {
 export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
+  const [novaForma, setNovaForma] = useState('');
+
+  const formasPagamento = config.formasPagamento || [];
+
+  const handleAddForma = () => {
+    const nome = novaForma.trim();
+    if (!nome) return;
+    if (formasPagamento.some(f => f.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error('Forma de pagamento já cadastrada');
+      return;
+    }
+    const nova: FormaPagamento = { id: generateId(), nome };
+    onUpdate({ formasPagamento: [...formasPagamento, nova] });
+    setNovaForma('');
+    toast.success('Forma de pagamento adicionada');
+  };
+
+  const handleRemoveForma = (id: string) => {
+    onUpdate({ formasPagamento: formasPagamento.filter(f => f.id !== id) });
+  };
 
   const amanha = new Date();
   amanha.setDate(amanha.getDate() + 1);

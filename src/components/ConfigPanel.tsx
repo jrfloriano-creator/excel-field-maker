@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FormaPagamento } from '@/types/titulo';
 import { AppConfig, ChavePix, Titulo } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,26 @@ interface ConfigPanelProps {
 export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
+  const [novaForma, setNovaForma] = useState('');
+
+  const formasPagamento = config.formasPagamento || [];
+
+  const handleAddForma = () => {
+    const nome = novaForma.trim();
+    if (!nome) return;
+    if (formasPagamento.some(f => f.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error('Forma de pagamento já cadastrada');
+      return;
+    }
+    const nova: FormaPagamento = { id: generateId(), nome };
+    onUpdate({ formasPagamento: [...formasPagamento, nova] });
+    setNovaForma('');
+    toast.success('Forma de pagamento adicionada');
+  };
+
+  const handleRemoveForma = (id: string) => {
+    onUpdate({ formasPagamento: formasPagamento.filter(f => f.id !== id) });
+  };
 
   const amanha = new Date();
   amanha.setDate(amanha.getDate() + 1);
@@ -184,6 +205,34 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">💳 Formas de Pagamento ({formasPagamento.length})</CardTitle>
+              <p className="text-xs text-muted-foreground">Usadas ao registrar pagamento de títulos</p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {formasPagamento.map(f => (
+                <div key={f.id} className="flex items-center gap-2 p-2 bg-secondary rounded-md">
+                  <p className="text-sm flex-1 truncate">{f.nome}</p>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemoveForma(f.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: Dinheiro, PIX, Cartão"
+                  value={novaForma}
+                  onChange={e => setNovaForma(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddForma(); } }}
+                />
+                <Button variant="outline" size="sm" onClick={handleAddForma}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

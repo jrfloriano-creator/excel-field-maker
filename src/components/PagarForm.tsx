@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X } from 'lucide-react';
-import { Funcionario } from '@/types/titulo';
+import { Funcionario, FormaPagamento } from '@/types/titulo';
 import { verifyPin } from '@/lib/storage';
 import { toast } from 'sonner';
 
@@ -13,14 +13,16 @@ interface PagarFormProps {
   clienteNome: string;
   valorOriginal: number;
   funcionarios: Funcionario[];
-  onSubmit: (data: { dataPagamento: string; valorPago: number; recebidoPor: string }) => void;
+  formasPagamento?: FormaPagamento[];
+  onSubmit: (data: { dataPagamento: string; valorPago: number; recebidoPor: string; formaPagamento?: string }) => void;
   onClose: () => void;
 }
 
-export function PagarForm({ clienteNome, valorOriginal, funcionarios, onSubmit, onClose }: PagarFormProps) {
+export function PagarForm({ clienteNome, valorOriginal, funcionarios, formasPagamento = [], onSubmit, onClose }: PagarFormProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
   const [valorPago, setValorPago] = useState(valorOriginal.toString());
   const [funcionarioId, setFuncionarioId] = useState('');
+  const [formaPagamentoId, setFormaPagamentoId] = useState('');
   const [pin, setPin] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,10 +40,12 @@ export function PagarForm({ clienteNome, valorOriginal, funcionarios, onSubmit, 
       toast.error('Senha do funcionário incorreta');
       return;
     }
+    const forma = formasPagamento.find(f => f.id === formaPagamentoId);
     onSubmit({
       dataPagamento,
       valorPago: parseFloat(valorPago),
       recebidoPor: func.nome,
+      formaPagamento: forma?.nome,
     });
   };
 
@@ -72,6 +76,19 @@ export function PagarForm({ clienteNome, valorOriginal, funcionarios, onSubmit, 
               </SelectTrigger>
               <SelectContent>
                 {funcionarios.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Forma de Pagamento</Label>
+            <Select value={formaPagamentoId} onValueChange={setFormaPagamentoId}>
+              <SelectTrigger>
+                <SelectValue placeholder={formasPagamento.length === 0 ? 'Cadastre em Config › Financeiro' : 'Selecione a forma'} />
+              </SelectTrigger>
+              <SelectContent>
+                {formasPagamento.map(f => (
                   <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
                 ))}
               </SelectContent>

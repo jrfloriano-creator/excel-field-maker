@@ -45,6 +45,12 @@ export interface Titulo {
   dataPagamento?: string;
   valorPago?: number;
   recebidoPor?: string;
+  formaPagamento?: string;
+}
+
+export interface FormaPagamento {
+  id: string;
+  nome: string;
 }
 
 export type Situacao = 'VENCIDO' | 'NO PRAZO' | 'PAGO';
@@ -86,4 +92,5 @@ export interface AppConfig {
   credor?: CredorConfig;
   textoCobrancaEmail?: string;
   avatarAjudaAtivo?: boolean;
+  formasPagamento?: FormaPagamento[];
 }

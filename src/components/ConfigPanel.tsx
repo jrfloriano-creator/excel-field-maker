@@ -108,7 +108,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos }:
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
 
-      <ConfigSubTabs />
       <Tabs defaultValue="cadastros" className="w-full" onValueChange={(v) => window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: v } }))}>
         <TabsList className="grid w-full grid-cols-5 h-auto">
           <TabsTrigger value="cadastros" className="text-xs px-1 py-2">👥 Cadastros</TabsTrigger>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { AppConfig, Titulo } from '@/types/titulo';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PromissoriaTab } from './PromissoriaTab';
@@ -9,8 +10,14 @@ interface Props {
 }
 
 export function PromissoriaTabs({ config, onAddTitulos }: Props) {
+  const [sub, setSub] = useState('promissoria');
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'promissoria', sub } }));
+  }, [sub]);
+
   return (
-    <Tabs defaultValue="promissoria" className="w-full">
+    <Tabs value={sub} onValueChange={setSub} className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="promissoria" className="text-xs">📄 Promissória</TabsTrigger>
         <TabsTrigger value="caderno" className="text-xs">📓 Lançamento Caderno</TabsTrigger>

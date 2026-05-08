@@ -4,26 +4,45 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
 import { Funcionario, FormaPagamento } from '@/types/titulo';
 import { verifyPin } from '@/lib/storage';
+import { formatCurrency } from '@/lib/calculos';
 import { toast } from 'sonner';
 
 interface PagarFormProps {
   clienteNome: string;
   valorOriginal: number;
+  creditoDisponivel?: number; // crédito do mês anterior
   funcionarios: Funcionario[];
   formasPagamento?: FormaPagamento[];
-  onSubmit: (data: { dataPagamento: string; valorPago: number; recebidoPor: string; formaPagamento?: string }) => void;
+  onSubmit: (data: {
+    dataPagamento: string;
+    valorPago: number;
+    recebidoPor: string;
+    formaPagamento?: string;
+    enviarWhats: boolean;
+    creditoAplicado: number;
+    creditoGerado: number;
+  }) => void;
   onClose: () => void;
 }
 
-export function PagarForm({ clienteNome, valorOriginal, funcionarios, formasPagamento = [], onSubmit, onClose }: PagarFormProps) {
+export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, funcionarios, formasPagamento = [], onSubmit, onClose }: PagarFormProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
   const [valorPago, setValorPago] = useState(valorOriginal.toString());
   const [funcionarioId, setFuncionarioId] = useState('');
   const [formaPagamentoId, setFormaPagamentoId] = useState('');
   const [pin, setPin] = useState('');
+  const [enviarWhats, setEnviarWhats] = useState(true);
+  const [usarCredito, setUsarCredito] = useState(creditoDisponivel > 0);
+
+  const valorN = parseFloat(valorPago) || 0;
+  const credito = usarCredito ? creditoDisponivel : 0;
+  const totalRecebido = valorN + credito;
+  const diferenca = totalRecebido - valorOriginal;
+  const creditoGerado = diferenca > 0 ? diferenca : 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +56,22 @@ export function PagarForm({ clienteNome, valorOriginal, funcionarios, formasPaga
       return;
     }
     if (pin.length !== 4 || !verifyPin(pin, func.pin)) {
-      toast.error('Senha do funcionário incorreta');
+      toast.error('Senha do funcionário incorreta — pagamento não confirmado');
       return;
     }
     const forma = formasPagamento.find(f => f.id === formaPagamentoId);
+    if (!forma) {
+      toast.error('Selecione a forma de pagamento');
+      return;
+    }
     onSubmit({
       dataPagamento,
-      valorPago: parseFloat(valorPago),
+      valorPago: valorN,
       recebidoPor: func.nome,
-      formaPagamento: forma?.nome,
+      formaPagamento: forma.nome,
+      enviarWhats,
+      creditoAplicado: credito,
+      creditoGerado,
     });
   };
 
@@ -59,14 +85,60 @@ export function PagarForm({ clienteNome, valorOriginal, funcionarios, formasPaga
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-3">Cliente: <strong>{clienteNome}</strong></p>
+
+        <div className="flex items-center gap-2 mb-3 p-2 rounded bg-secondary/50">
+          <Checkbox id="whats" checked={enviarWhats} onCheckedChange={(c) => setEnviarWhats(!!c)} />
+          <Label htmlFor="whats" className="text-xs cursor-pointer">
+            📱 Enviar mensagem WhatsApp ao cliente após confirmar pagamento
+          </Label>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <Label className="text-xs">Data do Pagamento</Label>
             <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} required />
           </div>
           <div>
+            <Label className="text-xs">Valor do Título</Label>
+            <Input value={formatCurrency(valorOriginal)} disabled />
+          </div>
+          {creditoDisponivel > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded bg-blue-500/10">
+              <Checkbox id="credito" checked={usarCredito} onCheckedChange={(c) => setUsarCredito(!!c)} />
+              <Label htmlFor="credito" className="text-xs cursor-pointer">
+                Aplicar crédito do mês anterior: <strong>{formatCurrency(creditoDisponivel)}</strong>
+              </Label>
+            </div>
+          )}
+          <div>
             <Label className="text-xs">Valor Pago</Label>
             <Input type="number" step="0.01" value={valorPago} onChange={e => setValorPago(e.target.value)} required />
+          </div>
+          <div>
+            <Label className="text-xs">Diferença</Label>
+            <Input
+              value={formatCurrency(diferenca)}
+              disabled
+              className={diferenca < 0 ? 'text-destructive font-semibold' : diferenca > 0 ? 'text-blue-600 font-semibold' : ''}
+            />
+            {diferenca > 0 && (
+              <p className="text-[11px] text-blue-600 mt-1">
+                💰 Crédito de {formatCurrency(diferenca)} será abatido no próximo mês.
+              </p>
+            )}
+          </div>
+          <div>
+            <Label className="text-xs">Forma de Pagamento *</Label>
+            <Select value={formaPagamentoId} onValueChange={setFormaPagamentoId}>
+              <SelectTrigger>
+                <SelectValue placeholder={formasPagamento.length === 0 ? 'Cadastre em Config › Financeiro' : 'Selecione a forma'} />
+              </SelectTrigger>
+              <SelectContent>
+                {formasPagamento.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label className="text-xs">Recebido por *</Label>
@@ -76,19 +148,6 @@ export function PagarForm({ clienteNome, valorOriginal, funcionarios, formasPaga
               </SelectTrigger>
               <SelectContent>
                 {funcionarios.map(f => (
-                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Forma de Pagamento</Label>
-            <Select value={formaPagamentoId} onValueChange={setFormaPagamentoId}>
-              <SelectTrigger>
-                <SelectValue placeholder={formasPagamento.length === 0 ? 'Cadastre em Config › Financeiro' : 'Selecione a forma'} />
-              </SelectTrigger>
-              <SelectContent>
-                {formasPagamento.map(f => (
                   <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
                 ))}
               </SelectContent>
@@ -106,6 +165,9 @@ export function PagarForm({ clienteNome, valorOriginal, funcionarios, formasPaga
               className="text-center text-xl tracking-[0.5em]"
               required
             />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              ⚠️ O pagamento só é confirmado com a senha correta do funcionário.
+            </p>
           </div>
           <Button type="submit" className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">Confirmar Pagamento</Button>
         </form>

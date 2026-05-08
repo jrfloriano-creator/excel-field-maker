@@ -67,6 +67,28 @@ export function getWhatsAppLink(phone: string, cliente: string, valor: number, v
   return `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
 }
 
+export function buildPagamentoWhatsMsg(opts: {
+  apelido: string;
+  formaPagamento: string;
+  valorPago: number;
+  tipoTitulo: string;
+  recebidoPor: string;
+  creditoGerado?: number;
+}): string {
+  const { apelido, formaPagamento, valorPago, tipoTitulo, recebidoPor, creditoGerado } = opts;
+  let msg = `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}, referente ${tipoTitulo}, recebido por ${recebidoPor}`;
+  if (creditoGerado && creditoGerado > 0) {
+    msg += `\n\nObs. O valor pago a ${formatCurrency(creditoGerado)} mais será abatido no valor do próximo mês.`;
+  }
+  msg += `\n\nAgradecemos a preferência!`;
+  return msg;
+}
+
+export function whatsLink(phone: string, msg: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
+}
+
 export function getMonthKey(dateStr: string): string {
   const [year, month] = dateStr.split('-');
   return `${year}-${month}`;

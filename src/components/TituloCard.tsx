@@ -94,7 +94,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
         {titulo.situacao === 'VENCIDO' && titulo.telefone && chavesPix.length > 0 && (
           <div className="mt-2">
             <Select value={selectedPixId} onValueChange={setSelectedPixId}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-8 text-xs bg-card text-foreground dark:text-white">
                 <SelectValue placeholder="Selecionar Chave PIX (opcional)" />
               </SelectTrigger>
               <SelectContent>

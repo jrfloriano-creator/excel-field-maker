@@ -78,10 +78,26 @@ const Index = () => {
     : titulosCalculados;
   const titulosFiltrados = filtro === 'TODOS' ? titulosByMonth : titulosByMonth.filter(t => t.situacao === filtro);
 
-  const handleAdd = (data: any) => {
+  const handleAdd = (data: any, motivo?: string) => {
     if (editingTitulo) {
-      updateTitulo(editingTitulo.id, data);
-      appendLog(config, updateConfig, user, 'titulo.editar', `Editou título #${editingTitulo.numero}`);
+      const before = editingTitulo;
+      updateTitulo(before.id, data);
+      // Replicação: cliente/emissão/vencimento → atualiza outros títulos do mesmo cliente+data de emissão original
+      const propag: Partial<Titulo> = {};
+      if (data.clienteId !== before.clienteId) { propag.clienteId = data.clienteId; propag.cliente = data.cliente; }
+      if (data.dataEmissao !== before.dataEmissao) propag.dataEmissao = data.dataEmissao;
+      if (data.vencimento !== before.vencimento) propag.vencimento = data.vencimento;
+      if (Object.keys(propag).length > 0) {
+        const irmaos = titulos.filter(t =>
+          t.id !== before.id &&
+          t.clienteId === before.clienteId &&
+          t.dataEmissao === before.dataEmissao
+        );
+        irmaos.forEach(t => updateTitulo(t.id, propag));
+        if (irmaos.length > 0) toast.message(`Replicado para ${irmaos.length} título(s) do mesmo lote.`);
+      }
+      appendLog(config, updateConfig, user, 'titulo.editar',
+        `Editou título #${before.numero}${motivo ? `. Motivo: ${motivo}` : ''}`);
       setEditingTitulo(null); setShowForm(false);
       toast.success('Título atualizado!');
     } else {

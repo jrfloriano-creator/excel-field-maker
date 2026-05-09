@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTitulos } from '@/hooks/useTitulos';
-import { calcularTitulo, getMonthKey, formatMonthLabel, buildPagamentoWhatsMsg, whatsLink } from '@/lib/calculos';
+import { calcularTitulo, getMonthKey, formatMonthLabel, buildPagamentoWhatsMsg, whatsLink, getWhatsAppLink } from '@/lib/calculos';
 import { TituloCard } from '@/components/TituloCard';
 import { TituloForm } from '@/components/TituloForm';
 import { PagarForm } from '@/components/PagarForm';

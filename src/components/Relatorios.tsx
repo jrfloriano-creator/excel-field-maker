@@ -1,11 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
-import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel } from '@/lib/calculos';
+import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel, getWhatsAppLink } from '@/lib/calculos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Download, X } from 'lucide-react';
+import { Download, X, MessageCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

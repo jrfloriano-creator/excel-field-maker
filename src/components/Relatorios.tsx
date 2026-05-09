@@ -303,33 +303,35 @@ export function Relatorios({ titulos, config }: Props) {
           {atrasados.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">Nenhum título atrasado 🎉</p>
           ) : (
-            atrasados.map(t => (
-              <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">
-                <div className="flex justify-between items-start mb-1">
-                  <p className="font-semibold truncate">{t.cliente}</p>
-                  <span className="text-xs bg-overdue/10 text-overdue px-2 py-0.5 rounded-full whitespace-nowrap">
-                    {Math.abs(t.diasAVencer)}d atraso
-                  </span>
+            atrasados.map(t => {
+              const cli = config.clientes.find(c => c.id === t.clienteId);
+              const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
+              const pix = (config.chavesPix || [])[0];
+              const waLink = t.telefone ? getWhatsAppLink(t.telefone, apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined) : '';
+              return (
+                <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="font-semibold truncate">{t.cliente}</p>
+                    <span className="text-xs bg-overdue/10 text-overdue px-2 py-0.5 rounded-full whitespace-nowrap">
+                      {Math.abs(t.diasAVencer)}d atraso
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-2">
+                    <div><p className="text-muted-foreground">Valor</p><p className="font-medium">{formatCurrency(t.valor)}</p></div>
+                    <div><p className="text-muted-foreground">Juros</p><p className="font-medium text-overdue">{formatCurrency(t.valorJuros)}</p></div>
+                    <div className="col-span-2"><p className="text-muted-foreground">Total com juros</p><p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p></div>
+                    <p className="col-span-2 text-muted-foreground">{ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}</p>
+                  </div>
+                  {t.telefone && (
+                    <Button asChild size="sm" variant="outline" className="w-full mt-2 h-8 text-xs">
+                      <a href={waLink} target="_blank" rel="noreferrer">
+                        <MessageCircle className="h-3 w-3 mr-1" /> Cobrar via WhatsApp{pix ? ' + PIX' : ''}
+                      </a>
+                    </Button>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-2">
-                  <div>
-                    <p className="text-muted-foreground">Valor</p>
-                    <p className="font-medium">{formatCurrency(t.valor)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Juros</p>
-                    <p className="font-medium text-overdue">{formatCurrency(t.valorJuros)}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground">Total com juros</p>
-                    <p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p>
-                  </div>
-                  <p className="col-span-2 text-muted-foreground">
-                    {ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}
-                  </p>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>

@@ -9,7 +9,7 @@ import { generateId } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculos';
 import { toast } from 'sonner';
 import { UserPlus, Save } from 'lucide-react';
-import { SessionUser } from '@/lib/auth';
+import { SessionUser, appendLog } from '@/lib/auth';
 
 interface Props {
   config: AppConfig;

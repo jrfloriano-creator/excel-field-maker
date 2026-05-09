@@ -67,6 +67,9 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       registradoPor: user?.nome || '—',
     };
     onUpdate({ vendas: [...(config.vendas || []), venda] });
+    appendLog(config, onUpdate, user, 'venda.vista',
+      `Venda à vista ${formatCurrency(valorFinal)} • ${venda.formaPagamento}${venda.parcelas ? ` ${venda.parcelas}x` : ''}${venda.maquininha ? ` • ${venda.maquininha}` : ''} • Cliente: ${nome} • Por: ${venda.registradoPor}`,
+      { vendaId: venda.id });
     toast.success('Venda registrada');
     setValor(''); setDesconto(''); setParcelas('1');
   };

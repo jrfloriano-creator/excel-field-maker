@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,12 +16,17 @@ interface Props {
 }
 
 export function LoginScreen({ config, onUpdate, onLogin }: Props) {
-  // garante MASTER
-  const usuarios: Usuario[] = (() => {
-    const list = ensureMasterUser(config.usuarios);
-    if (list !== config.usuarios) onUpdate({ usuarios: list });
-    return list;
-  })();
+  const usuarios: Usuario[] = useMemo(
+    () => ensureMasterUser(config.usuarios),
+    [config.usuarios]
+  );
+
+  // Persiste MASTER apenas se ele realmente não existia ainda (evita loop infinito)
+  useEffect(() => {
+    const hasMaster = (config.usuarios || []).some(u => u.master);
+    if (!hasMaster) onUpdate({ usuarios });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [userId, setUserId] = useState(usuarios.find(u => u.master)?.id || usuarios[0]?.id || '');
   const [pin, setPin] = useState('');

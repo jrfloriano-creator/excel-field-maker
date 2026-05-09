@@ -359,6 +359,58 @@ export function Relatorios({ titulos, config }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {clienteAtivo && (() => {
+        const todosCli = calculados.filter(t => t.cliente === fCliente);
+        const pagos = todosCli.filter(t => t.situacao === 'PAGO');
+        const atrasoPagos = pagos.filter(t => t.dataPagamento && t.dataPagamento > t.vencimento).length;
+        const totalPagos = pagos.length;
+        const pctAtraso = totalPagos > 0 ? (atrasoPagos / totalPagos) * 100 : 0;
+        const emoji = atrasoPagos === 0 ? '😀' : atrasoPagos <= 10 ? '😟' : '😭';
+        const grupos: Record<string, typeof todosCli> = {};
+        todosCli.forEach(t => {
+          const k = getMonthKey(t.dataEmissao || t.vencimento);
+          (grupos[k] = grupos[k] || []).push(t);
+        });
+        const ordem = Object.keys(grupos).sort().reverse();
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">📜 Histórico — {fCliente}</CardTitle>
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <p>Compras: <strong>{todosCli.length}</strong> • Recebidos: <strong>{totalPagos}</strong> • Atrasados pagos: <strong>{atrasoPagos}</strong></p>
+                <p>Pontualidade: <span className="text-base">{emoji}</span> <strong>{(100 - pctAtraso).toFixed(0)}%</strong> em dia</p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {ordem.map(mk => {
+                const itens = grupos[mk];
+                const totalMes = itens.reduce((s, x) => s + x.valor, 0);
+                return (
+                  <div key={mk} className="border rounded p-2">
+                    <p className="text-xs font-semibold mb-1">{formatMonthLabel(mk)} • {itens.length} compra(s) • {formatCurrency(totalMes)}</p>
+                    <div className="space-y-1">
+                      {itens.map(t => {
+                        const irmaos = todosCli.filter(x => x.dataEmissao === t.dataEmissao && x.tipo === t.tipo);
+                        const pos = irmaos.findIndex(x => x.id === t.id) + 1;
+                        const total = irmaos.length;
+                        return (
+                          <div key={t.id} className="flex justify-between text-[11px]">
+                            <span>{t.tipo} {pos}/{total} • {formatDate(t.vencimento)}</span>
+                            <span className={t.situacao === 'PAGO' ? 'text-paid' : t.situacao === 'VENCIDO' ? 'text-overdue' : ''}>
+                              {formatCurrency(t.valor)} {t.situacao === 'PAGO' ? '✅' : t.situacao === 'VENCIDO' ? '⚠️' : '⏳'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
-import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel } from '@/lib/calculos';
+import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel, getWhatsAppLink } from '@/lib/calculos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Download, X } from 'lucide-react';
+import { Download, X, MessageCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -303,33 +303,35 @@ export function Relatorios({ titulos, config }: Props) {
           {atrasados.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">Nenhum título atrasado 🎉</p>
           ) : (
-            atrasados.map(t => (
-              <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">
-                <div className="flex justify-between items-start mb-1">
-                  <p className="font-semibold truncate">{t.cliente}</p>
-                  <span className="text-xs bg-overdue/10 text-overdue px-2 py-0.5 rounded-full whitespace-nowrap">
-                    {Math.abs(t.diasAVencer)}d atraso
-                  </span>
+            atrasados.map(t => {
+              const cli = config.clientes.find(c => c.id === t.clienteId);
+              const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
+              const pix = (config.chavesPix || [])[0];
+              const waLink = t.telefone ? getWhatsAppLink(t.telefone, apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined) : '';
+              return (
+                <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="font-semibold truncate">{t.cliente}</p>
+                    <span className="text-xs bg-overdue/10 text-overdue px-2 py-0.5 rounded-full whitespace-nowrap">
+                      {Math.abs(t.diasAVencer)}d atraso
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-2">
+                    <div><p className="text-muted-foreground">Valor</p><p className="font-medium">{formatCurrency(t.valor)}</p></div>
+                    <div><p className="text-muted-foreground">Juros</p><p className="font-medium text-overdue">{formatCurrency(t.valorJuros)}</p></div>
+                    <div className="col-span-2"><p className="text-muted-foreground">Total com juros</p><p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p></div>
+                    <p className="col-span-2 text-muted-foreground">{ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}</p>
+                  </div>
+                  {t.telefone && (
+                    <Button asChild size="sm" variant="outline" className="w-full mt-2 h-8 text-xs">
+                      <a href={waLink} target="_blank" rel="noreferrer">
+                        <MessageCircle className="h-3 w-3 mr-1" /> Cobrar via WhatsApp{pix ? ' + PIX' : ''}
+                      </a>
+                    </Button>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-2">
-                  <div>
-                    <p className="text-muted-foreground">Valor</p>
-                    <p className="font-medium">{formatCurrency(t.valor)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Juros</p>
-                    <p className="font-medium text-overdue">{formatCurrency(t.valorJuros)}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground">Total com juros</p>
-                    <p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p>
-                  </div>
-                  <p className="col-span-2 text-muted-foreground">
-                    {ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}
-                  </p>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>
@@ -357,6 +359,58 @@ export function Relatorios({ titulos, config }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {clienteAtivo && (() => {
+        const todosCli = calculados.filter(t => t.cliente === fCliente);
+        const pagos = todosCli.filter(t => t.situacao === 'PAGO');
+        const atrasoPagos = pagos.filter(t => t.dataPagamento && t.dataPagamento > t.vencimento).length;
+        const totalPagos = pagos.length;
+        const pctAtraso = totalPagos > 0 ? (atrasoPagos / totalPagos) * 100 : 0;
+        const emoji = atrasoPagos === 0 ? '😀' : atrasoPagos <= 10 ? '😟' : '😭';
+        const grupos: Record<string, typeof todosCli> = {};
+        todosCli.forEach(t => {
+          const k = getMonthKey(t.dataEmissao || t.vencimento);
+          (grupos[k] = grupos[k] || []).push(t);
+        });
+        const ordem = Object.keys(grupos).sort().reverse();
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">📜 Histórico — {fCliente}</CardTitle>
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <p>Compras: <strong>{todosCli.length}</strong> • Recebidos: <strong>{totalPagos}</strong> • Atrasados pagos: <strong>{atrasoPagos}</strong></p>
+                <p>Pontualidade: <span className="text-base">{emoji}</span> <strong>{(100 - pctAtraso).toFixed(0)}%</strong> em dia</p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {ordem.map(mk => {
+                const itens = grupos[mk];
+                const totalMes = itens.reduce((s, x) => s + x.valor, 0);
+                return (
+                  <div key={mk} className="border rounded p-2">
+                    <p className="text-xs font-semibold mb-1">{formatMonthLabel(mk)} • {itens.length} compra(s) • {formatCurrency(totalMes)}</p>
+                    <div className="space-y-1">
+                      {itens.map(t => {
+                        const irmaos = todosCli.filter(x => x.dataEmissao === t.dataEmissao && x.tipo === t.tipo);
+                        const pos = irmaos.findIndex(x => x.id === t.id) + 1;
+                        const total = irmaos.length;
+                        return (
+                          <div key={t.id} className="flex justify-between text-[11px]">
+                            <span>{t.tipo} {pos}/{total} • {formatDate(t.vencimento)}</span>
+                            <span className={t.situacao === 'PAGO' ? 'text-paid' : t.situacao === 'VENCIDO' ? 'text-overdue' : ''}>
+                              {formatCurrency(t.valor)} {t.situacao === 'PAGO' ? '✅' : t.situacao === 'VENCIDO' ? '⚠️' : '⏳'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

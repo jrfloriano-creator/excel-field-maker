@@ -229,7 +229,8 @@ const Index = () => {
           <>
             {showForm && (
               <TituloForm onSubmit={handleAdd} onClose={() => { setShowForm(false); setEditingTitulo(null); }}
-                editData={editingTitulo} clientes={config.clientes} proprietarios={config.proprietarios} />
+                editData={editingTitulo} clientes={config.clientes} proprietarios={config.proprietarios}
+                config={config} user={user} />
             )}
             {pagarId && pagarTitulo && (
               <PagarForm

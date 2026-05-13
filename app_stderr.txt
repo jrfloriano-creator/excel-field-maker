@@ -1,0 +1,4 @@
+
+thread 'main' (30276) panicked at src\main.rs:8:10:
+error while running tauri application: PluginInitialization("sql", "invalid connection url: CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -20,6 +20,7 @@ import { MaquininhasManager } from '@/components/MaquininhasManager';
 import { LogoPanel } from '@/components/LogoPanel';
 import { LogPanel } from '@/components/LogPanel';
 import { hasPerm, SessionUser } from '@/lib/auth';
+import { openExternalUrl } from '@/lib/openUrl';
 
 interface ConfigPanelProps {
   config: AppConfig;
@@ -56,7 +57,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
         const cli = config.clientes.find(c => c.id === t.clienteId);
         const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
         const msg = `⚠️ Alerta de Vencimento\n\nCliente: ${apelido}\nValor: ${formatCurrency(t.valor)}\nVencimento: ${formatDate(t.vencimento)} (amanhã)`;
-        window.open(`https://wa.me/55${tel.numero.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        openExternalUrl(`https://wa.me/55${tel.numero.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`);
       });
     });
     toast.success(`${titulosAmanha.length} alerta(s) abertos`);

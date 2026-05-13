@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
 import { getTitulos, saveTitulos, getConfig, saveConfig, generateId, getNextNumero, DEFAULT_CONFIG } from '@/lib/storage';
 
@@ -6,6 +6,13 @@ export function useTitulos() {
   const [titulos, setTitulos] = useState<Titulo[]>([]);
   const [config, setConfigState] = useState<AppConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  // Ref sempre atualizado com o config mais recente — evita closure stale em
+  // chamadas consecutivas de updateConfig no mesmo ciclo síncrono (ex: salvar
+  // venda + appendLog na mesma função).
+  const configRef = useRef<AppConfig>(DEFAULT_CONFIG);
+
+  // Mantém ref sincronizado a cada render
+  configRef.current = config;
 
   useEffect(() => {
     let mounted = true;
@@ -13,6 +20,7 @@ export function useTitulos() {
       const [tits, conf] = await Promise.all([getTitulos(), getConfig()]);
       if (mounted) {
         setTitulos(tits);
+        configRef.current = conf;
         setConfigState(conf);
         setLoading(false);
       }
@@ -64,7 +72,8 @@ export function useTitulos() {
   };
 
   const updateConfig = async (data: Partial<AppConfig>) => {
-    const updated = { ...config, ...data };
+    const updated = { ...configRef.current, ...data };
+    configRef.current = updated;
     setConfigState(updated);
     await saveConfig(updated);
   };

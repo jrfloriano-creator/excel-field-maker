@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Download, X, MessageCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { openExternalUrl } from '@/lib/openUrl';
+import { savePdf } from '@/lib/savePdf';
 
 interface Props {
   titulos: Titulo[];
@@ -32,7 +34,8 @@ export function Relatorios({ titulos, config }: Props) {
     return Array.from(keys).sort();
   }, [calculados]);
 
-  const tipos = useMemo(() => Array.from(new Set(calculados.map(t => t.tipo))).sort(), [calculados]);
+  // FEAT 4: opções fixas de tipo (sem numeração)
+  const TIPOS_FIXOS = ['Duplicata', 'Caderno', 'Cheque', 'Boleto', 'Outros'];
   const clientes = useMemo(() => Array.from(new Set(calculados.map(t => t.cliente))).sort(), [calculados]);
 
   // Filtros
@@ -57,7 +60,8 @@ export function Relatorios({ titulos, config }: Props) {
   const aplicaFiltros = (t: typeof calculados[number], dateForMonth: string) => {
     if (fProprietario !== TODOS && t.proprietario !== fProprietario) return false;
     if (clienteAtivo) return t.cliente === fCliente;
-    if (fTipo !== TODOS && t.tipo !== fTipo) return false;
+    // FEAT 4: usa startsWith para matching por tipo fixo (ex: "Duplicata" casa com "Duplicata 001")
+    if (fTipo !== TODOS && !t.tipo.startsWith(fTipo)) return false;
     if (fMes !== TODOS && getMonthKey(dateForMonth) !== fMes) return false;
     return true;
   };
@@ -89,7 +93,7 @@ export function Relatorios({ titulos, config }: Props) {
     setFCliente(TODOS);
   };
 
-  const exportarPDF = () => {
+  const exportarPDF = async () => {
     const doc = new jsPDF();
     const dataHoje = new Date().toLocaleDateString('pt-BR');
 
@@ -181,7 +185,7 @@ export function Relatorios({ titulos, config }: Props) {
       margin: { left: 14, right: 14 },
     });
 
-    doc.save(`relatorio-${new Date().toISOString().slice(0, 10)}.pdf`);
+    await savePdf(doc, `relatorio-${new Date().toISOString().slice(0, 10)}.pdf`, config.caminhoSalvarDados);
   };
 
   return (
@@ -227,7 +231,7 @@ export function Relatorios({ titulos, config }: Props) {
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={TODOS}>Todos</SelectItem>
-                {tipos.map(t => (
+                {TIPOS_FIXOS.map(t => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
               </SelectContent>
@@ -327,10 +331,9 @@ export function Relatorios({ titulos, config }: Props) {
                     <p className="col-span-2 text-muted-foreground">{ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}</p>
                   </div>
                   {t.telefone && (
-                    <Button asChild size="sm" variant="outline" className="w-full mt-2 h-8 text-xs">
-                      <a href={waLink} target="_blank" rel="noreferrer">
-                        <MessageCircle className="h-3 w-3 mr-1" /> Cobrar via WhatsApp{pix ? ' + PIX' : ''}
-                      </a>
+                    <Button size="sm" variant="outline" className="w-full mt-2 h-8 text-xs"
+                      onClick={() => openExternalUrl(waLink)}>
+                      <MessageCircle className="h-3 w-3 mr-1" /> Cobrar via WhatsApp{pix ? ' + PIX' : ''}
                     </Button>
                   )}
                 </div>

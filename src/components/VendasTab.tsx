@@ -12,6 +12,7 @@ import { UserPlus, Save, Calendar, FileText, Printer, MessageCircle, X } from 'l
 import { SessionUser, appendLog } from '@/lib/auth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { savePdf } from '@/lib/savePdf';
 
 interface Props {
   config: AppConfig;
@@ -76,28 +77,40 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       maquininha: isCartao ? maquininhas.find(m => m.id === maquininhaId)?.nome : undefined,
       registradoPor: user?.nome || '—',
     };
-    onUpdate({ vendas: [...(config.vendas || []), venda] });
     const descontoStr = descN > 0
       ? ` | Desconto: ${descontoTipo === 'porcento' ? `${descN}%` : formatCurrency(descN)} (${formatCurrency(valorN - valorFinal)})`
       : '';
-    appendLog(config, onUpdate, user, 'venda.vista',
-      `Venda à vista | Cliente: ${nome} | Valor compra: ${formatCurrency(valorN)}${descontoStr} | Valor final: ${formatCurrency(valorFinal)} | Pagamento: ${venda.formaPagamento}${venda.parcelas ? ` ${venda.parcelas}x` : ''}${venda.maquininha ? ` (${venda.maquininha})` : ''} | Por: ${venda.registradoPor}`,
-      {
-        vendaId: venda.id,
-        clienteNome: nome,
-        valorCompra: valorN,
-        desconto: descN,
-        descontoTipo,
-        valorFinal,
-        formaPagamento: venda.formaPagamento,
-        parcelas: venda.parcelas,
-        maquininha: venda.maquininha,
-      });
+    const descricaoLog = `Venda à vista | Cliente: ${nome} | Valor compra: ${formatCurrency(valorN)}${descontoStr} | Valor final: ${formatCurrency(valorFinal)} | Pagamento: ${venda.formaPagamento}${venda.parcelas ? ` ${venda.parcelas}x` : ''}${venda.maquininha ? ` (${venda.maquininha})` : ''} | Por: ${venda.registradoPor}`;
+    const metaLog = {
+      vendaId: venda.id,
+      clienteNome: nome,
+      valorCompra: valorN,
+      desconto: descN,
+      descontoTipo,
+      valorFinal,
+      formaPagamento: venda.formaPagamento,
+      parcelas: venda.parcelas,
+      maquininha: venda.maquininha,
+    };
+
+    // FEAT 5 FIX: combina vendas + log em uma única chamada para evitar closure stale
+    const novasVendas = [...(config.vendas || []), venda];
+    const novoLog = {
+      id: generateId(),
+      data: new Date().toISOString(),
+      usuario: user?.nome || 'desconhecido',
+      tipo: 'venda.vista' as const,
+      descricao: descricaoLog,
+      metadata: metaLog,
+    };
+    const novosLogs = [...(config.logs || []), novoLog].slice(-5000);
+    onUpdate({ vendas: novasVendas, logs: novosLogs });
+
     toast.success('Venda registrada');
     setValor(''); setDesconto(''); setParcelas('1');
   };
 
-  const gerarPDF = () => {
+  const gerarPDF = async () => {
     const doc = new jsPDF();
     const dataFormatada = new Date(today + 'T12:00:00').toLocaleDateString('pt-BR');
     doc.setFontSize(16);
@@ -126,8 +139,7 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       footStyles: { fontStyle: 'bold', fillColor: [230, 230, 230] },
     });
 
-    doc.save(`vendas-do-dia-${today}.pdf`);
-    toast.success('PDF gerado!');
+    await savePdf(doc, `vendas-do-dia-${today}.pdf`, config.caminhoSalvarDados);
   };
 
   const imprimir = () => {
@@ -149,6 +161,77 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       <tbody>${linhas}</tbody>
       <tfoot><tr><td colspan="2">TOTAL</td><td>${formatCurrency(totalDia)}</td><td colspan="3"></td></tr></tfoot>
       </table></body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
+  // FEAT 6: gerar PDF do comprovante individual de uma venda
+  const gerarComprovanteVendaPDF = async (venda: VendaVista) => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+    const dataFormatada = new Date(venda.data + 'T12:00:00').toLocaleDateString('pt-BR');
+    const empresa = (config as any).nomeEmpresa || 'Controle Financeiro ZOOM';
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(empresa, 105, 14, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('COMPROVANTE DE VENDA', 105, 22, { align: 'center' });
+    doc.setLineWidth(0.3);
+    doc.line(14, 26, 196, 26);
+
+    doc.setFontSize(10);
+    let y = 34;
+    const row = (label: string, val: string) => {
+      doc.setFont('helvetica', 'bold'); doc.text(label, 14, y);
+      doc.setFont('helvetica', 'normal'); doc.text(val, 60, y);
+      y += 8;
+    };
+    row('Data:', `${dataFormatada}${venda.hora ? ' — ' + venda.hora : ''}`);
+    row('Cliente:', venda.clienteNome);
+    row('Valor da compra:', formatCurrency(venda.valor + (venda.descontoTipo === 'valor' ? venda.desconto : venda.valor * venda.desconto / (100 - venda.desconto))));
+    if (venda.desconto > 0) {
+      row('Desconto:', venda.descontoTipo === 'valor' ? formatCurrency(venda.desconto) : `${venda.desconto}%`);
+    }
+    row('Valor pago:', formatCurrency(venda.valor));
+    row('Pagamento:', `${venda.formaPagamento}${venda.parcelas ? ` — ${venda.parcelas}x` : ''}${venda.maquininha ? ` (${venda.maquininha})` : ''}`);
+    row('Registrado por:', venda.registradoPor);
+
+    doc.setLineWidth(0.3);
+    doc.line(14, y, 196, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Obrigado pela preferência!', 105, y, { align: 'center' });
+
+    const filename = `comprovante-venda-${venda.id.slice(0, 8)}.pdf`;
+    await savePdf(doc, filename, config.caminhoSalvarDados);
+  };
+
+  // FEAT 6: imprimir comprovante individual de uma venda
+  const imprimirComprovanteVenda = (venda: VendaVista) => {
+    const dataFormatada = new Date(venda.data + 'T12:00:00').toLocaleDateString('pt-BR');
+    const descontoLinha = venda.desconto > 0
+      ? `<tr><td>Desconto</td><td>${venda.descontoTipo === 'valor' ? formatCurrency(venda.desconto) : `${venda.desconto}%`}</td></tr>`
+      : '';
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comprovante</title>
+      <style>body{font-family:sans-serif;font-size:13px;max-width:400px;margin:0 auto;padding:16px}
+      h2,h3{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse;margin-top:12px}
+      td{padding:5px 8px;border-bottom:1px solid #eee}td:first-child{font-weight:bold;width:45%}
+      .total{font-size:16px;font-weight:bold;color:#1a73e8}.footer{text-align:center;margin-top:16px;font-style:italic;font-size:12px}
+      @media print{button{display:none}}</style></head>
+      <body>
+      <h2>Comprovante de Venda</h2>
+      <h3 style="font-weight:normal;color:#555">${dataFormatada}${venda.hora ? ' — ' + venda.hora : ''}</h3>
+      <table>
+        <tr><td>Cliente</td><td>${venda.clienteNome}</td></tr>
+        ${descontoLinha}
+        <tr><td class="total">Valor pago</td><td class="total">${formatCurrency(venda.valor)}</td></tr>
+        <tr><td>Pagamento</td><td>${venda.formaPagamento}${venda.parcelas ? ` ${venda.parcelas}x` : ''}${venda.maquininha ? ` (${venda.maquininha})` : ''}</td></tr>
+        <tr><td>Registrado por</td><td>${venda.registradoPor}</td></tr>
+      </table>
+      <div class="footer">Obrigado pela preferência!</div>
+      </body></html>`;
     const w = window.open('', '_blank');
     if (w) { w.document.write(html); w.document.close(); w.print(); }
   };
@@ -294,6 +377,17 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
                         {v.formaPagamento}{v.parcelas ? ` ${v.parcelas}x` : ''}{v.maquininha ? ` • ${v.maquininha}` : ''}
                         {v.hora ? ` • ${v.hora}` : ''}
                       </p>
+                      {/* FEAT 6: botões de comprovante individual */}
+                      <div className="flex gap-1 mt-1.5">
+                        <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 flex-1"
+                          onClick={() => gerarComprovanteVendaPDF(v)}>
+                          <FileText className="h-3 w-3 mr-1" /> PDF
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 flex-1"
+                          onClick={() => imprimirComprovanteVenda(v)}>
+                          <Printer className="h-3 w-3 mr-1" /> Imprimir
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

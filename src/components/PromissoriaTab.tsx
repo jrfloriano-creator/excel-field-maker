@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileDown, Printer } from 'lucide-react';
+import { FileDown, Printer, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { calcularNotas, formatBRL, gerarPromissoriaPDF, dateToLong } from '@/lib/promissoria';
+import { savePdf, openFolder } from '@/lib/savePdf';
 
 interface Props {
   config: AppConfig;
@@ -29,6 +30,16 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
   useEffect(() => {
     if (!cidadeEstado && credor.cidadeEstado) setCidadeEstado(credor.cidadeEstado);
   }, [credor.cidadeEstado, cidadeEstado]);
+
+  // FEAT 2: Auto-preenche data do 1º vencimento com hoje + 30 dias
+  useEffect(() => {
+    if (!primeiroVencimento) {
+      const d = new Date();
+      d.setDate(d.getDate() + 30);
+      setPrimeiroVencimento(d.toISOString().split('T')[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const devedor: Cliente | undefined = useMemo(
     () => config.clientes.find(c => c.id === clienteId),
@@ -108,15 +119,15 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     toast.success(`${novos.length} título(s) salvo(s) no banco`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (!validar() || !devedor) return;
     const pdf = gerarPromissoriaPDF(
       { quantidade: qtdNum, cidadeEstado, primeiroVencimento, valorTotal: valorNum, credor, devedor },
       notas
     );
-    pdf.save(`promissorias-${devedor.nome.replace(/\s+/g, '_')}.pdf`);
+    const filename = `promissorias-${devedor.nome.replace(/\s+/g, '_')}.pdf`;
+    await savePdf(pdf, filename, config.caminhoSalvarDados);
     salvarComoTitulos();
-    toast.success('PDF gerado!');
   };
 
   const handleImprimir = () => {
@@ -153,9 +164,19 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     salvarComoTitulos();
   };
 
+  // FEAT 10: abrir pasta de títulos salvos
+  const handleAbrirPasta = () => {
+    openFolder(config.caminhoSalvarDados);
+  };
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">📄 Notas Promissórias</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">📄 Notas Promissórias</h2>
+        <Button variant="outline" size="sm" onClick={handleAbrirPasta} className="gap-1 text-xs">
+          <FolderOpen className="h-3.5 w-3.5" /> Títulos Salvos
+        </Button>
+      </div>
 
       {(!credor.nome || !credor.cpfCnpj) && (
         <Card className="border-destructive/40 bg-destructive/5">

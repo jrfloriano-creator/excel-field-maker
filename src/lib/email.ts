@@ -1,4 +1,6 @@
 /** Helpers para abrir o Gmail Web (compose) numa nova aba. */
+import { openExternalUrl } from './openUrl';
+
 export function buildGmailComposeUrl(opts: { to?: string; subject?: string; body?: string; cc?: string; bcc?: string }) {
   const params = new URLSearchParams();
   params.set('view', 'cm');
@@ -12,5 +14,5 @@ export function buildGmailComposeUrl(opts: { to?: string; subject?: string; body
 }
 
 export function openGmailCompose(opts: { to?: string; subject?: string; body?: string; cc?: string; bcc?: string }) {
-  window.open(buildGmailComposeUrl(opts), '_blank', 'noopener,noreferrer');
+  openExternalUrl(buildGmailComposeUrl(opts));
 }

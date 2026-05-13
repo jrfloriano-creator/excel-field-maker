@@ -8,8 +8,8 @@ import { Titulo, AppConfig } from '@/types/titulo';
 interface Props {
   titulos: Titulo[];
   config: AppConfig;
-  onImportTitulos: (titulos: Titulo[]) => void;
-  onImportConfig: (patch: Partial<AppConfig>) => void;
+  onImportTitulos: (titulos: Titulo[]) => Promise<void> | void;
+  onImportConfig: (patch: Partial<AppConfig>) => Promise<void> | void;
 }
 
 export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }: Props) {
@@ -45,11 +45,12 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
       const text = await file.text();
       const data = JSON.parse(text.replace(/^\uFEFF/, ''));
       if (!data || typeof data !== 'object') throw new Error('Arquivo inválido');
+      // Aguarda cada importação para garantir que o banco persista antes de continuar
       if (Array.isArray(data.titulos)) {
-        onImportTitulos(data.titulos as Titulo[]);
+        await onImportTitulos(data.titulos as Titulo[]);
       }
       if (data.config && typeof data.config === 'object') {
-        onImportConfig(data.config as Partial<AppConfig>);
+        await onImportConfig(data.config as Partial<AppConfig>);
       }
       toast.success('Backup restaurado com sucesso');
     } catch (err) {

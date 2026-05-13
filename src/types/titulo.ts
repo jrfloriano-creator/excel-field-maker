@@ -45,6 +45,7 @@ export interface Titulo {
   valorPago?: number;
   recebidoPor?: string;
   formaPagamento?: string;
+  maquininhaPagamento?: string; // maquininha usada no recebimento
   creditoAplicado?: number; // crédito do mês anterior usado
   creditoGerado?: number;   // crédito gerado para próximo mês
 }
@@ -140,6 +141,7 @@ export interface PermissoesPorNivel {
 export interface VendaVista {
   id: string;
   data: string;
+  hora?: string; // HH:mm
   clienteId?: string;
   clienteNome: string;
   valor: number;
@@ -189,6 +191,7 @@ export interface AppConfig {
   logoEmpresa?: string; // base64
   vendas?: VendaVista[];
   logs?: LogEntry[];
+  caminhoSalvarDados?: string; // caminho/pasta para salvar PDFs e promissórias
 }
 
 export const PERMISSAO_LABELS: Record<Permissao, string> = {

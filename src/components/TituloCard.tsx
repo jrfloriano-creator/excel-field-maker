@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
 import { getContrastColor, darkenColor } from '@/lib/colors';
+import { openExternalUrl } from '@/lib/openUrl';
 
 interface TituloCardProps {
   titulo: TituloComCalculo;
@@ -109,23 +110,21 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
 
         <div className="flex gap-2 mt-3">
           {titulo.telefone && titulo.situacao === 'VENCIDO' && (
-            <a
-              href={getWhatsAppLink(
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive"
+              onClick={() => openExternalUrl(getWhatsAppLink(
                 titulo.telefone,
                 nomeWhats,
                 titulo.valorCorrigido,
                 titulo.vencimento,
                 selectedPix && selectedPixId !== 'none' ? selectedPix : undefined
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1"
+              ))}
             >
-              <Button variant="outline" size="sm" className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive">
-                <MessageCircle className="h-4 w-4" />
-                Cobrar
-              </Button>
-            </a>
+              <MessageCircle className="h-4 w-4" />
+              Cobrar
+            </Button>
           )}
           {titulo.situacao !== 'PAGO' && (
             <Button variant="outline" size="sm" className="flex-1 bg-card text-foreground" onClick={() => onPagar(titulo.id)}>

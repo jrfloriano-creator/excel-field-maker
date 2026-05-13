@@ -142,6 +142,13 @@ const Index = () => {
               config={config}
               onSubmit={actions.handleConfirmPagar}
               onClose={() => actions.setPagarId(null)}
+              onMigratePin={(funcionarioId, newHash) =>
+                updateConfig({
+                  funcionarios: config.funcionarios.map(f =>
+                    f.id === funcionarioId ? { ...f, pin: newHash } : f
+                  )
+                })
+              }
             />
             <TitulosFilters
               filtro={filters.filtro}

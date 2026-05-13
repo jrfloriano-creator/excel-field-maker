@@ -93,10 +93,14 @@ export function Relatorios({ titulos, config }: Props) {
     const doc = new jsPDF();
     const dataHoje = new Date().toLocaleDateString('pt-BR');
 
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Controle Financeiro ZOOM', 14, 12);
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(16);
-    doc.text('Relatório Financeiro', 14, 18);
+    doc.text('Relatório Financeiro', 14, 20);
     doc.setFontSize(9);
-    doc.text(`Gerado em: ${dataHoje}`, 14, 24);
+    doc.text(`Gerado em: ${dataHoje}`, 14, 26);
 
     // Filtros aplicados
     const filtrosTxt: string[] = [];
@@ -105,9 +109,9 @@ export function Relatorios({ titulos, config }: Props) {
     if (!clienteAtivo && fMes !== TODOS) filtrosTxt.push(`Mês: ${formatMonthLabel(fMes)}`);
     if (clienteAtivo) filtrosTxt.push(`Cliente: ${fCliente}`);
     if (filtrosTxt.length === 0) filtrosTxt.push('Sem filtros');
-    doc.text(`Filtros: ${filtrosTxt.join(' | ')}`, 14, 30);
+    doc.text(`Filtros: ${filtrosTxt.join(' | ')}`, 14, 32);
 
-    let cursorY = 38;
+    let cursorY = 40;
 
     // Recebidos
     doc.setFontSize(12);

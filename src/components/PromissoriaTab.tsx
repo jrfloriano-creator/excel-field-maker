@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppConfig, Cliente, Titulo } from '@/types/titulo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,8 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
   const [primeiroVencimento, setPrimeiroVencimento] = useState('');
   const [valorTotal, setValorTotal] = useState('');
   const [clienteId, setClienteId] = useState('');
+  // Rastrea a assinatura dos últimos títulos salvos para evitar duplicatas
+  const savedSignatureRef = useRef<string>('');
 
   const credor = config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' };
 
@@ -48,6 +50,11 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     });
   }, [qtdNum, cidadeEstado, primeiroVencimento, valorNum, credor, devedor]);
 
+  // Reseta a assinatura quando os inputs mudam (permite nova impressão = novo save)
+  useEffect(() => {
+    savedSignatureRef.current = '';
+  }, [clienteId, primeiroVencimento, valorNum, qtdNum]);
+
   const camposFaltandoDevedor = (c?: Cliente): string[] => {
     if (!c) return [];
     const f: string[] = [];
@@ -73,8 +80,17 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     return true;
   };
 
+  /**
+   * Salva os títulos no banco UMA ÚNICA VEZ por combinação de inputs.
+   * Impressões subsequentes com os mesmos dados não geram duplicatas.
+   */
   const salvarComoTitulos = () => {
     if (!devedor || !onAddTitulos) return;
+    const signature = `${clienteId}|${primeiroVencimento}|${valorNum}|${qtdNum}`;
+    if (savedSignatureRef.current === signature) {
+      // Já foi salvo com esses dados — pular para evitar duplicatas
+      return;
+    }
     const hoje = new Date().toISOString().split('T')[0];
     const proprietarioPadrao = config.proprietarios[0]?.id || '';
     const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
@@ -88,6 +104,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       proprietario: proprietarioPadrao,
     }));
     onAddTitulos(novos);
+    savedSignatureRef.current = signature;
     toast.success(`${novos.length} título(s) salvo(s) no banco`);
   };
 
@@ -109,12 +126,30 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       notas
     );
     const blobUrl = pdf.output('bloburl');
-    const win = window.open(blobUrl, '_blank');
-    if (win) {
-      win.onload = () => setTimeout(() => win.print(), 300);
-    } else {
-      toast.error('Bloqueado pelo navegador. Permita popups.');
-    }
+
+    // Usa iframe invisível para disparar o diálogo de impressão nativo do SO
+    // (window.open pode ser bloqueado no Tauri / WebView2)
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;';
+    iframe.src = blobUrl;
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.print();
+        } catch {
+          toast.error('Não foi possível abrir o diálogo de impressão.');
+        }
+        // Limpa o iframe e o blob após 2 minutos
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(blobUrl);
+        }, 120_000);
+      }, 500);
+    };
+
+    // Títulos são salvos somente se for a primeira impressão desse lote
     salvarComoTitulos();
   };
 
@@ -241,7 +276,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       )}
 
       <p className="text-[11px] text-muted-foreground text-center">
-        Ao clicar em "Criar PDF" ou "Imprimir", as promissórias são salvas automaticamente no Banco de Títulos.
+        Ao clicar em "Criar PDF" ou "Imprimir", as promissórias são salvas automaticamente no Banco de Títulos (apenas uma vez por lote).
       </p>
 
       <div className="grid grid-cols-2 gap-2">

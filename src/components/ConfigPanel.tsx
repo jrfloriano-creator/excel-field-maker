@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Trash2, Send } from 'lucide-react';
+import { Plus, Trash2, Send, FolderOpen } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
@@ -214,6 +214,50 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
         </TabsContent>
 
         <TabsContent value="sistema" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">📁 Pasta para Salvar Dados (Promissórias/PDF)</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              <Label className="text-xs">Caminho no computador</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: C:\Documentos\ZOOM\PDFs"
+                  value={config.caminhoSalvarDados || ''}
+                  onChange={e => onUpdate({ caminhoSalvarDados: e.target.value })}
+                  className="flex-1 text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="Selecionar pasta"
+                  onClick={async () => {
+                    try {
+                      // Tenta usar Tauri dialog API se disponível
+                      if ((window as any).__TAURI_INTERNALS__) {
+                        const { open } = await import('@tauri-apps/plugin-dialog');
+                        const selected = await open({ directory: true, multiple: false, title: 'Selecionar pasta para salvar dados' });
+                        if (selected && typeof selected === 'string') {
+                          onUpdate({ caminhoSalvarDados: selected });
+                          toast.success('Pasta selecionada');
+                        }
+                      } else {
+                        toast.info('Seleção de pasta disponível apenas no app desktop. Digite o caminho manualmente.');
+                      }
+                    } catch {
+                      toast.info('Digite o caminho da pasta manualmente.');
+                    }
+                  }}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Informe o caminho onde deseja salvar os arquivos PDF e Promissórias gerados pelo sistema.
+              </p>
+              <Button size="sm" className="w-full" onClick={() => { toast.success('Caminho salvo!'); }}>
+                Salvar Caminho
+              </Button>
+            </CardContent>
+          </Card>
           <LogoPanel logo={config.logoEmpresa} onUpdate={(logo) => onUpdate({ logoEmpresa: logo })} />
           {can('config.backup') && (
             <BackupPanel titulos={titulos} config={config} onImportTitulos={(t) => onImportTitulos?.(t)} onImportConfig={(p) => onUpdate(p)} />

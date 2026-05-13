@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Titulo, AppConfig, TituloComCalculo } from '@/types/titulo';
 import { SessionUser, appendLog } from '@/lib/auth';
 import { buildPagamentoWhatsMsg, whatsLink } from '@/lib/calculos';
+import { openExternalUrl } from '@/lib/openUrl';
 import { toast } from 'sonner';
 
 interface UseTituloActionsProps {
@@ -99,6 +100,7 @@ export function useTituloActions({
       valorPago: data.valorPago,
       recebidoPor: data.recebidoPor,
       formaPagamento: data.formaPagamento,
+      maquininhaPagamento: data.maquininhaPagamento,
       creditoAplicado: data.creditoAplicado,
       creditoGerado: data.creditoGerado,
     });
@@ -107,15 +109,23 @@ export function useTituloActions({
     if (data.enviarWhats && t?.telefone) {
       const cli = config.clientes.find(c => c.id === t.clienteId);
       const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
+      // Calcula posição no lote (mesmo cliente + tipo + dataEmissao)
+      const lote = titulos
+        .filter(x => x.clienteId === t.clienteId && x.tipo === t.tipo && x.dataEmissao === t.dataEmissao)
+        .sort((a, b) => a.numero - b.numero);
+      const posicao = lote.findIndex(x => x.id === t.id) + 1;
+      const tipoTituloFormatado = lote.length > 1
+        ? `${t.tipo} ${posicao}/${lote.length}`
+        : `${t.tipo} ${t.numero}`;
       const msg = buildPagamentoWhatsMsg({
         apelido,
         formaPagamento: data.formaPagamento,
         valorPago: data.valorPago,
-        tipoTitulo: t.tipo,
+        tipoTitulo: tipoTituloFormatado,
         recebidoPor: data.recebidoPor,
         creditoGerado: data.creditoGerado,
       });
-      window.open(whatsLink(t.telefone, msg), '_blank');
+      openExternalUrl(whatsLink(t.telefone, msg));
       appendLog(config, updateConfig, user, 'whatsapp.pagamento', `WhatsApp pagamento p/ ${apelido}`);
     }
     setPagarId(null);

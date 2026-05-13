@@ -8,9 +8,10 @@ interface PagarFormModalProps {
   config: AppConfig;
   onSubmit: (data: any) => void;
   onClose: () => void;
+  onMigratePin?: (funcionarioId: string, newHash: string) => void;
 }
 
-export function PagarFormModal({ pagarId, titulo, creditoCliente, config, onSubmit, onClose }: PagarFormModalProps) {
+export function PagarFormModal({ pagarId, titulo, creditoCliente, config, onSubmit, onClose, onMigratePin }: PagarFormModalProps) {
   if (!pagarId || !titulo) return null;
   return (
     <PagarForm
@@ -19,8 +20,10 @@ export function PagarFormModal({ pagarId, titulo, creditoCliente, config, onSubm
       creditoDisponivel={Math.max(0, creditoCliente)}
       funcionarios={config.funcionarios}
       formasPagamento={config.formasPagamento || []}
+      maquininhas={config.maquininhas || []}
       onSubmit={onSubmit}
       onClose={onClose}
+      onMigratePin={onMigratePin}
     />
   );
 }

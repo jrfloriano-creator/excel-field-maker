@@ -123,8 +123,10 @@ export async function hashPin(pin: string, providedSalt?: Uint8Array): Promise<s
 }
 
 export async function verifyPin(pin: string, storedHash: string): Promise<boolean> {
+  if (!storedHash) return false;
   if (!storedHash.startsWith('v1:')) {
-    // Legacy check
+    // Legacy plain-text or legacy hash fallback
+    if (storedHash === pin) return true; // plain-text legacy
     return legacyHashPin(pin) === storedHash;
   }
   const parts = storedHash.split(':');

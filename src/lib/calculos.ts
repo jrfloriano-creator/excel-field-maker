@@ -76,9 +76,9 @@ export function buildPagamentoWhatsMsg(opts: {
   creditoGerado?: number;
 }): string {
   const { apelido, formaPagamento, valorPago, tipoTitulo, recebidoPor, creditoGerado } = opts;
-  let msg = `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}, referente ${tipoTitulo}, recebido por ${recebidoPor}`;
+  let msg = `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}, referente a/ao ${tipoTitulo}, recebido por ${recebidoPor}.`;
   if (creditoGerado && creditoGerado > 0) {
-    msg += `\n\nObs. O valor pago a ${formatCurrency(creditoGerado)} mais será abatido no valor do próximo mês.`;
+    msg += `\n\nObs. O valor pago a mais de ${formatCurrency(creditoGerado)} será abatido no valor do próximo mês.`;
   }
   msg += `\n\nAgradecemos a preferência!`;
   return msg;

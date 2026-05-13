@@ -10,6 +10,7 @@ import { Plus, Trash2, Pencil, X, Search, UserPlus, MessageCircle } from 'lucide
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/calculos';
+import { openExternalUrl } from '@/lib/openUrl';
 
 const ESTADOS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
@@ -255,8 +256,15 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
       ) : (
         <div className="space-y-2">
           {filtrados.map(c => {
-            const titulosDoCliente = titulos.filter(t => t.clienteId === c.id);
-            const enviarRelacao = (e: React.MouseEvent) => {
+            // Busca títulos pelo clienteId (preferencial) ou por nome+telefone (legado)
+            const titulosDoCliente = titulos.filter(t =>
+              t.clienteId === c.id ||
+              (!t.clienteId && (
+                t.cliente?.toUpperCase() === c.nome.toUpperCase() ||
+                (c.telefone && t.telefone === c.telefone)
+              ))
+            );
+            const enviarRelacao = async (e: React.MouseEvent) => {
               e.stopPropagation();
               if (!c.telefone) { toast.error('Cliente sem telefone'); return; }
               if (titulosDoCliente.length === 0) { toast.info('Nenhum título cadastrado para este cliente'); return; }
@@ -271,7 +279,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
               const msg = `Conforme solicitado ${apelido}, segue a relação de suas parcelas:\n\n${linhas}`;
               const digits = c.telefone.replace(/\D/g, '');
               const link = `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
-              window.open(link, '_blank');
+              await openExternalUrl(link);
             };
             const camposFaltando: string[] = [];
             if (!c.telefone) camposFaltando.push('telefone');

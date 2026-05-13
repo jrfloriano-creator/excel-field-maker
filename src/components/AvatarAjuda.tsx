@@ -40,6 +40,17 @@ const DICAS: Record<string, Dica> = {
     titulo: '📑 Aba Relatórios',
     itens: ['Visualize totais por status, proprietário e período.'],
   },
+  vendas: {
+    titulo: '🛒 Aba Vendas à Vista',
+    itens: [
+      'Registre vendas rápidas sem gerar título/promissória.',
+      'Selecione o cliente cadastrado ou marque "Cliente Novo".',
+      'Informe o valor e o desconto (em R$ ou %).',
+      'Escolha a forma de pagamento (cadastrada em Config › Financeiro).',
+      'Para cartão, informe parcelas e a maquininha usada.',
+      'Todas as vendas ficam salvas no histórico abaixo.',
+    ],
+  },
 };
 
 const SUB_DICAS: Record<string, Record<string, Dica>> = {

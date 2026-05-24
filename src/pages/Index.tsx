@@ -16,18 +16,41 @@ import { PromissoriaTabs } from '@/components/PromissoriaTabs';
 import { AvatarAjuda } from '@/components/AvatarAjuda';
 import { LoginScreen } from '@/components/LoginScreen';
 import { VendasTab } from '@/components/VendasTab';
+import { Sidebar } from '@/components/Sidebar';
+import { IdleTimerManager } from '@/components/IdleTimerManager';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, List, Settings2, FileText, Users, ScrollText, LogOut, ShoppingCart } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SessionUser, getSession, setSession, appendLog, hasPerm } from '@/lib/auth';
 
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config';
 
+// Real-time clock hook
+function useClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+}
+
+const TAB_SUBTITLES: Record<Tab, string> = {
+  lista: 'Títulos',
+  dashboard: 'Dashboard',
+  relatorios: 'Relatórios',
+  clientes: 'Clientes',
+  promissoria: 'Promissórias',
+  vendas: 'Vendas',
+  config: 'Configurações',
+};
+
 const Index = () => {
   const { titulos, config, updateConfig, addTitulo, addTitulos, updateTitulo, deleteTitulo, replaceTitulos, loading } = useTitulos();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
-  const [tab, setTab] = useState<Tab>('lista');
+  const [tab, setTab] = useState<Tab>('dashboard');
+  const now = useClock();
 
   useEffect(() => {
     getSession().then(u => { setUser(u); setLoadingSession(false); });
@@ -47,8 +70,8 @@ const Index = () => {
 
   if (loading || loadingSession) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground animate-pulse">Carregando dados...</p>
+      <div className="min-h-screen bg-[#1a2035] flex items-center justify-center">
+        <p className="text-white/60 animate-pulse font-[Poppins]">Carregando dados...</p>
       </div>
     );
   }
@@ -74,141 +97,187 @@ const Index = () => {
     setUser(null);
   };
 
-  const navItems = [
-    { id: 'lista' as Tab, icon: List, label: 'Títulos' },
-    { id: 'clientes' as Tab, icon: Users, label: 'Clientes' },
-    { id: 'promissoria' as Tab, icon: ScrollText, label: 'Promiss.' },
-    { id: 'vendas' as Tab, icon: ShoppingCart, label: 'Vendas' },
-    { id: 'dashboard' as Tab, icon: BarChart3, label: 'Dash' },
-    { id: 'relatorios' as Tab, icon: FileText, label: 'Relat.' },
-    { id: 'config' as Tab, icon: Settings2, label: 'Config' },
-  ];
+  // Format clock
+  const clockDate = now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+  const clockTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const showMonthBar = tab === 'lista' || tab === 'dashboard';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto">
-      <header className="sticky top-0 z-30 bg-primary text-primary-foreground px-3 py-2 shadow-md">
-        <div className="flex items-center gap-2">
-          {config.logoEmpresa && (
-            <img src={config.logoEmpresa} alt="Logo" className="h-9 object-contain bg-white rounded p-0.5" />
-          )}
-          <div className="flex-1 text-center">
-            <h1 className="text-base font-bold tracking-tight">💰 Controle Financeiro ZOOM</h1>
-            <p className="text-[10px] opacity-80">Taxa: {(config.taxa * 100).toFixed(1)}% a.m. • {user.nome} ({user.nivel})</p>
-          </div>
-          <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={logout}>
-            <LogOut className="h-3 w-3 mr-1" /> LOGIN
-          </Button>
-        </div>
-      </header>
+    <div className="zoom-layout">
+      {/* Sidebar */}
+      <Sidebar
+        tab={tab}
+        onTabChange={(t) => setTab(t)}
+        onLogout={logout}
+        userName={user.nome}
+        userLevel={user.nivel}
+        logoEmpresa={config.logoEmpresa}
+      />
 
-      {(tab === 'lista' || tab === 'dashboard') && filters.monthKeys.length > 0 && (
-        <div className="bg-card border-b border-border px-2 py-2 overflow-x-auto">
-          <div className="flex gap-1 min-w-max">
-            {tab === 'dashboard' && (
-              <button onClick={() => filters.setDashboardMonth('')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium ${filters.dashboardMonth === '' ? 'bg-primary text-primary-foreground ring-2 ring-primary' : 'bg-secondary text-secondary-foreground'}`}>
-                Todos
-              </button>
-            )}
-            {filters.monthKeys.map(mk => {
-              const active = tab === 'lista' ? filters.selectedMonth === mk : filters.dashboardMonth === mk;
-              return (
-                <button key={mk}
-                  onClick={() => tab === 'lista' ? filters.setSelectedMonth(mk) : filters.setDashboardMonth(mk)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium ${active ? 'bg-primary text-primary-foreground ring-2 ring-primary' : 'bg-secondary text-secondary-foreground'}`}>
-                  {formatMonthLabel(mk)}
+      {/* Main wrapper */}
+      <div className="zoom-main">
+        {/* Top Header */}
+        <header className="zoom-top-header">
+          <div className="zoom-header-title">
+            Sistema <span>ZOOM</span>
+            <span style={{ fontSize: '12px', fontWeight: 400, color: '#718096', marginLeft: '8px' }}>
+              • {TAB_SUBTITLES[tab]}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="zoom-clock">
+              <div className="zoom-clock-date">{clockDate}</div>
+              <div className="zoom-clock-time">{clockTime}</div>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-8 text-xs hidden sm:flex"
+              onClick={logout}
+            >
+              Sair
+            </Button>
+          </div>
+        </header>
+
+        {/* Month bar */}
+        {showMonthBar && filters.monthKeys.length > 0 && (
+          <div className="zoom-month-bar">
+            <div className="zoom-month-bar-inner">
+              {tab === 'dashboard' && (
+                <button
+                  className={`zoom-month-btn${filters.dashboardMonth === '' ? ' active' : ''}`}
+                  onClick={() => filters.setDashboardMonth('')}
+                >
+                  Todos
                 </button>
-              );
-            })}
+              )}
+              {filters.monthKeys.map(mk => {
+                const active = tab === 'lista' ? filters.selectedMonth === mk : filters.dashboardMonth === mk;
+                return (
+                  <button
+                    key={mk}
+                    className={`zoom-month-btn${active ? ' active' : ''}`}
+                    onClick={() => tab === 'lista' ? filters.setSelectedMonth(mk) : filters.setDashboardMonth(mk)}
+                  >
+                    {formatMonthLabel(mk)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <main className="flex-1 px-4 py-4 pb-28 space-y-4">
-        {tab === 'lista' && (
-          <>
-            <TituloFormModal
-              show={actions.showForm}
-              editData={actions.editingTitulo}
-              config={config}
-              user={user}
-              onSubmit={actions.handleAdd}
-              onClose={() => { actions.setShowForm(false); actions.setEditingTitulo(null); }}
-            />
-            <PagarFormModal
-              pagarId={actions.pagarId}
-              titulo={actions.pagarTitulo}
-              creditoCliente={actions.creditoCliente}
-              config={config}
-              onSubmit={actions.handleConfirmPagar}
-              onClose={() => actions.setPagarId(null)}
-              onMigratePin={(funcionarioId, newHash) =>
-                updateConfig({
-                  funcionarios: config.funcionarios.map(f =>
-                    f.id === funcionarioId ? { ...f, pin: newHash } : f
-                  )
-                })
+        {/* Content */}
+        <main className="zoom-content">
+          {/* Page title */}
+          <div className="mb-5 flex items-baseline gap-3 flex-wrap">
+            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1a202c', fontFamily: 'Poppins, sans-serif' }}>
+              {TAB_SUBTITLES[tab]}
+            </h2>
+          </div>
+
+          {/* TÍTULOS */}
+          {tab === 'lista' && (
+            <>
+              <TituloFormModal
+                show={actions.showForm}
+                editData={actions.editingTitulo}
+                config={config}
+                user={user}
+                onSubmit={actions.handleAdd}
+                onClose={() => { actions.setShowForm(false); actions.setEditingTitulo(null); }}
+              />
+              <PagarFormModal
+                pagarId={actions.pagarId}
+                titulo={actions.pagarTitulo}
+                creditoCliente={actions.creditoCliente}
+                config={config}
+                onSubmit={actions.handleConfirmPagar}
+                onClose={() => actions.setPagarId(null)}
+                onMigratePin={(funcionarioId, newHash) =>
+                  updateConfig({
+                    funcionarios: config.funcionarios.map(f =>
+                      f.id === funcionarioId ? { ...f, pin: newHash } : f
+                    )
+                  })
+                }
+              />
+              <TitulosFilters
+                filtro={filters.filtro}
+                setFiltro={filters.setFiltro}
+                titulosByMonth={filters.titulosByMonth}
+              />
+              <TitulosTable
+                titulosFiltrados={filters.titulosFiltrados}
+                config={config}
+                onEdit={actions.handleEdit}
+                onDelete={actions.askDelete}
+                onPagar={actions.handlePagar}
+                onAddNew={() => { actions.setEditingTitulo(null); actions.setShowForm(true); }}
+              />
+              {!actions.showForm && (
+                <button
+                  onClick={() => { actions.setEditingTitulo(null); actions.setShowForm(true); }}
+                  className="fixed bottom-6 right-6 w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center z-20"
+                  style={{ background: 'linear-gradient(135deg, #4facfe, #00f2fe)', boxShadow: '0 4px 16px rgba(79,172,254,.5)' }}
+                >
+                  <Plus className="h-6 w-6" />
+                </button>
+              )}
+            </>
+          )}
+
+          {/* DASHBOARD */}
+          {tab === 'dashboard' && (
+            <DashboardChart
+              titulos={
+                filters.dashboardMonth
+                  ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === filters.dashboardMonth)
+                  : titulosCalculados
               }
+              allTitulos={titulosCalculados}
+              showValorTotal={hasPerm(config, user, 'dash.valorTotal')}
+              onClickVencidos={() => { filters.setFiltro('VENCIDO'); setTab('lista'); }}
+              vendas={config.vendas || []}
+              selectedMonth={filters.dashboardMonth}
             />
-            <TitulosFilters
-              filtro={filters.filtro}
-              setFiltro={filters.setFiltro}
-              titulosByMonth={filters.titulosByMonth}
-            />
-            <TitulosTable
-              titulosFiltrados={filters.titulosFiltrados}
-              config={config}
-              onEdit={actions.handleEdit}
-              onDelete={actions.askDelete}
-              onPagar={actions.handlePagar}
-              onAddNew={() => { actions.setEditingTitulo(null); actions.setShowForm(true); }}
-            />
-            {!actions.showForm && (
-              <button onClick={() => { actions.setEditingTitulo(null); actions.setShowForm(true); }}
-                className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-20">
-                <Plus className="h-6 w-6" />
-              </button>
-            )}
-          </>
-        )}
+          )}
 
-        {tab === 'dashboard' && (
-          <DashboardChart
-            titulos={filters.dashboardMonth ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === filters.dashboardMonth) : titulosCalculados}
-            showValorTotal={hasPerm(config, user, 'dash.valorTotal')}
-            onClickVencidos={() => { filters.setFiltro('VENCIDO'); setTab('lista'); }}
-          />
-        )}
-        {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}
-        {tab === 'clientes' && (
-          <ClientesManager
-            clientes={config.clientes}
-            onUpdate={(clientes) => updateConfig({ clientes })}
-            titulos={titulos}
-            requirePin={(kind, id) => {
-              if (kind === 'delete') actions.setPendingDelete({ kind: 'cliente', id });
-              else window.dispatchEvent(new CustomEvent('cliente-edit-unlock', { detail: id }));
-            }}
-          />
-        )}
-        {tab === 'promissoria' && <PromissoriaTabs config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
-        {tab === 'vendas' && <VendasTab config={config} onUpdate={updateConfig} user={user} onNewCliente={() => setTab('clientes')} />}
-        {tab === 'config' && <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} user={user} />}
-      </main>
+          {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30">
-        <div className="max-w-lg mx-auto flex">
-          {navItems.map(item => (
-            <button key={item.id} onClick={() => setTab(item.id)}
-              className={`flex-1 flex flex-col items-center py-2 ${tab === item.id ? 'text-primary ring-2 ring-primary ring-inset rounded-md' : 'text-muted-foreground'}`}>
-              <item.icon className="h-4 w-4" />
-              <span className="text-[10px] mt-0.5">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+          {tab === 'clientes' && (
+            <ClientesManager
+              clientes={config.clientes}
+              onUpdate={(clientes) => updateConfig({ clientes })}
+              titulos={titulos}
+              requirePin={(kind, id) => {
+                if (kind === 'delete') actions.setPendingDelete({ kind: 'cliente', id });
+                else window.dispatchEvent(new CustomEvent('cliente-edit-unlock', { detail: id }));
+              }}
+            />
+          )}
+
+          {tab === 'promissoria' && <PromissoriaTabs config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
+
+          {tab === 'vendas' && (
+            <VendasTab config={config} onUpdate={updateConfig} user={user} onNewCliente={() => setTab('clientes')} />
+          )}
+
+          {tab === 'config' && (
+            <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} user={user} />
+          )}
+        </main>
+      </div>
 
       <AvatarAjuda ativo={config.avatarAjudaAtivo ?? true} tab={tab} />
+
+      <IdleTimerManager config={config} onIdle={() => {
+        appendLog(config, updateConfig, user, 'logout', `Logout automático por ociosidade de ${user.nome}`);
+        setSession(null);
+        setUser(null);
+      }} />
 
       <DeleteMotivoModal
         pendingDelete={actions.pendingDelete}

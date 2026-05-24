@@ -15,15 +15,17 @@ const DICAS: Record<string, Dica> = {
       'Use as abas de meses no topo para filtrar por período.',
       'Filtros: Todos / Vencidos / No Prazo / Pagos.',
       'Toque no botão + para cadastrar um novo título.',
-      'Cada cartão permite editar, receber pagamento ou excluir.',
+      'Cada cartão tem borda colorida: verde=pago, vermelho=vencido, azul=no prazo.',
       'No "Registrar Pagamento" escolha a Forma de Pagamento (cadastrada em Config › Financeiro).',
+      'PIN é necessário para editar ou pagar títulos, conforme nível do usuário.',
     ],
   },
   clientes: {
     titulo: '👥 Aba Clientes',
     itens: [
       'Cadastre Nome, Apelido, Telefone, E-mail e Aniversário.',
-      'Digite o CEP e clique na lupa para preencher o endereço.',
+      'Campos "Data de Cadastro" e "Indicação" registram quando e como o cliente chegou.',
+      'Digite o CEP e clique na lupa para preencher o endereço automaticamente.',
       'Clientes incompletos exibem o aviso ⚠ Incompleto.',
       'Toque no cliente para abrir detalhes e enviar relação por WhatsApp.',
     ],
@@ -38,17 +40,24 @@ const DICAS: Record<string, Dica> = {
   },
   relatorios: {
     titulo: '📑 Aba Relatórios',
-    itens: ['Visualize totais por status, proprietário e período.'],
+    itens: [
+      'Filtre por Proprietário, Tipo (Duplicata/Caderno/Cheque/Boleto/Outros).',
+      'Use Data Início/Fim para filtrar por intervalo de datas.',
+      'O filtro Mês é desativado ao usar datas.',
+      'Selecionar um cliente mostra o histórico completo desse cliente.',
+      'Botão PDF exporta o relatório filtrado.',
+      'Botão "Cobrar via WhatsApp" envia cobrança para títulos em atraso.',
+    ],
   },
   vendas: {
     titulo: '🛒 Aba Vendas à Vista',
     itens: [
       'Registre vendas rápidas sem gerar título/promissória.',
       'Selecione o cliente cadastrado ou marque "Cliente Novo".',
-      'Informe o valor e o desconto (em R$ ou %).',
+      'Informe o valor, desconto (em R$ ou %) e observações.',
       'Escolha a forma de pagamento (cadastrada em Config › Financeiro).',
       'Para cartão, informe parcelas e a maquininha usada.',
-      'Todas as vendas ficam salvas no histórico abaixo.',
+      'Botão "Vendas do Dia" mostra total e permite gerar PDF, imprimir ou enviar por WhatsApp.',
     ],
   },
 };
@@ -106,6 +115,7 @@ const SUB_DICAS: Record<string, Record<string, Dica>> = {
       itens: [
         'Modo Escuro alterna o tema do app.',
         'Avatar de Ajuda: ative/desative este mascote.',
+        'Logo da Empresa: faça upload do logotipo para impressões.',
       ],
     },
     sistema: {
@@ -113,7 +123,9 @@ const SUB_DICAS: Record<string, Record<string, Dica>> = {
       itens: [
         'Backup gera um único arquivo JSON com títulos + configurações.',
         'Importação restaura tudo (substitui dados atuais).',
-        'Senha de Segurança protege exclusões, edições e o acesso a Config.',
+        'Timer de Ociosidade: bloqueia o app após inatividade.',
+        'Chave do Sistema: recurso futuro de licenciamento.',
+        'LOG do Sistema: registra todas as operações realizadas.',
       ],
     },
   },
@@ -147,9 +159,9 @@ export function AvatarAjuda({ ativo, tab }: Props) {
     { titulo: 'Ajuda', itens: ['Selecione uma aba para ver as dicas.'] };
 
   return (
-    <div className="fixed bottom-24 left-4 z-30">
+    <div className="fixed bottom-24 right-4 z-30">
       {aberto && (
-        <div className="absolute bottom-16 left-0 w-72 bg-card border border-border rounded-lg shadow-xl p-3 animate-in fade-in slide-in-from-bottom-2">
+        <div className="absolute bottom-16 right-0 w-72 bg-card border border-border rounded-lg shadow-xl p-3 animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-start justify-between mb-1">
             <p className="font-semibold text-sm">{dica.titulo}</p>
             <button
@@ -177,7 +189,7 @@ export function AvatarAjuda({ ativo, tab }: Props) {
         <span className="text-2xl" role="img" aria-label="mascote">🤖</span>
       </button>
       {!aberto && (
-        <span className="absolute -top-1 -right-1 bg-accent text-accent-foreground rounded-full p-0.5">
+        <span className="absolute -top-1 -left-1 bg-accent text-accent-foreground rounded-full p-0.5">
           <HelpCircle className="h-3 w-3" />
         </span>
       )}

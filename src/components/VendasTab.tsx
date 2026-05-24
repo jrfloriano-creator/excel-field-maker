@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { generateId } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculos';
 import { toast } from 'sonner';
 import { UserPlus, Save, Calendar, FileText, Printer, MessageCircle, X } from 'lucide-react';
-import { SessionUser, appendLog } from '@/lib/auth';
+import { SessionUser } from '@/lib/auth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { savePdf } from '@/lib/savePdf';
@@ -31,6 +32,7 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
   const [formaPagId, setFormaPagId] = useState('');
   const [parcelas, setParcelas] = useState('1');
   const [maquininhaId, setMaquininhaId] = useState('');
+  const [obs, setObs] = useState('');
   const [showVendasDia, setShowVendasDia] = useState(false);
   const [whatsConfirm, setWhatsConfirm] = useState(false);
 
@@ -76,6 +78,7 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       parcelas: isCartao ? parseInt(parcelas) || 1 : undefined,
       maquininha: isCartao ? maquininhas.find(m => m.id === maquininhaId)?.nome : undefined,
       registradoPor: user?.nome || '—',
+      obs: obs.trim() || undefined,
     };
     const descontoStr = descN > 0
       ? ` | Desconto: ${descontoTipo === 'porcento' ? `${descN}%` : formatCurrency(descN)} (${formatCurrency(valorN - valorFinal)})`
@@ -107,7 +110,7 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
     onUpdate({ vendas: novasVendas, logs: novosLogs });
 
     toast.success('Venda registrada');
-    setValor(''); setDesconto(''); setParcelas('1');
+    setValor(''); setDesconto(''); setParcelas('1'); setObs('');
   };
 
   const gerarPDF = async () => {
@@ -257,11 +260,11 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">🛒 Vendas à Vista</h2>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Nova Venda</CardTitle>
+      <Card className="shadow-md border border-border/60">
+        <CardHeader className="pb-2 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-t-lg">
+          <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-300">+ Nova Venda</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 pt-3">
           <div className="flex items-center gap-2">
             <input type="checkbox" id="cnovo" checked={clienteNovo} onChange={e => setClienteNovo(e.target.checked)} />
             <Label htmlFor="cnovo" className="text-xs cursor-pointer">Cliente Novo (não cadastrar)</Label>
@@ -328,12 +331,22 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
               </div>
             </>
           )}
-          <div className="p-2 bg-secondary rounded text-sm flex justify-between">
-            <span>Valor Final:</span>
-            <strong>{formatCurrency(valorFinal)}</strong>
+          <div>
+            <Label className="text-xs">Observações</Label>
+            <Textarea
+              value={obs}
+              onChange={e => setObs(e.target.value)}
+              placeholder="Observações opcionais sobre a venda..."
+              rows={2}
+              className="text-sm resize-none"
+            />
           </div>
-          <Button onClick={salvar} className="w-full">
-            <Save className="h-4 w-4 mr-1" /> Registrar Venda
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 flex justify-between items-center">
+            <span className="text-sm font-medium">Valor Final:</span>
+            <strong className="text-lg text-blue-600 dark:text-blue-400">{formatCurrency(valorFinal)}</strong>
+          </div>
+          <Button onClick={salvar} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md">
+            <Save className="h-4 w-4 mr-2" /> Registrar Venda
           </Button>
         </CardContent>
       </Card>
@@ -341,15 +354,15 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       {/* Botão Vendas do Dia */}
       <Button
         variant="outline"
-        className="w-full"
+        className="w-full border-2 border-blue-300 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-semibold"
         onClick={() => setShowVendasDia(v => !v)}
       >
         <Calendar className="h-4 w-4 mr-2" />
-        Vendas do Dia ({vendasDia.length})
+        Vendas do Dia ({vendasDia.length}) — Total: {formatCurrency(totalDia)}
       </Button>
 
       {showVendasDia && (
-        <Card>
+        <Card className="shadow-md">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">📅 Vendas do Dia — {new Date(today + 'T12:00:00').toLocaleDateString('pt-BR')}</CardTitle>
             <Button variant="ghost" size="icon" onClick={() => setShowVendasDia(false)}>
@@ -361,12 +374,12 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
               <p className="text-xs text-muted-foreground text-center py-2">Nenhuma venda registrada hoje.</p>
             ) : (
               <>
-                <div className="space-y-1 max-h-64 overflow-y-auto">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
                   {vendasDia.map((v, i) => (
-                    <div key={v.id} className="border rounded p-2 text-xs">
+                    <div key={v.id} className="border rounded-lg p-3 text-xs shadow-sm bg-card">
                       <div className="flex justify-between items-start">
-                        <span className="font-medium">{i + 1}. {v.clienteNome}</span>
-                        <strong className="text-green-600">{formatCurrency(v.valor)}</strong>
+                        <span className="font-semibold text-sm">{i + 1}. {v.clienteNome}</span>
+                        <strong className="text-green-600 text-sm">{formatCurrency(v.valor)}</strong>
                       </div>
                       {v.desconto > 0 && (
                         <p className="text-muted-foreground">
@@ -377,8 +390,8 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
                         {v.formaPagamento}{v.parcelas ? ` ${v.parcelas}x` : ''}{v.maquininha ? ` • ${v.maquininha}` : ''}
                         {v.hora ? ` • ${v.hora}` : ''}
                       </p>
-                      {/* FEAT 6: botões de comprovante individual */}
-                      <div className="flex gap-1 mt-1.5">
+                      {v.obs && <p className="text-muted-foreground italic mt-1">Obs: {v.obs}</p>}
+                      <div className="flex gap-1 mt-2">
                         <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 flex-1"
                           onClick={() => gerarComprovanteVendaPDF(v)}>
                           <FileText className="h-3 w-3 mr-1" /> PDF
@@ -392,28 +405,28 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
                   ))}
                 </div>
 
-                {/* Totalizador */}
-                <div className="border-t pt-2 flex justify-between items-center font-semibold text-sm bg-secondary/50 rounded px-2 py-1">
+                <div className="border-t pt-2 flex justify-between items-center font-semibold text-sm bg-green-50 dark:bg-green-950/20 rounded-lg px-3 py-2">
                   <span>Total do Dia ({vendasDia.length} vendas):</span>
-                  <span className="text-green-600">{formatCurrency(totalDia)}</span>
+                  <span className="text-green-600 text-base">{formatCurrency(totalDia)}</span>
                 </div>
 
-                {/* Botões de ação */}
                 <div className="grid grid-cols-3 gap-2 pt-1">
-                  <Button size="sm" variant="outline" onClick={gerarPDF} className="text-xs">
+                  <Button size="sm" onClick={gerarPDF}
+                    className="text-xs bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-sm">
                     <FileText className="h-3 w-3 mr-1" /> PDF
                   </Button>
-                  <Button size="sm" variant="outline" onClick={imprimir} className="text-xs">
+                  <Button size="sm" onClick={imprimir}
+                    className="text-xs bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white shadow-sm">
                     <Printer className="h-3 w-3 mr-1" /> Imprimir
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setWhatsConfirm(true)} className="text-xs text-green-600 border-green-300">
+                  <Button size="sm" onClick={() => setWhatsConfirm(true)}
+                    className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-sm">
                     <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
                   </Button>
                 </div>
 
-                {/* Confirmação WhatsApp */}
                 {whatsConfirm && (
-                  <div className="border rounded p-3 bg-green-50 dark:bg-green-950/20 space-y-2">
+                  <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-950/20 space-y-2">
                     <p className="text-xs font-medium">Enviar resumo das vendas do dia por WhatsApp?</p>
                     <p className="text-[11px] text-muted-foreground">
                       Será enviado para os telefones ativos em Configurações &gt; Alertas.
@@ -434,21 +447,22 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
         </Card>
       )}
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Últimas Vendas ({(config.vendas || []).length})</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1 max-h-72 overflow-y-auto">
+        <CardContent className="space-y-1.5 max-h-72 overflow-y-auto">
           {(config.vendas || []).slice().reverse().slice(0, 30).map(v => (
-            <div key={v.id} className="border rounded p-2 text-xs">
+            <div key={v.id} className="border rounded-lg p-2.5 text-xs shadow-sm">
               <div className="flex justify-between">
-                <span>{v.clienteNome}</span>
-                <strong>{formatCurrency(v.valor)}</strong>
+                <span className="font-medium">{v.clienteNome}</span>
+                <strong className="text-green-600">{formatCurrency(v.valor)}</strong>
               </div>
               <p className="text-muted-foreground">
                 {v.data} • {v.formaPagamento}{v.parcelas ? ` ${v.parcelas}x` : ''}{v.maquininha ? ` • ${v.maquininha}` : ''}
                 {v.hora ? ` • ${v.hora}` : ''}
               </p>
+              {v.obs && <p className="text-muted-foreground italic">Obs: {v.obs}</p>}
             </div>
           ))}
         </CardContent>

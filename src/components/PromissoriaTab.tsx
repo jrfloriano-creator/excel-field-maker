@@ -186,11 +186,11 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Dados da Emissão</CardTitle>
+      <Card className="shadow-md border border-border/60">
+        <CardHeader className="pb-2 bg-gradient-to-r from-purple-600/10 to-violet-600/10 rounded-t-lg">
+          <CardTitle className="text-sm font-semibold text-purple-700 dark:text-purple-300">Dados da Emissão</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 pt-3">
           <div>
             <Label className="text-xs">Quantidade de Notas Promissórias</Label>
             <Input
@@ -238,7 +238,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Devedor</CardTitle>
         </CardHeader>
@@ -257,7 +257,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
             </SelectContent>
           </Select>
           {devedor && (
-            <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+            <div className="text-xs text-muted-foreground space-y-0.5 pt-1 p-2 bg-muted/30 rounded-lg">
               <p>📱 {devedor.telefone || '—'}</p>
               <p>🪪 CPF/CNPJ: {devedor.cpfCnpj || '— (cadastre no cliente)'}</p>
               <p>📍 {[devedor.logradouro, devedor.numero, devedor.bairro, devedor.cidade && `${devedor.cidade}/${devedor.estado}`, devedor.cep && `CEP ${devedor.cep}`].filter(Boolean).join(', ') || '—'}</p>
@@ -266,30 +266,39 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Credor</CardTitle>
         </CardHeader>
-        <CardContent className="text-xs space-y-1">
-          <p><strong>Nome:</strong> {credor.nome || '— (configure)'}</p>
-          <p><strong>CPF/CNPJ:</strong> {credor.cpfCnpj || '— (configure)'}</p>
-          <p><strong>Cidade/Estado:</strong> {credor.cidadeEstado || '— (configure)'}</p>
+        <CardContent className="text-xs space-y-1.5 p-3">
+          <div className="flex gap-2">
+            <span className="font-medium w-24">Nome:</span>
+            <span>{credor.nome || '— (configure)'}</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="font-medium w-24">CPF/CNPJ:</span>
+            <span>{credor.cpfCnpj || '— (configure)'}</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="font-medium w-24">Cidade/UF:</span>
+            <span>{credor.cidadeEstado || '— (configure)'}</span>
+          </div>
         </CardContent>
       </Card>
 
       {notas.length > 0 && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Pré-visualização ({notas.length})</CardTitle>
+            <CardTitle className="text-sm">Pré-visualização ({notas.length} nota{notas.length !== 1 ? 's' : ''})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 max-h-72 overflow-y-auto">
             {notas.map(n => (
-              <div key={n.numero} className="text-xs border border-border rounded-md p-2">
-                <div className="flex justify-between font-medium">
-                  <span>Nota {n.numero}</span>
-                  <span>{formatBRL(n.valor)}</span>
+              <div key={n.numero} className="text-xs border border-border rounded-lg p-2.5 bg-muted/20">
+                <div className="flex justify-between font-semibold">
+                  <span>Nota {n.numero}/{notas.length}</span>
+                  <span className="text-purple-600 dark:text-purple-400">{formatBRL(n.valor)}</span>
                 </div>
-                <p className="text-muted-foreground">Vencimento: {dateToLong(n.vencimento)}</p>
+                <p className="text-muted-foreground mt-0.5">Vencimento: {dateToLong(n.vencimento)}</p>
               </div>
             ))}
           </CardContent>
@@ -301,10 +310,18 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       </p>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={handlePDF} disabled={notas.length === 0}>
+        <Button
+          onClick={handlePDF}
+          disabled={notas.length === 0}
+          className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-sm"
+        >
           <FileDown className="h-4 w-4 mr-1" /> Criar PDF
         </Button>
-        <Button onClick={handleImprimir} disabled={notas.length === 0}>
+        <Button
+          onClick={handleImprimir}
+          disabled={notas.length === 0}
+          className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white shadow-sm"
+        >
           <Printer className="h-4 w-4 mr-1" /> Imprimir
         </Button>
       </div>

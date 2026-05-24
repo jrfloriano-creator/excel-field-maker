@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { FormaPagamento, AppConfig, ChavePix, Titulo } from '@/types/titulo';
+import { FormaPagamento, AppConfig, ChavePix, Titulo, ALL_PERMISSOES, PERMISSAO_LABELS, NivelUsuario, Permissao } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Trash2, Send, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Send, FolderOpen, Shield, Clock } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
@@ -19,7 +19,7 @@ import { MotivosManager } from '@/components/MotivosManager';
 import { MaquininhasManager } from '@/components/MaquininhasManager';
 import { LogoPanel } from '@/components/LogoPanel';
 import { LogPanel } from '@/components/LogPanel';
-import { hasPerm, SessionUser } from '@/lib/auth';
+import { hasPerm, SessionUser, defaultPermissoes } from '@/lib/auth';
 import { openExternalUrl } from '@/lib/openUrl';
 
 interface ConfigPanelProps {
@@ -30,12 +30,19 @@ interface ConfigPanelProps {
   user: SessionUser | null;
 }
 
+const NIVEL_LABELS: Record<NivelUsuario, string> = {
+  MASTER: 'MASTER',
+  GERENCIAL: 'GERENCIAL',
+  USUARIO: 'USUÁRIO',
+};
+
 export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, user }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
   const [novaForma, setNovaForma] = useState('');
 
   const formasPagamento = config.formasPagamento || [];
+  const permissoes = config.permissoes || defaultPermissoes();
 
   const can = (p: any) => hasPerm(config, user, p);
 
@@ -78,6 +85,11 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
     setNovaForma('');
   };
 
+  const hasNivelPerm = (n: NivelUsuario, p: Permissao) => {
+    if (n === 'MASTER') return true;
+    return (permissoes[n] || []).includes(p);
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
@@ -93,6 +105,54 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
 
         <TabsContent value="cadastros" className="space-y-4 mt-4">
           <UsuariosManager config={config} onUpdate={onUpdate} />
+
+          {/* Permissões por Nível - tabela resumo */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" /> Permissões por Nível
+                </CardTitle>
+                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">
+                  {ALL_PERMISSOES.length} permissões
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-2 pl-3 font-medium" style={{ minWidth: 180 }}>Permissão</th>
+                      {(['MASTER', 'GERENCIAL', 'USUARIO'] as NivelUsuario[]).map(n => (
+                        <th key={n} className="text-center p-2 font-medium w-20">{NIVEL_LABELS[n]}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ALL_PERMISSOES.map((p, i) => (
+                      <tr key={p} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                        <td className="p-1.5 pl-3 text-muted-foreground">{PERMISSAO_LABELS[p]}</td>
+                        {(['MASTER', 'GERENCIAL', 'USUARIO'] as NivelUsuario[]).map(n => (
+                          <td key={n} className="text-center p-1.5">
+                            {hasNivelPerm(n, p) ? (
+                              <span className="inline-block w-4 h-4 rounded-full bg-green-500/20 text-green-600 text-[10px] leading-4">✓</span>
+                            ) : (
+                              <span className="inline-block w-4 h-4 rounded-full bg-red-500/10 text-red-400 text-[10px] leading-4">✗</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-muted-foreground p-2 pl-3 border-t">
+                Para editar as permissões de cada nível, use o painel de Usuários acima.
+              </p>
+            </CardContent>
+          </Card>
+
           {can('config.proprietarios') && (
             <ProprietariosManager proprietarios={config.proprietarios} onUpdate={(proprietarios) => onUpdate({ proprietarios })} />
           )}
@@ -212,6 +272,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
               </CardContent>
             </Card>
           )}
+          <LogoPanel logo={config.logoEmpresa} onUpdate={(logo) => onUpdate({ logoEmpresa: logo })} />
         </TabsContent>
 
         <TabsContent value="sistema" className="space-y-4 mt-4">
@@ -232,7 +293,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
                   title="Selecionar pasta"
                   onClick={async () => {
                     try {
-                      // Tenta usar Tauri dialog API se disponível
                       if ((window as any).__TAURI_INTERNALS__) {
                         const { open } = await import('@tauri-apps/plugin-dialog');
                         const selected = await open({ directory: true, multiple: false, title: 'Selecionar pasta para salvar dados' });
@@ -259,7 +319,56 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
               </Button>
             </CardContent>
           </Card>
-          <LogoPanel logo={config.logoEmpresa} onUpdate={(logo) => onUpdate({ logoEmpresa: logo })} />
+
+          {/* Timer de Ociosidade */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-500" /> Timer de Ociosidade
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Ativar bloqueio automático</p>
+                  <p className="text-[11px] text-muted-foreground">Bloqueia o app após período de inatividade</p>
+                </div>
+                <Switch
+                  checked={config.idleAtivo ?? false}
+                  onCheckedChange={(c) => onUpdate({ idleAtivo: c })}
+                />
+              </div>
+              {(config.idleAtivo ?? false) && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Tempo de inatividade (minutos)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={config.idleMinutes ?? 5}
+                    onChange={e => onUpdate({ idleMinutes: Math.max(1, parseInt(e.target.value) || 5) })}
+                    className="w-24 text-center"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Mínimo: 1 min. Padrão: 5 min.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chave do Sistema (futuro) */}
+          <Card className="opacity-60">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">🔑 Chave do Sistema</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground italic">
+                Recurso disponível em versão futura. Permitirá licenciamento e ativação do sistema por empresa.
+              </p>
+            </CardContent>
+          </Card>
+
           {can('config.backup') && (
             <BackupPanel titulos={titulos} config={config} onImportTitulos={(t) => onImportTitulos?.(t)} onImportConfig={(p) => onUpdate(p)} />
           )}

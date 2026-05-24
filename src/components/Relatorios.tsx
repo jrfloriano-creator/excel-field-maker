@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Download, X, MessageCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -43,6 +44,8 @@ export function Relatorios({ titulos, config }: Props) {
   const [fTipo, setFTipo] = useState<string>(TODOS);
   const [fMes, setFMes] = useState<string>(TODOS);
   const [fCliente, setFCliente] = useState<string>(TODOS);
+  const [fDataInicio, setFDataInicio] = useState<string>('');
+  const [fDataFim, setFDataFim] = useState<string>('');
 
   // Default: mês atual se houver dados
   useEffect(() => {
@@ -56,13 +59,20 @@ export function Relatorios({ titulos, config }: Props) {
 
   // Quando filtra por cliente, ignora tipo e mês (conforme requisito)
   const clienteAtivo = fCliente !== TODOS;
+  const dateRangeAtivo = fDataInicio !== '' || fDataFim !== '';
 
   const aplicaFiltros = (t: typeof calculados[number], dateForMonth: string) => {
     if (fProprietario !== TODOS && t.proprietario !== fProprietario) return false;
     if (clienteAtivo) return t.cliente === fCliente;
     // FEAT 4: usa startsWith para matching por tipo fixo (ex: "Duplicata" casa com "Duplicata 001")
     if (fTipo !== TODOS && !t.tipo.startsWith(fTipo)) return false;
-    if (fMes !== TODOS && getMonthKey(dateForMonth) !== fMes) return false;
+    // Filtro por Data Início/Fim (tem prioridade sobre Mês)
+    if (dateRangeAtivo) {
+      if (fDataInicio && dateForMonth < fDataInicio) return false;
+      if (fDataFim && dateForMonth > fDataFim) return false;
+    } else {
+      if (fMes !== TODOS && getMonthKey(dateForMonth) !== fMes) return false;
+    }
     return true;
   };
 
@@ -91,6 +101,8 @@ export function Relatorios({ titulos, config }: Props) {
     setFTipo(TODOS);
     setFMes(TODOS);
     setFCliente(TODOS);
+    setFDataInicio('');
+    setFDataFim('');
   };
 
   const exportarPDF = async () => {
@@ -110,7 +122,12 @@ export function Relatorios({ titulos, config }: Props) {
     const filtrosTxt: string[] = [];
     if (fProprietario !== TODOS) filtrosTxt.push(`Proprietário: ${ownerName(fProprietario)}`);
     if (!clienteAtivo && fTipo !== TODOS) filtrosTxt.push(`Tipo: ${fTipo}`);
-    if (!clienteAtivo && fMes !== TODOS) filtrosTxt.push(`Mês: ${formatMonthLabel(fMes)}`);
+    if (!clienteAtivo && dateRangeAtivo) {
+      if (fDataInicio) filtrosTxt.push(`De: ${formatDate(fDataInicio)}`);
+      if (fDataFim) filtrosTxt.push(`Até: ${formatDate(fDataFim)}`);
+    } else if (!clienteAtivo && fMes !== TODOS) {
+      filtrosTxt.push(`Mês: ${formatMonthLabel(fMes)}`);
+    }
     if (clienteAtivo) filtrosTxt.push(`Cliente: ${fCliente}`);
     if (filtrosTxt.length === 0) filtrosTxt.push('Sem filtros');
     doc.text(`Filtros: ${filtrosTxt.join(' | ')}`, 14, 32);
@@ -239,8 +256,30 @@ export function Relatorios({ titulos, config }: Props) {
           </div>
 
           <div>
-            <Label className="text-xs">Mês</Label>
-            <Select value={fMes} onValueChange={setFMes} disabled={clienteAtivo}>
+            <Label className="text-xs">Data Início</Label>
+            <Input
+              type="date"
+              value={fDataInicio}
+              onChange={e => { setFDataInicio(e.target.value); if (e.target.value) setFMes(TODOS); }}
+              disabled={clienteAtivo}
+              className="h-9 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">Data Fim</Label>
+            <Input
+              type="date"
+              value={fDataFim}
+              onChange={e => { setFDataFim(e.target.value); if (e.target.value) setFMes(TODOS); }}
+              disabled={clienteAtivo}
+              className="h-9 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">Mês {dateRangeAtivo && <span className="text-muted-foreground">(ignorado ao usar datas)</span>}</Label>
+            <Select value={fMes} onValueChange={setFMes} disabled={clienteAtivo || dateRangeAtivo}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={TODOS}>Todos</SelectItem>
@@ -266,7 +305,12 @@ export function Relatorios({ titulos, config }: Props) {
 
           {clienteAtivo && (
             <p className="col-span-2 text-[11px] text-muted-foreground">
-              Filtro por cliente ativo: ignorando Tipo e Mês.
+              Filtro por cliente ativo: ignorando Tipo, Datas e Mês.
+            </p>
+          )}
+          {dateRangeAtivo && !clienteAtivo && (
+            <p className="col-span-2 text-[11px] text-blue-600 dark:text-blue-400">
+              Filtrando por intervalo de datas: {fDataInicio ? formatDate(fDataInicio) : '...'} até {fDataFim ? formatDate(fDataFim) : '...'}
             </p>
           )}
         </CardContent>

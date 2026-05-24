@@ -22,6 +22,8 @@ export interface Cliente {
   bairro: string;
   cidade: string;
   estado: string;
+  dataCadastro?: string;
+  indicacao?: string;
 }
 
 export interface CredorConfig {
@@ -151,6 +153,7 @@ export interface VendaVista {
   parcelas?: number;
   maquininha?: string;
   registradoPor: string;
+  obs?: string;
 }
 
 // ===== Log =====
@@ -192,6 +195,8 @@ export interface AppConfig {
   vendas?: VendaVista[];
   logs?: LogEntry[];
   caminhoSalvarDados?: string; // caminho/pasta para salvar PDFs e promissórias
+  idleAtivo?: boolean;
+  idleMinutes?: number;
 }
 
 export const PERMISSAO_LABELS: Record<Permissao, string> = {

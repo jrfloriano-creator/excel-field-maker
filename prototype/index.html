@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro ZOOM — Protótipo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ============================
+     LOGIN SCREEN
+     ============================ -->
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo-box">ZOOM</div>
+      <h2>Controle Financeiro</h2>
+      <p>Faça login para continuar</p>
+    </div>
+    <form id="login-form" class="login-form-content" onsubmit="return false">
+      <div class="form-group">
+        <label>Usuário</label>
+        <select id="login-user" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label>Senha (4 dígitos)</label>
+        <input type="password" id="login-pin" maxlength="4" inputmode="numeric" class="form-control pin-input" placeholder="••••" autocomplete="off" />
+      </div>
+      <div class="login-error" id="login-error">Usuário ou senha incorretos.</div>
+      <button type="button" class="btn-primary btn-login" onclick="doLogin()">Entrar</button>
+      <p class="login-hint">Primeiro acesso: usuário <strong>MASTER</strong>, senha <strong>1111</strong></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============================
+     HAMBURGER (mobile)
+     ============================ -->
+<button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+  <span></span><span></span><span></span>
+</button>
+
+<!-- Overlay mobile -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- ============================
+     SIDEBAR
+     ============================ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-area">
+      <div class="logo-placeholder logo-large" id="sidebar-logo">ZOOM</div>
+    </div>
+    <div class="sidebar-title">
+      Controle <span>FINANCEIRO</span>
+    </div>
+  </div>
+
+  <nav class="nav-menu" id="nav-menu">
+    <button class="nav-btn active" data-tab="dashboard" onclick="setTab('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-btn" data-tab="titulos" onclick="setTab('titulos')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+      Títulos
+    </button>
+    <button class="nav-btn" data-tab="vendas" onclick="setTab('vendas')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.2 14.8L7 16H19l1.9-8.4H5.2L4.8 6H2v2h1.2L6 16.4 4.2 18H19v-2H7.2z"/></svg>
+      Vendas
+    </button>
+    <button class="nav-btn" data-tab="clientes" onclick="setTab('clientes')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.34 3-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      Clientes
+    </button>
+    <button class="nav-btn" data-tab="promissorias" onclick="setTab('promissorias')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4V8h16v10zM6 13h2v2H6zm0-3h2v2H6zm3 3h6v2H9zm0-3h6v2H9zm7 3h2v2h-2zm0-3h2v2h-2z"/></svg>
+      Promissórias
+    </button>
+    <button class="nav-btn" data-tab="relatorios" onclick="setTab('relatorios')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-5h2v5zm4 0h-2v-8h2v8zm4 0h-2v-3h2v3z"/></svg>
+      Relatórios
+    </button>
+    <button class="nav-btn" data-tab="config" onclick="setTab('config')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+      Configurações
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar" id="sidebar-avatar">?</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-uname">–</span>
+        <span class="user-role" id="sidebar-urole">–</span>
+      </div>
+    </div>
+    <button class="btn-logout-sidebar" onclick="doLogout()">Sair</button>
+  </div>
+</aside>
+
+<!-- ============================
+     MAIN WRAPPER
+     ============================ -->
+<div class="main-wrapper" id="main-wrapper">
+
+  <!-- HEADER -->
+  <header class="top-header">
+    <div class="system-title">
+      Controle <span>ZOOM</span>
+      <span id="tab-subtitle" style="font-size:12px;font-weight:400;color:#718096;margin-left:8px;">• Dashboard</span>
+    </div>
+    <div class="header-right">
+      <div class="header-clock">
+        <div class="clock-date" id="clock-date">–</div>
+        <div class="clock-time" id="clock-time">–:–</div>
+      </div>
+      <button class="btn-logout-header" onclick="doLogout()">
+        <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <!-- MONTH BAR (dashboard + títulos) -->
+  <div class="month-bar" id="month-bar">
+    <div class="month-btns" id="month-btns"></div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <main class="content-area">
+
+    <!-- ============================
+         DASHBOARD TAB
+         ============================ -->
+    <div class="tab-content active" id="tab-dashboard">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p id="dash-period-label">Visão geral</p>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card clickable" id="kpi-vencidos" onclick="toggleVencidosPanel()">
+          <div class="kpi-icon red">
+            <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">Títulos Vencidos</span>
+            <span class="kpi-value" id="kv-vencidos">0</span>
+            <span class="kpi-click-hint">👆 clique para ver</span>
+          </div>
+        </div>
+        <div class="kpi-card perm-kpi">
+          <div class="kpi-icon blue">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 2l5 5h-5V4zM7 15h10v2H7zm0-4h4v2H7z"/></svg>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">Total Títulos</span>
+            <span class="kpi-value" id="kv-total">0</span>
+            <span class="kpi-change neutral" id="kv-total-sub">em carteira</span>
+          </div>
+        </div>
+        <div class="kpi-card perm-kpi">
+          <div class="kpi-icon green">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">A Receber</span>
+            <span class="kpi-value" id="kv-a-receber">R$ 0</span>
+            <span class="kpi-change neutral" id="kv-ar-sub">em aberto</span>
+          </div>
+        </div>
+        <div class="kpi-card perm-kpi">
+          <div class="kpi-icon orange">
+            <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.2 14.8L7 16H19l1.9-8.4H5.2L4.8 6H2v2h1.2L6 16.4 4.2 18H19v-2H7.2z"/></svg>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">Vendas do Período</span>
+            <span class="kpi-value" id="kv-vendas">R$ 0</span>
+            <span class="kpi-change positive" id="kv-vendas-sub">total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel vencidos (expandível) -->
+      <div class="vencidos-panel" id="vencidos-panel">
+        <div class="vencidos-panel-header">
+          <h4>⚠️ Títulos Vencidos</h4>
+          <button class="btn-sm" onclick="toggleVencidosPanel()">✕ Fechar</button>
+        </div>
+        <div id="vencidos-list-panel"></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>Receitas x Vencimentos (mensal)</h3>
+            <div class="chart-legend">
+              <span class="legend-item"><i style="background:#4facfe"></i> Recebido</span>
+              <span class="legend-item"><i style="background:#fc8181"></i> Vencido</span>
+              <span class="legend-item"><i style="background:#68d391"></i> No Prazo</span>
+            </div>
+          </div>
+          <div class="chart-wrap"><div class="chart-inner"><canvas id="chartBar"></canvas></div></div>
+        </div>
+        <div class="card chart-card small">
+          <div class="card-header"><h3>Tipos de Títulos</h3></div>
+          <div class="chart-wrap"><div class="chart-inner" style="height:240px"><canvas id="chartTipos"></canvas></div></div>
+          <div class="pie-legend" id="tipos-legend"></div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="card recent-section">
+        <div class="card-header">
+          <h3>Últimas Transações</h3>
+          <button class="btn-export" onclick="setTab('relatorios')">Ver Relatório</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Nº</th><th>Cliente</th><th>Tipo</th><th>Vencimento</th><th>Valor</th><th>Situação</th></tr></thead>
+            <tbody id="dash-recent-body"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="dash-recent-count">0 registros</span>
+        </div>
+      </div>
+    </div><!-- /dashboard -->
+
+    <!-- ============================
+         TÍTULOS TAB
+         ============================ -->
+    <div class="tab-content" id="tab-titulos">
+      <div class="page-header">
+        <h2>Títulos</h2>
+        <p>Gestão de duplicatas, cadernos, cheques, boletos e outros</p>
+        <button class="btn-primary" onclick="openModalTitulo()">+ Novo Título</button>
+      </div>
+
+      <div class="filter-tabs" id="titulos-filter-tabs">
+        <button class="filter-tab active" data-filter="all" onclick="setTitulosFilter('all')">Todos <span class="count-badge" id="cnt-all">0</span></button>
+        <button class="filter-tab" data-filter="vencido" onclick="setTitulosFilter('vencido')">Vencidos <span class="count-badge red" id="cnt-vencido">0</span></button>
+        <button class="filter-tab" data-filter="ontime" onclick="setTitulosFilter('ontime')">No Prazo <span class="count-badge blue" id="cnt-ontime">0</span></button>
+        <button class="filter-tab" data-filter="pago" onclick="setTitulosFilter('pago')">Pagos <span class="count-badge green" id="cnt-pago">0</span></button>
+      </div>
+
+      <div class="titulos-grid" id="titulos-grid">
+        <!-- filled by JS -->
+      </div>
+    </div><!-- /títulos -->
+
+    <!-- ============================
+         VENDAS TAB
+         ============================ -->
+    <div class="tab-content" id="tab-vendas">
+      <div class="page-header">
+        <h2>Vendas</h2>
+        <p>Registro de vendas a prazo</p>
+        <button class="btn-day" id="btn-dia-toggle" onclick="toggleVendasDia()">📅 Vendas do Dia</button>
+      </div>
+
+      <!-- Vendas do dia (colapsável) -->
+      <div class="card" id="vendas-dia-card" style="display:none;margin-bottom:16px;">
+        <div class="card-header">
+          <h3>📅 Vendas do Dia — <span id="vendas-dia-date">hoje</span></h3>
+        </div>
+        <div class="day-summary" id="day-summary">
+          <div class="day-stat"><span>Vendas</span><strong id="ds-count">0</strong></div>
+          <div class="day-stat"><span>Total Bruto</span><strong id="ds-bruto">R$ 0</strong></div>
+          <div class="day-stat"><span>Descontos</span><strong id="ds-desconto">R$ 0</strong></div>
+          <div class="day-stat"><span>Total Líquido</span><strong id="ds-liquido" style="color:#38a169">R$ 0</strong></div>
+        </div>
+        <div class="sales-list" id="vendas-dia-list"></div>
+      </div>
+
+      <div class="two-col-layout">
+        <!-- FORMULÁRIO NOVA VENDA -->
+        <div class="card form-card">
+          <div class="card-header"><h3>➕ Nova Venda</h3></div>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <div class="checkbox-row" style="margin-bottom:6px">
+                <input type="checkbox" id="venda-novo-cliente" onchange="toggleNovoClienteVenda()" />
+                <label for="venda-novo-cliente">Cliente novo (sem cadastro)</label>
+              </div>
+              <label>Cliente</label>
+              <select class="form-control" id="venda-cliente-select"></select>
+              <input type="text" class="form-control" id="venda-cliente-nome" placeholder="Nome do cliente novo" style="display:none;margin-top:6px" />
+            </div>
+            <div class="form-group">
+              <label>Valor da Compra (R$)</label>
+              <input type="number" class="form-control" id="venda-valor" placeholder="0,00" min="0" step="0.01" oninput="calcVendaFinal()" />
+            </div>
+            <div class="form-group">
+              <label>Desconto</label>
+              <div class="form-row">
+                <input type="number" class="form-control" id="venda-desconto" placeholder="0" min="0" oninput="calcVendaFinal()" />
+                <select class="form-control small" id="venda-desc-tipo" onchange="calcVendaFinal()">
+                  <option value="R$">R$</option>
+                  <option value="%">%</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Forma de Pagamento</label>
+              <select class="form-control" id="venda-forma" onchange="toggleParcelasVenda()"></select>
+            </div>
+            <div class="form-group" id="venda-parcelas-group" style="display:none">
+              <label>Parcelas</label>
+              <select class="form-control" id="venda-parcelas">
+                <option value="1">1x (à vista)</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+                <option value="5">5x</option>
+                <option value="6">6x</option>
+                <option value="10">10x</option>
+                <option value="12">12x</option>
+              </select>
+            </div>
+            <div class="form-group" id="venda-maquininha-group" style="display:none">
+              <label>Maquininha</label>
+              <select class="form-control" id="venda-maquininha"></select>
+            </div>
+            <div class="form-group">
+              <label>Observação</label>
+              <input type="text" class="form-control" id="venda-obs" placeholder="Opcional" />
+            </div>
+            <div class="valor-final-display">
+              <span>Valor Final</span>
+              <strong id="venda-valor-final">R$ 0,00</strong>
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" onclick="salvarVenda()">💾 Registrar Venda</button>
+              <button class="btn-secondary" onclick="limparVenda()">Limpar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA ÚLTIMAS VENDAS -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Últimas Vendas</h3>
+            <span id="vendas-count-badge" class="status-badge pending">0 vendas</span>
+          </div>
+          <div class="sales-list" id="vendas-list">
+            <p style="padding:20px;text-align:center;color:#718096;font-size:13px">Nenhuma venda registrada.</p>
+          </div>
+        </div>
+      </div>
+    </div><!-- /vendas -->
+
+    <!-- ============================
+         CLIENTES TAB
+         ============================ -->
+    <div class="tab-content" id="tab-clientes">
+      <div class="page-header">
+        <h2>Clientes</h2>
+        <p>Cadastro e gestão de clientes</p>
+        <button class="btn-primary" onclick="openClienteForm()">+ Novo Cliente</button>
+      </div>
+
+      <div class="two-col-layout">
+        <!-- FORMULÁRIO -->
+        <div class="card form-card" id="cliente-form-card">
+          <div class="card-header">
+            <h3 id="cliente-form-title">➕ Novo Cliente</h3>
+            <button class="btn-sm" onclick="closeClienteForm()" style="display:none" id="btn-cancel-cliente">✕ Cancelar</button>
+          </div>
+          <div class="form-grid" id="cliente-form-grid">
+            <div class="form-group full-width">
+              <label>Nome Completo *</label>
+              <input type="text" class="form-control" id="cf-nome" placeholder="NOME COMPLETO" oninput="this.value=this.value.toUpperCase()" />
+            </div>
+            <div class="form-group">
+              <label>Apelido</label>
+              <input type="text" class="form-control" id="cf-apelido" placeholder="Como é conhecido" />
+            </div>
+            <div class="form-group">
+              <label>Celular / WhatsApp</label>
+              <input type="tel" class="form-control" id="cf-telefone" placeholder="(00) 00000-0000" maxlength="15" oninput="maskPhone(this)" />
+            </div>
+            <div class="form-group">
+              <label>E-mail</label>
+              <input type="email" class="form-control" id="cf-email" placeholder="email@exemplo.com" />
+            </div>
+            <div class="form-group">
+              <label>Data de Nascimento</label>
+              <input type="date" class="form-control" id="cf-nasc" />
+            </div>
+            <div class="form-group">
+              <label>CPF / CNPJ</label>
+              <input type="text" class="form-control" id="cf-cpf" placeholder="000.000.000-00" />
+            </div>
+            <div class="form-group">
+              <label>CEP</label>
+              <div class="form-row">
+                <input type="text" class="form-control" id="cf-cep" placeholder="00000-000" maxlength="9" oninput="maskCep(this)" />
+                <button class="btn-secondary" style="white-space:nowrap;padding:9px 14px" onclick="buscarCep()">🔍</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Logradouro</label>
+              <input type="text" class="form-control" id="cf-logradouro" placeholder="Rua, Av., Trav." />
+            </div>
+            <div class="form-group">
+              <label>Número</label>
+              <input type="text" class="form-control" id="cf-numero-end" placeholder="Nº" />
+            </div>
+            <div class="form-group">
+              <label>Bairro</label>
+              <input type="text" class="form-control" id="cf-bairro" placeholder="Bairro" />
+            </div>
+            <div class="form-group">
+              <label>Cidade</label>
+              <input type="text" class="form-control" id="cf-cidade" placeholder="Cidade" />
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <select class="form-control" id="cf-estado">
+                <option value="">Selecione</option>
+                <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+                <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+                <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+                <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+                <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+                <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+                <option selected>SP</option><option>SE</option><option>TO</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Data de Cadastro</label>
+              <input type="date" class="form-control" id="cf-data-cad" readonly />
+            </div>
+            <div class="form-group">
+              <label>Indicação (quem indicou)</label>
+              <input type="text" class="form-control" id="cf-indicacao" placeholder="Nome de quem indicou" />
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" onclick="salvarCliente()">💾 Salvar Cliente</button>
+              <button class="btn-secondary" onclick="limparClienteForm()">Limpar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA CLIENTES -->
+        <div class="card">
+          <div class="search-bar">
+            <input type="text" class="search-input" id="clientes-search" placeholder="🔍 Buscar por nome, apelido ou telefone..." oninput="renderClientes()" />
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>Nome</th><th>Telefone</th><th>Cidade</th><th>Cadastro</th><th>Ações</th></tr></thead>
+              <tbody id="clientes-body"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="clientes-count">0 clientes</span>
+          </div>
+        </div>
+      </div>
+    </div><!-- /clientes -->
+
+    <!-- ============================
+         PROMISSÓRIAS TAB
+         ============================ -->
+    <div class="tab-content" id="tab-promissorias">
+      <div class="page-header">
+        <h2>Promissórias</h2>
+        <p>Notas promissórias emitidas</p>
+        <button class="btn-primary" onclick="openPromissoriaModal()">+ Nova Promissória</button>
+      </div>
+      <div class="two-col-layout">
+        <div class="card form-card">
+          <div class="card-header"><h3>📝 Emitir Promissória</h3></div>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Cliente / Devedor *</label>
+              <select class="form-control" id="prom-cliente"></select>
+            </div>
+            <div class="form-group">
+              <label>Valor (R$) *</label>
+              <input type="number" class="form-control" id="prom-valor" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label>Vencimento *</label>
+              <input type="date" class="form-control" id="prom-vencimento" />
+            </div>
+            <div class="form-group full-width">
+              <label>Motivo / Descrição</label>
+              <input type="text" class="form-control" id="prom-motivo" placeholder="Ex: Empréstimo, compra de material..." />
+            </div>
+            <div class="form-group">
+              <label>Cidade/Estado</label>
+              <input type="text" class="form-control" id="prom-cidade" placeholder="São Paulo/SP" />
+            </div>
+            <div class="form-group">
+              <label>Data de Emissão</label>
+              <input type="date" class="form-control" id="prom-emissao" />
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" onclick="emitirPromissoria()">📄 Emitir Promissória</button>
+              <button class="btn-secondary" onclick="limparPromissoria()">Limpar</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>Promissórias Emitidas</h3>
+            <span id="prom-count" class="badge-tag blue">0</span>
+          </div>
+          <div class="prom-list" id="prom-list">
+            <p style="padding:20px;text-align:center;color:#718096;font-size:13px">Nenhuma promissória emitida.</p>
+          </div>
+        </div>
+      </div>
+    </div><!-- /promissórias -->
+
+    <!-- ============================
+         RELATÓRIOS TAB
+         ============================ -->
+    <div class="tab-content" id="tab-relatorios">
+      <div class="page-header">
+        <h2>Relatórios</h2>
+        <p>Consultas e exportações financeiras</p>
+        <div class="export-btns">
+          <button class="btn-export" onclick="gerarPDF()">📄 Gerar PDF</button>
+          <button class="btn-secondary" onclick="limparFiltrosRelat()">↺ Limpar</button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="card filter-card" style="margin-bottom:16px">
+        <div class="card-header"><h3>Filtros</h3></div>
+        <div class="filters-row" style="padding:16px 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="min-width:160px">
+            <label>Proprietário</label>
+            <select class="form-control" id="rf-proprietario" onchange="renderRelatorios()">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group" style="min-width:160px">
+            <label>Tipo de Título</label>
+            <select class="form-control" id="rf-tipo" onchange="renderRelatorios()">
+              <option value="">Todos</option>
+              <option>Duplicata</option><option>Caderno</option><option>Cheque</option>
+              <option>Boleto</option><option>Outros</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Data Início</label>
+            <input type="date" class="form-control" id="rf-data-ini" onchange="renderRelatorios()" />
+          </div>
+          <div class="form-group">
+            <label>Data Fim</label>
+            <input type="date" class="form-control" id="rf-data-fim" onchange="renderRelatorios()" />
+          </div>
+          <div class="form-group" style="min-width:180px">
+            <label>Cliente</label>
+            <select class="form-control" id="rf-cliente" onchange="renderRelatorios()">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sumário -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="padding:14px 20px;display:flex;gap:20px;flex-wrap:wrap">
+          <div><span style="font-size:11px;color:#718096">Vencidos:</span> <strong id="rl-vencidos" style="color:#e53e3e">0</strong></div>
+          <div><span style="font-size:11px;color:#718096">No Prazo:</span> <strong id="rl-ontime" style="color:#4facfe">0</strong></div>
+          <div><span style="font-size:11px;color:#718096">Pagos:</span> <strong id="rl-pagos" style="color:#38a169">0</strong></div>
+          <div><span style="font-size:11px;color:#718096">Total:</span> <strong id="rl-total-val" style="color:#1a202c">R$ 0</strong></div>
+          <div><span style="font-size:11px;color:#718096">Recebido:</span> <strong id="rl-total-pago" style="color:#38a169">R$ 0</strong></div>
+        </div>
+      </div>
+
+      <!-- Listagem agrupada por cliente -->
+      <div id="relatorios-body"></div>
+    </div><!-- /relatórios -->
+
+    <!-- ============================
+         CONFIGURAÇÕES TAB
+         ============================ -->
+    <div class="tab-content" id="tab-config">
+      <div class="page-header">
+        <h2>Configurações</h2>
+        <p>Parametrização do sistema</p>
+      </div>
+
+      <!-- 5 sub-tabs -->
+      <div class="sub-tabs">
+        <button class="sub-tab active" data-sub="cadastro" onclick="setConfigSub('cadastro')">👥 Cadastro</button>
+        <button class="sub-tab" data-sub="financeiro" onclick="setConfigSub('financeiro')">💰 Financeiro</button>
+        <button class="sub-tab" data-sub="alertas" onclick="setConfigSub('alertas')">🔔 Alertas</button>
+        <button class="sub-tab" data-sub="aparencia" onclick="setConfigSub('aparencia')">🎨 Aparência</button>
+        <button class="sub-tab" data-sub="sistema" onclick="setConfigSub('sistema')">⚙️ Sistema</button>
+      </div>
+
+      <!-- 1. Cadastro -->
+      <div class="sub-content active" id="sub-cadastro">
+        <div class="two-col-layout">
+          <!-- Usuários -->
+          <div class="card">
+            <div class="card-header">
+              <h3>👤 Usuários</h3>
+              <button class="btn-primary" style="font-size:11px;padding:5px 10px" onclick="addUsuario()">+ Novo</button>
+            </div>
+            <div id="usuarios-list">
+              <!-- filled by JS -->
+            </div>
+            <!-- Add form -->
+            <div style="padding:12px 16px;border-top:1px solid #e2e8f0;display:none" id="usuario-form">
+              <div class="form-grid" style="padding:0;gap:10px">
+                <div class="form-group">
+                  <label>Nome</label>
+                  <input type="text" class="form-control" id="uf-nome" placeholder="Nome completo" />
+                </div>
+                <div class="form-group">
+                  <label>Nível</label>
+                  <select class="form-control" id="uf-nivel">
+                    <option value="USUARIO">Usuário (sem privilégio)</option>
+                    <option value="GERENCIAL">Gerencial</option>
+                    <option value="MASTER">Master</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>PIN (4 dígitos)</label>
+                  <input type="password" class="form-control" id="uf-pin" maxlength="4" placeholder="••••" />
+                </div>
+                <div class="form-group">
+                  <label style="margin-bottom:4px">Permissões</label>
+                  <div class="perm-grid" id="uf-perms">
+                    <div class="perm-item"><input type="checkbox" id="p-titulos" checked><label for="p-titulos">Ver Títulos</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-clientes" checked><label for="p-clientes">Ver Clientes</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-vendas"><label for="p-vendas">Vendas</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-relat"><label for="p-relat">Relatórios</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-config"><label for="p-config">Configurações</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-pagar"><label for="p-pagar">Registrar Pagto</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-excluir"><label for="p-excluir">Excluir Registros</label></div>
+                    <div class="perm-item"><input type="checkbox" id="p-valores"><label for="p-valores">Ver Valores (KPI)</label></div>
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button class="btn-primary" onclick="salvarUsuario()">Salvar</button>
+                  <button class="btn-secondary" onclick="cancelarUsuario()">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Funcionários -->
+          <div class="card">
+            <div class="card-header">
+              <h3>👷 Funcionários</h3>
+              <button class="btn-primary" style="font-size:11px;padding:5px 10px" onclick="addFuncionario()">+ Novo</button>
+            </div>
+            <div id="funcionarios-list"></div>
+            <div style="padding:12px 16px;border-top:1px solid #e2e8f0;display:none" id="func-form">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Nome</label>
+                <input type="text" class="form-control" id="ff-nome" placeholder="Nome do funcionário" />
+              </div>
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Cargo</label>
+                <input type="text" class="form-control" id="ff-cargo" placeholder="Função/cargo" />
+              </div>
+              <div class="form-actions" style="gap:8px;padding-top:4px">
+                <button class="btn-primary" onclick="salvarFuncionario()">Salvar</button>
+                <button class="btn-secondary" onclick="cancelarFuncionario()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Maquininhas -->
+          <div class="card">
+            <div class="card-header">
+              <h3>💳 Maquininhas</h3>
+              <button class="btn-primary" style="font-size:11px;padding:5px 10px" onclick="addMaquininha()">+ Novo</button>
+            </div>
+            <div id="maquininhas-list"></div>
+            <div style="padding:12px 16px;border-top:1px solid #e2e8f0;display:none" id="maq-form">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Nome da Maquininha</label>
+                <input type="text" class="form-control" id="mf-nome" placeholder="Ex: Cielo, Stone, PagSeguro" />
+              </div>
+              <div class="form-actions" style="gap:8px;padding-top:4px">
+                <button class="btn-primary" onclick="salvarMaquininha()">Salvar</button>
+                <button class="btn-secondary" onclick="cancelarMaquininha()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Proprietários -->
+          <div class="card">
+            <div class="card-header">
+              <h3>🏢 Proprietários</h3>
+              <button class="btn-primary" style="font-size:11px;padding:5px 10px" onclick="addProprietario()">+ Novo</button>
+            </div>
+            <div id="proprietarios-list"></div>
+            <div style="padding:12px 16px;border-top:1px solid #e2e8f0;display:none" id="prop-form">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Nome</label>
+                <input type="text" class="form-control" id="pf-nome" placeholder="Nome do proprietário" />
+              </div>
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Cor identificadora</label>
+                <input type="color" class="form-control" id="pf-cor" value="#4facfe" style="height:40px" />
+              </div>
+              <div class="form-actions" style="gap:8px;padding-top:4px">
+                <button class="btn-primary" onclick="salvarProprietario()">Salvar</button>
+                <button class="btn-secondary" onclick="cancelarProprietario()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Permissões por Nível -->
+          <div class="card" style="grid-column:span 2">
+            <div class="card-header">
+              <h3>🛡️ Permissões por Nível</h3>
+              <span class="badge-tag green">24 permissões</span>
+            </div>
+            <div style="overflow-x:auto;padding-bottom:8px">
+              <table class="data-table perm-nivel-table" id="perm-nivel-table">
+                <thead>
+                  <tr>
+                    <th style="min-width:200px">Permissão</th>
+                    <th style="text-align:center">MASTER</th>
+                    <th style="text-align:center">ADMIN</th>
+                    <th style="text-align:center">GERENTE</th>
+                    <th style="text-align:center">FUNCIONARIO</th>
+                  </tr>
+                </thead>
+                <tbody id="perm-nivel-body">
+                  <!-- filled by JS -->
+                </tbody>
+              </table>
+            </div>
+            <div style="padding:10px 16px;font-size:11px;color:#718096;border-top:1px solid var(--border)">
+              ✅ Permitido &nbsp;|&nbsp; ☐ Não permitido &nbsp;|&nbsp; As permissões são configuradas pelo MASTER.
+            </div>
+          </div>
+
+          <!-- Credor (Promissórias) -->
+          <div class="card" style="grid-column:span 2">
+            <div class="card-header"><h3>📝 Credor (Notas Promissórias)</h3></div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Nome do Credor</label>
+                <input type="text" class="form-control" id="credor-nome" placeholder="Nome completo ou razão social" />
+              </div>
+              <div class="form-group">
+                <label>CPF / CNPJ</label>
+                <input type="text" class="form-control" id="credor-cpf" placeholder="000.000.000-00" />
+              </div>
+              <div class="form-group full-width">
+                <label>Cidade / Estado</label>
+                <input type="text" class="form-control" id="credor-cidade" placeholder="São Paulo/SP" />
+              </div>
+              <div class="form-actions">
+                <button class="btn-primary" onclick="salvarCredor()">💾 Salvar Credor</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /sub-cadastro -->
+
+      <!-- 2. Financeiro -->
+      <div class="sub-content" id="sub-financeiro">
+        <div class="two-col-layout">
+          <div class="card">
+            <div class="card-header"><h3>📊 Taxa de Juros Mensal</h3></div>
+            <div style="padding:16px 20px">
+              <div class="form-group">
+                <label>Taxa (% ao mês)</label>
+                <input type="number" class="form-control" id="fin-taxa" placeholder="Ex: 1.5" min="0" step="0.1" />
+                <p style="font-size:11px;color:#718096;margin-top:4px">Aplicada automaticamente nos títulos vencidos.</p>
+              </div>
+              <button class="btn-primary" style="margin-top:8px" onclick="salvarFinanceiro()">Salvar Taxa</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>🔑 Chaves PIX <span id="pix-count">(0/5)</span></h3>
+              <button class="btn-primary" style="font-size:11px;padding:5px 10px" onclick="addPix()">+ Adicionar</button>
+            </div>
+            <div id="pix-list"></div>
+            <div style="padding:12px 16px;border-top:1px solid #e2e8f0;display:none" id="pix-form">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Nome da Chave</label>
+                <input type="text" class="form-control" id="pixf-nome" placeholder="Ex: Roberto PIX" />
+              </div>
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Chave PIX</label>
+                <input type="text" class="form-control" id="pixf-chave" placeholder="CPF, tel, e-mail ou aleatória" />
+              </div>
+              <div class="form-actions" style="gap:8px;padding-top:4px">
+                <button class="btn-primary" onclick="salvarPix()">Salvar</button>
+                <button class="btn-secondary" onclick="cancelarPix()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>💳 Formas de Pagamento <span id="formas-count">(0)</span></h3>
+              <button class="btn-primary" style="font-size:11px;padding:5px 10px" onclick="addForma()">+ Adicionar</button>
+            </div>
+            <div id="formas-list"></div>
+            <div style="padding:12px 16px;border-top:1px solid #e2e8f0;display:none" id="formas-form">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Nome da forma de pagamento</label>
+                <input type="text" class="form-control" id="ff-forma" placeholder="Ex: PIX, Cartão..." />
+              </div>
+              <div class="form-actions" style="gap:8px;padding-top:4px">
+                <button class="btn-primary" onclick="salvarForma()">Salvar</button>
+                <button class="btn-secondary" onclick="cancelarForma()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /sub-financeiro -->
+
+      <!-- 3. Alertas -->
+      <div class="sub-content" id="sub-alertas">
+        <div class="two-col-layout">
+          <div class="card">
+            <div class="card-header"><h3>📱 Telefones para Alerta Diário</h3></div>
+            <div id="alertas-phones-list" style="padding:16px 20px;display:flex;flex-direction:column;gap:10px"></div>
+            <div style="padding:0 20px 16px">
+              <button class="btn-secondary" onclick="addAlertPhone()">+ Adicionar Telefone</button>
+              <button class="btn-primary" style="margin-left:8px" onclick="enviarAlertas()">📤 Enviar Alertas Agora</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>✉️ E-mail de Cobrança</h3></div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+              <div class="form-group">
+                <label>E-mail remetente</label>
+                <input type="email" class="form-control" id="alerta-email-from" placeholder="cobranca@empresa.com" />
+              </div>
+              <div class="form-group">
+                <label>Assunto padrão</label>
+                <input type="text" class="form-control" id="alerta-email-assunto" placeholder="Aviso de vencimento de título" />
+              </div>
+              <div class="form-group">
+                <label>Mensagem padrão</label>
+                <textarea class="form-control" id="alerta-email-msg" rows="4" placeholder="Prezado(a) {cliente}, informamos que seu título vence em {vencimento}..."></textarea>
+              </div>
+              <button class="btn-primary" onclick="salvarAlertaEmail()">Salvar Configurações</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gmail Config Card -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-header">
+            <h3>📧 Enviar E-mail (Gmail)</h3>
+            <span class="badge-tag blue">Gmail</span>
+          </div>
+          <div style="padding:16px 20px">
+            <div class="form-grid" style="padding:0">
+              <div class="form-group">
+                <label>Endereço Gmail</label>
+                <input type="email" class="form-control" id="gmail-endereco" placeholder="seuemail@gmail.com" />
+              </div>
+              <div class="form-group">
+                <label>E-mail de Teste (destinatário)</label>
+                <input type="email" class="form-control" id="gmail-teste-dest" placeholder="destinatario@email.com" />
+              </div>
+              <div class="form-group full-width">
+                <label>Assunto Padrão</label>
+                <input type="text" class="form-control" id="gmail-assunto" placeholder="Ex: Aviso de cobrança — Controle ZOOM" />
+              </div>
+              <div class="form-group full-width">
+                <label>Corpo Padrão da Mensagem</label>
+                <textarea class="form-control" id="gmail-corpo" rows="4" placeholder="Prezado(a) {cliente}, informamos que seu título Nº {numero} no valor de {valor} vence em {vencimento}."></textarea>
+                <p style="font-size:11px;color:#718096;margin-top:4px">Variáveis: {cliente}, {numero}, {valor}, {vencimento}</p>
+              </div>
+              <div class="form-actions">
+                <button class="btn-primary" onclick="salvarConfigGmail()">💾 Salvar</button>
+                <button class="btn-secondary" onclick="testarEmailGmail()">✉️ Testar Envio</button>
+              </div>
+            </div>
+            <div id="gmail-status" style="margin-top:12px;display:none"></div>
+          </div>
+        </div>
+      </div><!-- /sub-alertas -->
+
+      <!-- 4. Aparência -->
+      <div class="sub-content" id="sub-aparencia">
+        <div class="two-col-layout">
+          <div class="card">
+            <div class="card-header"><h3>🌙 Tema</h3></div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+              <div class="form-group toggle-group">
+                <span>Modo Escuro</span>
+                <label class="toggle">
+                  <input type="checkbox" id="theme-dark" onchange="toggleDarkMode()" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="form-group toggle-group">
+                <span>Avatar de Ajuda</span>
+                <label class="toggle">
+                  <input type="checkbox" id="aparencia-avatar" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>🎨 Cor Principal</h3></div>
+            <div style="padding:16px 20px">
+              <div class="color-options">
+                <div class="color-dot active" style="background:#4facfe" data-color="#4facfe" onclick="setColor('#4facfe',this)" title="Azul (padrão)"></div>
+                <div class="color-dot" style="background:#43e97b" data-color="#43e97b" onclick="setColor('#43e97b',this)" title="Verde"></div>
+                <div class="color-dot" style="background:#fa709a" data-color="#fa709a" onclick="setColor('#fa709a',this)" title="Rosa"></div>
+                <div class="color-dot" style="background:#a18cd1" data-color="#a18cd1" onclick="setColor('#a18cd1',this)" title="Roxo"></div>
+                <div class="color-dot" style="background:#fda085" data-color="#fda085" onclick="setColor('#fda085',this)" title="Laranja"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:span 2">
+            <div class="card-header"><h3>🖼️ Logo da Empresa</h3></div>
+            <div class="logo-upload-area">
+              <div class="logo-preview" id="logo-preview-box" onclick="document.getElementById('logo-input').click()">
+                <div class="logo-placeholder-big">📷<br><small>Clique para enviar</small></div>
+              </div>
+              <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="handleLogoUpload(event)" />
+              <p class="hint">Formatos: PNG, JPG, SVG. Max 2MB.</p>
+              <button class="btn-secondary" onclick="removerLogo()">Remover Logo</button>
+            </div>
+          </div>
+        </div>
+      </div><!-- /sub-aparencia -->
+
+      <!-- 5. Sistema -->
+      <div class="sub-content" id="sub-sistema">
+        <div class="two-col-layout">
+          <div class="card">
+            <div class="card-header"><h3>📁 Pasta para Salvar Dados</h3></div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+              <div class="form-group">
+                <label>Caminho no computador</label>
+                <input type="text" class="form-control" id="sis-pasta" placeholder="Ex: C:\Documentos\ZOOM\PDFs" />
+              </div>
+              <p style="font-size:11px;color:#718096">Informe onde salvar PDFs e Promissórias gerados pelo sistema.</p>
+              <button class="btn-primary" onclick="salvarPasta()">💾 Salvar Caminho</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>⏱️ Tela Ociosa (Auto-logout)</h3></div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+              <div class="form-group toggle-group">
+                <span>Ativar auto-logout</span>
+                <label class="toggle">
+                  <input type="checkbox" id="idle-toggle" onchange="toggleIdleTimer()" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="form-group" id="idle-time-group" style="opacity:0.45">
+                <label>Tempo de inatividade (minutos)</label>
+                <input type="number" class="form-control" id="idle-minutes" value="5" min="1" max="60" onchange="updateIdleTimeout()" />
+                <p style="font-size:11px;color:#718096;margin-top:4px">Sistema retorna ao login após esse tempo sem interação.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="grid-column:span 2">
+            <div class="card-header"><h3>💾 Backup de Dados</h3></div>
+            <div style="padding:16px 20px;display:flex;gap:12px;flex-wrap:wrap">
+              <button class="btn-primary" onclick="exportarBackup()">⬇️ Exportar Dados (JSON)</button>
+              <button class="btn-secondary" onclick="document.getElementById('import-input').click()">⬆️ Importar Backup</button>
+              <input type="file" id="import-input" accept=".json" style="display:none" onchange="importarBackup(event)" />
+              <p style="width:100%;font-size:11px;color:#718096">O backup exporta todos os dados do sistema em formato JSON.</p>
+            </div>
+          </div>
+
+          <!-- LOG do Sistema -->
+          <div class="card" style="grid-column:span 2">
+            <div class="card-header">
+              <h3>📋 LOG do Sistema</h3>
+              <div style="display:flex;gap:8px">
+                <button class="btn-export" onclick="exportarLog()">⬇️ Exportar</button>
+                <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="limparLog()">🗑️ Limpar</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+              <table class="data-table" id="log-table">
+                <thead>
+                  <tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Descrição</th></tr>
+                </thead>
+                <tbody id="log-body">
+                  <tr><td colspan="4" style="text-align:center;color:#718096;padding:20px">Nenhum registro de log.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Chave do Sistema -->
+          <div class="card">
+            <div class="card-header">
+              <h3>🔑 Chave do Sistema</h3>
+              <span class="badge-tag orange">Funcionalidade futura</span>
+            </div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px;opacity:0.75">
+              <div class="form-group">
+                <label>Chave para habilitar uso contínuo</label>
+                <input type="text" class="form-control" id="chave-licenca" placeholder="ZOOM-XXXX-XXXX-XXXX" style="font-family:monospace;letter-spacing:1px" />
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn-primary" onclick="ativarLicenca()">🔓 Ativar</button>
+                <span id="licenca-status" class="status-badge inactive">Inativo</span>
+              </div>
+              <p style="font-size:11px;color:#718096">Esta funcionalidade estará disponível na versão comercial do sistema.</p>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /sub-sistema -->
+
+    </div><!-- /config -->
+
+  </main>
+</div><!-- /main-wrapper -->
+
+<!-- ============================
+     MODAL: NOVO TÍTULO
+     ============================ -->
+<div class="modal-overlay" id="modal-titulo">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-titulo-title">➕ Novo Título</h3>
+      <button class="modal-close" onclick="closeModalTitulo()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Número</label>
+          <input type="number" class="form-control" id="mt-numero" placeholder="Auto" />
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select class="form-control" id="mt-tipo">
+            <option>Duplicata</option>
+            <option>Caderno</option>
+            <option>Cheque</option>
+            <option>Boleto</option>
+            <option>Outros</option>
+          </select>
+        </div>
+        <div class="form-group full-width">
+          <label>Cliente *</label>
+          <select class="form-control" id="mt-cliente" onchange="fillTituloPhone()"></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Telefone / WhatsApp</label>
+          <input type="tel" class="form-control" id="mt-telefone" placeholder="(00) 00000-0000" />
+        </div>
+        <div class="form-group">
+          <label>Data de Emissão</label>
+          <input type="date" class="form-control" id="mt-emissao" />
+        </div>
+        <div class="form-group">
+          <label>Vencimento *</label>
+          <input type="date" class="form-control" id="mt-vencimento" />
+        </div>
+        <div class="form-group">
+          <label>Valor (R$) *</label>
+          <input type="number" class="form-control" id="mt-valor" placeholder="0,00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Proprietário</label>
+          <select class="form-control" id="mt-proprietario"></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Observações</label>
+          <input type="text" class="form-control" id="mt-obs" placeholder="Opcional" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModalTitulo()">Cancelar</button>
+        <button class="btn-primary" onclick="salvarTitulo()">💾 Salvar Título</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PAGAR TÍTULO -->
+<div class="modal-overlay" id="modal-pagar">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <h3>💰 Registrar Pagamento</h3>
+      <button class="modal-close" onclick="closeModalPagar()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Valor Pago (R$)</label>
+          <input type="number" class="form-control" id="pg-valor" placeholder="0,00" min="0" step="0.01" />
+        </div>
+        <div class="form-group full-width">
+          <label>Data de Pagamento</label>
+          <input type="date" class="form-control" id="pg-data" />
+        </div>
+        <div class="form-group full-width">
+          <label>Forma de Pagamento</label>
+          <select class="form-control" id="pg-forma"></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Recebido por</label>
+          <select class="form-control" id="pg-recebido-por"></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModalPagar()">Cancelar</button>
+        <button class="btn-green" onclick="confirmarPagamento()">✅ Confirmar Pagamento</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Idle indicator -->
+<div class="idle-indicator" id="idle-indicator"></div>
+
+<!-- ============================
+     AVATAR DE AJUDA (floating)
+     ============================ -->
+<div class="avatar-ajuda" id="avatar-ajuda">
+  <div class="avatar-tooltip" id="avatar-tooltip">
+    <div class="avatar-tooltip-header">
+      <strong id="avatar-dica-titulo">Ajuda</strong>
+      <button class="avatar-close" onclick="fecharAvatarTooltip()">✕</button>
+    </div>
+    <ul id="avatar-dica-itens" class="avatar-dica-lista"></ul>
+    <p class="avatar-hint">💡 Ative/desative em Config › Aparência</p>
+  </div>
+  <button class="avatar-btn" id="avatar-btn" onclick="toggleAvatarTooltip()" title="Ajuda contextual">
+    <span class="avatar-emoji">🤖</span>
+    <span class="avatar-help-badge">?</span>
+  </button>
+</div>
+
+<!-- ============================
+     MODAL: PIN PARA EDITAR TÍTULO
+     ============================ -->
+<div class="modal-overlay" id="modal-pin-edit">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <h3>🔐 Confirmar Identidade</h3>
+      <button class="modal-close" onclick="closePinModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#4a5568;margin-bottom:16px">Para editar este título, confirme seu PIN de acesso.</p>
+      <div class="form-group">
+        <label>PIN (4 dígitos)</label>
+        <input type="password" class="form-control pin-input" id="edit-pin-input" maxlength="4" inputmode="numeric" placeholder="••••" autocomplete="off" />
+      </div>
+      <div class="login-error" id="pin-edit-error">PIN incorreto ou sem permissão de edição.</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closePinModal()">Cancelar</button>
+        <button class="btn-primary" onclick="confirmarPinEdit()">✅ Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

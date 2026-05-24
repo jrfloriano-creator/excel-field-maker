@@ -23,8 +23,10 @@ interface Props {
   requirePin?: (kind: 'edit' | 'delete', id: string) => void;
 }
 
+const today = () => new Date().toISOString().split('T')[0];
+
 const empty: Omit<Cliente, 'id'> = {
-  nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '',
+  nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', dataCadastro: '', indicacao: '',
 };
 
 export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }: Props) {
@@ -41,7 +43,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
       setData({ ...c });
     } else {
       setEditing(null);
-      setData(empty);
+      setData({ ...empty, dataCadastro: today() });
     }
     setShowForm(true);
   };
@@ -181,6 +183,24 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
                   type="date"
                   value={data.dataNascimento || ''}
                   onChange={e => setData({ ...data, dataNascimento: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Data de Cadastro</Label>
+                <Input
+                  type="date"
+                  value={data.dataCadastro || ''}
+                  onChange={e => setData({ ...data, dataCadastro: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Indicação</Label>
+                <Input
+                  value={data.indicacao || ''}
+                  onChange={e => setData({ ...data, indicacao: e.target.value })}
+                  placeholder="Quem indicou?"
                 />
               </div>
             </div>
@@ -354,6 +374,8 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
               {viewing.email && <p><strong>E-mail:</strong> {viewing.email}</p>}
               {viewing.dataNascimento && <p><strong>Aniversário:</strong> {formatDate(viewing.dataNascimento)}</p>}
               {viewing.cpfCnpj && <p><strong>CPF/CNPJ:</strong> {viewing.cpfCnpj}</p>}
+              {viewing.dataCadastro && <p><strong>Cadastrado em:</strong> {formatDate(viewing.dataCadastro)}</p>}
+              {viewing.indicacao && <p><strong>Indicação:</strong> {viewing.indicacao}</p>}
               {(viewing.logradouro || viewing.cidade) && (
                 <p>
                   <strong>Endereço:</strong>{' '}

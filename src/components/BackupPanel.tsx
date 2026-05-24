@@ -55,7 +55,7 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
       toast.success('Backup restaurado com sucesso');
     } catch (err) {
       console.error(err);
-      toast.error('Falha ao importar backup. Verifique o arquivo.');
+      toast.error('Falha ao importar: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       if (inputRef.current) inputRef.current.value = '';
     }

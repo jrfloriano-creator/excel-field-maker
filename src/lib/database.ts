@@ -38,24 +38,10 @@ export const dbDriver = {
   async init() {
     if (isTauri()) {
       const db = await getTauriDb();
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS kv (
-          key TEXT PRIMARY KEY,
-          value TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS titulos (
-          id TEXT PRIMARY KEY,
-          data TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS usuarios (
-          id TEXT PRIMARY KEY,
-          data TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS logs (
-          id TEXT PRIMARY KEY,
-          data TEXT NOT NULL
-        );
-      `);
+      await db.execute(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS titulos (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
     } else {
       await dexieDb.open();
     }

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Gradiente do fundo -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a2035"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <!-- Sombra interna suave -->
+    <filter id="innerGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="15.36" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <!-- Gradiente principal cyan/azul para o Z e barras -->
+    <linearGradient id="mainGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4facfe"/>
+      <stop offset="100%" stop-color="#00f2fe"/>
+    </linearGradient>
+    <!-- Gradiente das barras (um pouco mais vibrante) -->
+    <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#4facfe"/>
+    </linearGradient>
+    <!-- Brilho do Z -->
+    <filter id="zGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="18.432" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Clip do fundo arredondado -->
+    <clipPath id="roundedClip">
+      <rect x="0" y="0" width="1024" height="1024" rx="184" ry="184"/>
+    </clipPath>
+  </defs>
+
+  <!-- Fundo arredondado com gradiente escuro -->
+  <rect x="0" y="0" width="1024" height="1024" rx="184" ry="184" fill="url(#bgGrad)"/>
+
+  <!-- Brilho sutil no topo-esquerdo (luz ambiente) -->
+  <radialGradient id="ambientLight" cx="30%" cy="20%" r="60%">
+    <stop offset="0%" stop-color="#4facfe" stop-opacity="0.10"/>
+    <stop offset="100%" stop-color="#4facfe" stop-opacity="0"/>
+  </radialGradient>
+  <rect x="0" y="0" width="1024" height="1024" rx="184" ry="184" fill="url(#ambientLight)"/>
+
+  <!-- Grupo com clip do icone -->
+  <g clip-path="url(#roundedClip)">
+    <!-- Brilho de fundo para o Z (glow) -->
+    <text
+      x="481.28"
+      y="706.56"
+      text-anchor="middle"
+      font-family="'Arial Black', 'Arial Bold', Arial, sans-serif"
+      font-weight="900"
+      font-size="593.92"
+      fill="#00f2fe"
+      opacity="0.18"
+      filter="url(#innerGlow)"
+    >Z</text>
+
+    <!-- Letra Z principal com gradiente -->
+    <text
+      x="481.28"
+      y="706.56"
+      text-anchor="middle"
+      font-family="'Arial Black', 'Arial Bold', Arial, sans-serif"
+      font-weight="900"
+      font-size="593.92"
+      fill="url(#mainGrad)"
+      filter="url(#zGlow)"
+    >Z</text>
+
+    <!-- Barras ascendentes -->
+    <rect x="573.44" y="655.36" width="66.56" height="122.88" rx="19.968" ry="19.968" fill="url(#barGrad)" opacity="0.55"/><rect x="665.6" y="573.44" width="66.56" height="204.8" rx="19.968" ry="19.968" fill="url(#barGrad)" opacity="0.67"/><rect x="757.76" y="471.04" width="66.56" height="307.2" rx="19.968" ry="19.968" fill="url(#barGrad)" opacity="0.79"/><rect x="849.9200000000001" y="348.16" width="66.56" height="430.08" rx="19.968" ry="19.968" fill="url(#barGrad)" opacity="0.91"/>
+
+    <!-- Linha base das barras (sutil) -->
+    <line
+      x1="547.84"
+      y1="788.224"
+      x2="942.08"
+      y2="788.224"
+      stroke="#4facfe"
+      stroke-width="4.096"
+      stroke-opacity="0.45"
+      stroke-linecap="round"
+    />
+
+    <!-- Borda sutil no icone -->
+    <rect x="10.24" y="10.24" width="1003.52" height="1003.52" rx="172.95999999999998" ry="172.95999999999998"
+      fill="none"
+      stroke="url(#mainGrad)"
+      stroke-width="7.168"
+      stroke-opacity="0.30"
+    />
+  </g>
+</svg>

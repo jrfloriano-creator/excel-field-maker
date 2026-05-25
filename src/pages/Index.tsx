@@ -147,7 +147,10 @@ const Index = () => {
             <div className="zoom-month-bar-inner">
               {tab === 'dashboard' && (
                 <button
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium ${filters.dashboardMonth === '' ? 'bg-primary text-primary-foreground ring-2 ring-primary' : 'bg-secondary text-secondary-foreground'}`}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium text-white transition-all duration-200 whitespace-nowrap"
+                  style={filters.dashboardMonth === ''
+                    ? { background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', boxShadow: '0 2px 8px rgba(79,172,254,0.4)', fontWeight: 600 }
+                    : { background: '#1a2035', border: '1px solid #334155' }}
                   onClick={() => filters.setDashboardMonth('')}
                 >
                   Todos
@@ -158,7 +161,10 @@ const Index = () => {
                 return (
                   <button
                     key={mk}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium ${active ? 'bg-primary text-primary-foreground ring-2 ring-primary' : 'bg-secondary text-secondary-foreground'}`}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium text-white transition-all duration-200 whitespace-nowrap"
+                    style={active
+                      ? { background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', boxShadow: '0 2px 8px rgba(79,172,254,0.4)', fontWeight: 600 }
+                      : { background: '#1a2035', border: '1px solid #334155' }}
                     onClick={() => tab === 'lista' ? filters.setSelectedMonth(mk) : filters.setDashboardMonth(mk)}
                   >
                     {formatMonthLabel(mk)}

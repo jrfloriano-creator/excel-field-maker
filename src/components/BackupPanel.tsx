@@ -55,11 +55,8 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
       // Usa transação atômica única para evitar "database is locked"
       await importBackup(backupTitulos, backupConfig);
 
-      // Sincroniza estado React após persistência bem-sucedida
-      await onImportTitulos(backupTitulos);
-      await onImportConfig(backupConfig);
-
-      toast.success('Backup restaurado com sucesso');
+      toast.success('Backup restaurado com sucesso! Recarregando...');
+      setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
       console.error(err);
       toast.error('Falha ao importar: ' + (err instanceof Error ? err.message : String(err)));

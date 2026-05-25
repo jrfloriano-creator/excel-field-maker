@@ -147,7 +147,7 @@ const Index = () => {
             <div className="zoom-month-bar-inner">
               {tab === 'dashboard' && (
                 <button
-                  className={`zoom-month-btn${filters.dashboardMonth === '' ? ' active' : ''}`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium ${filters.dashboardMonth === '' ? 'bg-primary text-primary-foreground ring-2 ring-primary' : 'bg-secondary text-secondary-foreground'}`}
                   onClick={() => filters.setDashboardMonth('')}
                 >
                   Todos
@@ -158,7 +158,7 @@ const Index = () => {
                 return (
                   <button
                     key={mk}
-                    className={`zoom-month-btn${active ? ' active' : ''}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium ${active ? 'bg-primary text-primary-foreground ring-2 ring-primary' : 'bg-secondary text-secondary-foreground'}`}
                     onClick={() => tab === 'lista' ? filters.setSelectedMonth(mk) : filters.setDashboardMonth(mk)}
                   >
                     {formatMonthLabel(mk)}

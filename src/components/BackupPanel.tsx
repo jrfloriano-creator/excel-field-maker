@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Titulo, AppConfig } from '@/types/titulo';
+import { importBackup } from '@/lib/storage';
 
 interface Props {
   titulos: Titulo[];
@@ -45,13 +46,19 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
       const text = await file.text();
       const data = JSON.parse(text.replace(/^\uFEFF/, ''));
       if (!data || typeof data !== 'object') throw new Error('Arquivo inválido');
-      // Aguarda cada importação para garantir que o banco persista antes de continuar
-      if (Array.isArray(data.titulos)) {
-        await onImportTitulos(data.titulos as Titulo[]);
-      }
-      if (data.config && typeof data.config === 'object') {
-        await onImportConfig(data.config as Partial<AppConfig>);
-      }
+
+      const backupTitulos: Titulo[] = Array.isArray(data.titulos) ? data.titulos : [];
+      const backupConfig: AppConfig = (data.config && typeof data.config === 'object')
+        ? data.config
+        : config;
+
+      // Usa transação atômica única para evitar "database is locked"
+      await importBackup(backupTitulos, backupConfig);
+
+      // Sincroniza estado React após persistência bem-sucedida
+      await onImportTitulos(backupTitulos);
+      await onImportConfig(backupConfig);
+
       toast.success('Backup restaurado com sucesso');
     } catch (err) {
       console.error(err);

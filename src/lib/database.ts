@@ -211,5 +211,52 @@ export const dbDriver = {
     } else {
       await dexieDb.kv.put({ key, value });
     }
+  },
+
+  // Importa tudo em uma única transação atômica para evitar "database is locked"
+  async importAll(titulos: any[], configKv: any, usuarios: any[], logs: any[]): Promise<void> {
+    if (isTauri()) {
+      const db = await getTauriDb();
+      await db.execute('BEGIN TRANSACTION');
+      try {
+        // Limpa e reimporta titulos
+        await db.execute('DELETE FROM titulos');
+        for (const t of titulos) {
+          await db.execute('INSERT INTO titulos(id, data) VALUES($1, $2)', [t.id, JSON.stringify(t)]);
+        }
+        // Limpa e reimporta usuarios
+        await db.execute('DELETE FROM usuarios');
+        for (const u of usuarios) {
+          await db.execute('INSERT INTO usuarios(id, data) VALUES($1, $2)', [u.id, JSON.stringify(u)]);
+        }
+        // Limpa e reimporta logs
+        await db.execute('DELETE FROM logs');
+        for (const l of logs) {
+          await db.execute('INSERT INTO logs(id, data) VALUES($1, $2)', [l.id, JSON.stringify(l)]);
+        }
+        // Atualiza config kv
+        const rows: any[] = await db.select('SELECT key FROM kv WHERE key = $1', ['config']);
+        if (rows.length > 0) {
+          await db.execute('UPDATE kv SET value = $1 WHERE key = $2', [JSON.stringify(configKv), 'config']);
+        } else {
+          await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', ['config', JSON.stringify(configKv)]);
+        }
+        await db.execute('COMMIT');
+      } catch (e) {
+        await db.execute('ROLLBACK');
+        throw e;
+      }
+    } else {
+      // Dexie: usa transação multi-tabela
+      await dexieDb.transaction('rw', dexieDb.titulos, dexieDb.usuarios, dexieDb.logs, dexieDb.kv, async () => {
+        await dexieDb.titulos.clear();
+        await dexieDb.titulos.bulkPut(titulos);
+        await dexieDb.usuarios.clear();
+        await dexieDb.usuarios.bulkPut(usuarios);
+        await dexieDb.logs.clear();
+        await dexieDb.logs.bulkPut(logs);
+        await dexieDb.kv.put({ key: 'config', value: configKv });
+      });
+    }
   }
 };

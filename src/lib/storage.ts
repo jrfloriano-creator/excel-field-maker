@@ -141,6 +141,20 @@ export function findCliente(clientes: Cliente[], id?: string): Cliente | undefin
   return clientes.find(c => c.id === id);
 }
 
+/**
+ * Importa um backup completo em uma única transação atômica.
+ * Evita "database is locked" ao garantir que titulos + config são escritos
+ * numa mesma conexão sem transações concorrentes.
+ */
+export async function importBackup(titulos: Titulo[], config: AppConfig): Promise<void> {
+  const usuarios = config.usuarios ?? [];
+  const logs = config.logs ?? [];
+  const configKv = { ...config };
+  delete configKv.usuarios;
+  delete configKv.logs;
+  await dbDriver.importAll(titulos.map(normalizeTitulo), configKv, usuarios, logs);
+}
+
 /** Migra dados existentes do localStorage para a nova arquitetura (uma única vez). */
 export async function migrateFromLocalStorageIfNeeded(): Promise<boolean> {
   // 1. Migração de localStorage (legado muito antigo)

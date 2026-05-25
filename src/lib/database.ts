@@ -60,24 +60,21 @@ export const dbDriver = {
   async saveTitulos(titulos: Titulo[]): Promise<void> {
     if (isTauri()) {
       const db = await getTauriDb();
-      await db.execute('BEGIN TRANSACTION');
       try {
         const existing: any[] = await db.select('SELECT id FROM titulos');
         const existingIds = new Set(existing.map(r => r.id));
         const currentIds = new Set(titulos.map(t => t.id));
-        
+
         for (const t of titulos) {
           await db.execute('INSERT INTO titulos(id, data) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET data = excluded.data', [t.id, JSON.stringify(t)]);
         }
-        
+
         for (const id of existingIds) {
           if (!currentIds.has(id)) {
             await db.execute('DELETE FROM titulos WHERE id = $1', [id]);
           }
         }
-        await db.execute('COMMIT');
       } catch (e) {
-        await db.execute('ROLLBACK');
         throw e;
       }
     } else {
@@ -104,24 +101,21 @@ export const dbDriver = {
   async saveUsuarios(usuarios: Usuario[]): Promise<void> {
     if (isTauri()) {
       const db = await getTauriDb();
-      await db.execute('BEGIN TRANSACTION');
       try {
         const existing: any[] = await db.select('SELECT id FROM usuarios');
         const existingIds = new Set(existing.map(r => r.id));
         const currentIds = new Set(usuarios.map(u => u.id));
-        
+
         for (const u of usuarios) {
           await db.execute('INSERT INTO usuarios(id, data) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET data = excluded.data', [u.id, JSON.stringify(u)]);
         }
-        
+
         for (const id of existingIds) {
           if (!currentIds.has(id)) {
             await db.execute('DELETE FROM usuarios WHERE id = $1', [id]);
           }
         }
-        await db.execute('COMMIT');
       } catch (e) {
-        await db.execute('ROLLBACK');
         throw e;
       }
     } else {
@@ -157,24 +151,21 @@ export const dbDriver = {
   async saveLogs(logs: LogEntry[]): Promise<void> {
     if (isTauri()) {
       const db = await getTauriDb();
-      await db.execute('BEGIN TRANSACTION');
       try {
         const existing: any[] = await db.select('SELECT id FROM logs');
         const existingIds = new Set(existing.map(r => r.id));
         const currentIds = new Set(logs.map(l => l.id));
-        
+
         for (const l of logs) {
           await db.execute('INSERT INTO logs(id, data) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET data = excluded.data', [l.id, JSON.stringify(l)]);
         }
-        
+
         for (const id of existingIds) {
           if (!currentIds.has(id)) {
             await db.execute('DELETE FROM logs WHERE id = $1', [id]);
           }
         }
-        await db.execute('COMMIT');
       } catch (e) {
-        await db.execute('ROLLBACK');
         throw e;
       }
     } else {
@@ -213,11 +204,9 @@ export const dbDriver = {
     }
   },
 
-  // Importa tudo em uma única transação atômica para evitar "database is locked"
   async importAll(titulos: any[], configKv: any, usuarios: any[], logs: any[]): Promise<void> {
     if (isTauri()) {
       const db = await getTauriDb();
-      await db.execute('BEGIN TRANSACTION');
       try {
         // Limpa e reimporta titulos
         await db.execute('DELETE FROM titulos');
@@ -241,9 +230,7 @@ export const dbDriver = {
         } else {
           await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', ['config', JSON.stringify(configKv)]);
         }
-        await db.execute('COMMIT');
       } catch (e) {
-        await db.execute('ROLLBACK');
         throw e;
       }
     } else {

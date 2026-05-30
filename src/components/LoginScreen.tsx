@@ -11,13 +11,15 @@ interface Props {
   config: AppConfig;
   onUpdate: (patch: Partial<AppConfig>) => void;
   onLogin: (user: SessionUser) => void;
+  loading?: boolean;
 }
 
-export function LoginScreen({ config, onUpdate, onLogin }: Props) {
+export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Props) {
   const [usuarios, setUsuarios] = useState<Usuario[]>(config.usuarios || []);
   const [loadingUsers, setLoadingUsers] = useState(true);
 
   useEffect(() => {
+    if (loading) return;
     ensureMasterUser(config.usuarios).then(u => {
       setUsuarios(u);
       setLoadingUsers(false);
@@ -25,7 +27,7 @@ export function LoginScreen({ config, onUpdate, onLogin }: Props) {
       if (!hasMaster) onUpdate({ usuarios: u });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loading]);
 
   const [userId, setUserId] = useState('');
   useEffect(() => {

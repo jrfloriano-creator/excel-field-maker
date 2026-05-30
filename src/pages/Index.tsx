@@ -80,6 +80,7 @@ const Index = () => {
     return (
       <LoginScreen
         config={config}
+        loading={loading}
         onUpdate={updateConfig}
         onLogin={(u) => {
           setSession(u);

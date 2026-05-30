@@ -1,6 +1,15 @@
 import { AppConfig, LogEntry, Titulo, Usuario } from '@/types/titulo';
 import Dexie, { Table } from 'dexie';
 
+// --- Mutex: serializa TODAS as operações SQLite para evitar "database is locked" ---
+let dbQueue: Promise<any> = Promise.resolve();
+
+function serialized<T>(fn: () => Promise<T>): Promise<T> {
+  const p = dbQueue.then(fn, fn);
+  dbQueue = p.catch(() => {});
+  return p;
+}
+
 // --- Dexie (PWA/Web) Setup ---
 class FinanceiroDatabase extends Dexie {
   titulos!: Table<Titulo, string>;
@@ -39,39 +48,19 @@ async function getTauriDb() {
   return tauriDbPromise;
 }
 
-// Helper: retry a DB operation up to maxRetries times on SQLITE_BUSY (code 5)
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 500): Promise<T> {
-  let lastErr: any;
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      const code = err?.code ?? err?.cause?.code ?? (typeof err?.message === 'string' && err.message.includes('5') ? 5 : -1);
-      const msg = typeof err?.message === 'string' ? err.message : '';
-      const isBusy = code === 5 || msg.includes('SQLITE_BUSY') || msg.includes('database is locked');
-      if (isBusy && i < maxRetries - 1) {
-        console.warn(`[DB] SQLITE_BUSY on attempt ${i + 1}, retrying in ${delayMs}ms...`);
-        await new Promise(r => setTimeout(r, delayMs));
-        lastErr = err;
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw lastErr;
-}
-
 export const dbDriver = {
   async init() {
     if (isTauri()) {
-      const db = await getTauriDb();
-      await db.execute(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS titulos (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
-      // WAL mode allows concurrent reads; busy_timeout prevents SQLITE_BUSY errors
-      await db.execute('PRAGMA journal_mode=WAL');
-      await db.execute('PRAGMA busy_timeout=5000');
+      return serialized(async () => {
+        const db = await getTauriDb();
+        await db.execute(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+        await db.execute(`CREATE TABLE IF NOT EXISTS titulos (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+        await db.execute(`CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+        await db.execute(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+        // WAL mode allows concurrent reads; busy_timeout prevents SQLITE_BUSY errors
+        await db.execute('PRAGMA journal_mode=WAL');
+        await db.execute('PRAGMA busy_timeout=5000');
+      });
     } else {
       await dexieDb.open();
     }
@@ -79,9 +68,11 @@ export const dbDriver = {
 
   async getTitulos(): Promise<Titulo[]> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      const rows: any[] = await db.select('SELECT data FROM titulos');
-      return rows.map(r => JSON.parse(r.data));
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const rows: any[] = await db.select('SELECT data FROM titulos');
+        return rows.map(r => JSON.parse(r.data));
+      });
     } else {
       return await dexieDb.titulos.toArray();
     }
@@ -89,8 +80,8 @@ export const dbDriver = {
 
   async saveTitulos(titulos: Titulo[]): Promise<void> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      try {
+      return serialized(async () => {
+        const db = await getTauriDb();
         const existing: any[] = await db.select('SELECT id FROM titulos');
         const existingIds = new Set(existing.map(r => r.id));
         const currentIds = new Set(titulos.map(t => t.id));
@@ -104,9 +95,7 @@ export const dbDriver = {
             await db.execute('DELETE FROM titulos WHERE id = $1', [id]);
           }
         }
-      } catch (e) {
-        throw e;
-      }
+      });
     } else {
       await dexieDb.transaction('rw', dexieDb.titulos, async () => {
         const currentIds = titulos.map(t => t.id);
@@ -120,9 +109,11 @@ export const dbDriver = {
 
   async getUsuarios(): Promise<Usuario[]> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      const rows: any[] = await db.select('SELECT data FROM usuarios');
-      return rows.map(r => JSON.parse(r.data));
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const rows: any[] = await db.select('SELECT data FROM usuarios');
+        return rows.map(r => JSON.parse(r.data));
+      });
     } else {
       return await dexieDb.usuarios.toArray();
     }
@@ -130,8 +121,8 @@ export const dbDriver = {
 
   async saveUsuarios(usuarios: Usuario[]): Promise<void> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      try {
+      return serialized(async () => {
+        const db = await getTauriDb();
         const existing: any[] = await db.select('SELECT id FROM usuarios');
         const existingIds = new Set(existing.map(r => r.id));
         const currentIds = new Set(usuarios.map(u => u.id));
@@ -145,9 +136,7 @@ export const dbDriver = {
             await db.execute('DELETE FROM usuarios WHERE id = $1', [id]);
           }
         }
-      } catch (e) {
-        throw e;
-      }
+      });
     } else {
       await dexieDb.transaction('rw', dexieDb.usuarios, async () => {
         const currentIds = usuarios.map(u => u.id);
@@ -161,9 +150,11 @@ export const dbDriver = {
 
   async getLogs(): Promise<LogEntry[]> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      const rows: any[] = await db.select('SELECT data FROM logs ORDER BY id ASC');
-      return rows.map(r => JSON.parse(r.data));
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const rows: any[] = await db.select('SELECT data FROM logs ORDER BY id ASC');
+        return rows.map(r => JSON.parse(r.data));
+      });
     } else {
       return await dexieDb.logs.orderBy('id').toArray();
     }
@@ -171,8 +162,10 @@ export const dbDriver = {
 
   async addLog(log: LogEntry): Promise<void> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      await db.execute('INSERT INTO logs(id, data) VALUES($1, $2)', [log.id, JSON.stringify(log)]);
+      return serialized(async () => {
+        const db = await getTauriDb();
+        await db.execute('INSERT INTO logs(id, data) VALUES($1, $2)', [log.id, JSON.stringify(log)]);
+      });
     } else {
       await dexieDb.logs.add(log);
     }
@@ -180,8 +173,8 @@ export const dbDriver = {
 
   async saveLogs(logs: LogEntry[]): Promise<void> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      try {
+      return serialized(async () => {
+        const db = await getTauriDb();
         const existing: any[] = await db.select('SELECT id FROM logs');
         const existingIds = new Set(existing.map(r => r.id));
         const currentIds = new Set(logs.map(l => l.id));
@@ -195,9 +188,7 @@ export const dbDriver = {
             await db.execute('DELETE FROM logs WHERE id = $1', [id]);
           }
         }
-      } catch (e) {
-        throw e;
-      }
+      });
     } else {
       await dexieDb.transaction('rw', dexieDb.logs, async () => {
         const currentIds = logs.map(l => l.id);
@@ -211,9 +202,11 @@ export const dbDriver = {
 
   async kvGet(key: string): Promise<any | null> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      const rows: any[] = await db.select('SELECT value FROM kv WHERE key = $1', [key]);
-      return rows.length > 0 ? JSON.parse(rows[0].value) : null;
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const rows: any[] = await db.select('SELECT value FROM kv WHERE key = $1', [key]);
+        return rows.length > 0 ? JSON.parse(rows[0].value) : null;
+      });
     } else {
       const res = await dexieDb.kv.get(key);
       return res ? res.value : null;
@@ -222,13 +215,15 @@ export const dbDriver = {
 
   async kvSet(key: string, value: any): Promise<void> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      const rows: any[] = await db.select('SELECT key FROM kv WHERE key = $1', [key]);
-      if (rows.length > 0) {
-        await db.execute('UPDATE kv SET value = $1 WHERE key = $2', [JSON.stringify(value), key]);
-      } else {
-        await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', [key, JSON.stringify(value)]);
-      }
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const rows: any[] = await db.select('SELECT key FROM kv WHERE key = $1', [key]);
+        if (rows.length > 0) {
+          await db.execute('UPDATE kv SET value = $1 WHERE key = $2', [JSON.stringify(value), key]);
+        } else {
+          await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', [key, JSON.stringify(value)]);
+        }
+      });
     } else {
       await dexieDb.kv.put({ key, value });
     }
@@ -236,8 +231,8 @@ export const dbDriver = {
 
   async importAll(titulos: any[], configKv: any, usuarios: any[], logs: any[]): Promise<void> {
     if (isTauri()) {
-      const db = await getTauriDb();
-      await withRetry(async () => {
+      return serialized(async () => {
+        const db = await getTauriDb();
         console.log('[importAll] Iniciando importação:', { titulos: titulos.length, usuarios: usuarios.length, logs: logs.length });
         // Limpa e reimporta titulos
         await db.execute('DELETE FROM titulos');

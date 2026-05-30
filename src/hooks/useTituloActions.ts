@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Titulo, AppConfig, TituloComCalculo } from '@/types/titulo';
-import { SessionUser, appendLog } from '@/lib/auth';
+import { SessionUser, appendLog, hasPerm } from '@/lib/auth';
 import { buildPagamentoWhatsMsg, whatsLink } from '@/lib/calculos';
 import { openExternalUrl } from '@/lib/openUrl';
 import { toast } from 'sonner';
@@ -88,6 +88,10 @@ export function useTituloActions({
   };
 
   const handlePagar = (id: string) => {
+    if (!hasPerm(config, user, 'titulo.receber')) {
+      toast.error('Sem permissão para receber títulos');
+      return;
+    }
     setPagarId(id);
   };
 

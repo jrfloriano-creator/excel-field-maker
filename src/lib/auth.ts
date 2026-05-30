@@ -86,6 +86,7 @@ export function defaultPermissoes() {
   return {
     USUARIO: [
       'titulo.editar.recebimento',
+      'titulo.receber',
       'caderno.criar',
       'relatorios.emitir',
     ] as Permissao[],

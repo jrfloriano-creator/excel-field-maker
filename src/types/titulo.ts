@@ -123,7 +123,8 @@ export type Permissao =
   | 'config.emailEnviar'
   | 'config.darkMode'
   | 'config.avatar'
-  | 'config.backup';
+  | 'config.backup'
+  | 'titulo.receber';
 
 export interface Usuario {
   id: string;
@@ -227,6 +228,7 @@ export const PERMISSAO_LABELS: Record<Permissao, string> = {
   'config.darkMode': 'Config: Fundo escuro',
   'config.avatar': 'Config: Avatar de ajuda',
   'config.backup': 'Config: Backup do sistema',
+  'titulo.receber': 'Receber título (registrar pagamento)',
 };
 
 export const ALL_PERMISSOES = Object.keys(PERMISSAO_LABELS) as Permissao[];

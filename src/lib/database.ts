@@ -25,13 +25,40 @@ const isTauri = () => {
 };
 
 // --- Tauri (Desktop) Setup ---
-let tauriDb: any = null;
+// Use Promise as cache to avoid race condition where getTauriDb() is called
+// multiple times before the first await resolves (would create multiple connections)
+let tauriDbPromise: Promise<any> | null = null;
 
 async function getTauriDb() {
-  if (tauriDb) return tauriDb;
-  const Database = (await import('@tauri-apps/plugin-sql')).default;
-  tauriDb = await Database.load('sqlite:financeiro.sqlite');
-  return tauriDb;
+  if (!tauriDbPromise) {
+    tauriDbPromise = (async () => {
+      const Database = (await import('@tauri-apps/plugin-sql')).default;
+      return Database.load('sqlite:financeiro.sqlite');
+    })();
+  }
+  return tauriDbPromise;
+}
+
+// Helper: retry a DB operation up to maxRetries times on SQLITE_BUSY (code 5)
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 500): Promise<T> {
+  let lastErr: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const code = err?.code ?? err?.cause?.code ?? (typeof err?.message === 'string' && err.message.includes('5') ? 5 : -1);
+      const msg = typeof err?.message === 'string' ? err.message : '';
+      const isBusy = code === 5 || msg.includes('SQLITE_BUSY') || msg.includes('database is locked');
+      if (isBusy && i < maxRetries - 1) {
+        console.warn(`[DB] SQLITE_BUSY on attempt ${i + 1}, retrying in ${delayMs}ms...`);
+        await new Promise(r => setTimeout(r, delayMs));
+        lastErr = err;
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
 }
 
 export const dbDriver = {
@@ -42,6 +69,9 @@ export const dbDriver = {
       await db.execute(`CREATE TABLE IF NOT EXISTS titulos (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
       await db.execute(`CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
       await db.execute(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+      // WAL mode allows concurrent reads; busy_timeout prevents SQLITE_BUSY errors
+      await db.execute('PRAGMA journal_mode=WAL');
+      await db.execute('PRAGMA busy_timeout=5000');
     } else {
       await dexieDb.open();
     }
@@ -207,22 +237,29 @@ export const dbDriver = {
   async importAll(titulos: any[], configKv: any, usuarios: any[], logs: any[]): Promise<void> {
     if (isTauri()) {
       const db = await getTauriDb();
-      try {
+      await withRetry(async () => {
+        console.log('[importAll] Iniciando importação:', { titulos: titulos.length, usuarios: usuarios.length, logs: logs.length });
         // Limpa e reimporta titulos
         await db.execute('DELETE FROM titulos');
+        console.log('[importAll] Titulos deletados');
         for (const t of titulos) {
           await db.execute('INSERT INTO titulos(id, data) VALUES($1, $2)', [t.id, JSON.stringify(t)]);
         }
+        console.log('[importAll] Titulos inseridos:', titulos.length);
         // Limpa e reimporta usuarios
         await db.execute('DELETE FROM usuarios');
+        console.log('[importAll] Usuarios deletados');
         for (const u of usuarios) {
           await db.execute('INSERT INTO usuarios(id, data) VALUES($1, $2)', [u.id, JSON.stringify(u)]);
         }
+        console.log('[importAll] Usuarios inseridos:', usuarios.length);
         // Limpa e reimporta logs
         await db.execute('DELETE FROM logs');
+        console.log('[importAll] Logs deletados');
         for (const l of logs) {
           await db.execute('INSERT INTO logs(id, data) VALUES($1, $2)', [l.id, JSON.stringify(l)]);
         }
+        console.log('[importAll] Logs inseridos:', logs.length);
         // Atualiza config kv
         const rows: any[] = await db.select('SELECT key FROM kv WHERE key = $1', ['config']);
         if (rows.length > 0) {
@@ -230,9 +267,8 @@ export const dbDriver = {
         } else {
           await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', ['config', JSON.stringify(configKv)]);
         }
-      } catch (e) {
-        throw e;
-      }
+        console.log('[importAll] Config salva');
+      });
     } else {
       // Dexie: usa transação multi-tabela
       await dexieDb.transaction('rw', dexieDb.titulos, dexieDb.usuarios, dexieDb.logs, dexieDb.kv, async () => {

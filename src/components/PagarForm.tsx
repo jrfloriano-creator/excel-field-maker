@@ -54,38 +54,37 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (funcionarios.length === 0) {
-      toast.error('Cadastre um funcionário em Configurações antes de receber títulos');
-      return;
-    }
     const func = funcionarios.find(f => f.id === funcionarioId);
-    if (!func) {
-      toast.error('Selecione o funcionário que recebeu');
-      return;
-    }
-    if (!func.pin) {
-      toast.error('Funcionário sem senha configurada — recadastre em Configurações');
-      return;
-    }
-    if (pin.length !== 4) {
-      toast.error('Senha do funcionário incorreta — pagamento não confirmado');
-      return;
-    }
-    let isValid = false;
-    try {
-      isValid = await verifyPin(pin, func.pin);
-    } catch (err) {
-      console.error('Erro ao verificar PIN:', err);
-      toast.error('Erro interno ao verificar senha — tente novamente');
-      return;
-    }
-    if (!isValid) {
-      toast.error('Senha do funcionário incorreta — pagamento não confirmado');
-      return;
-    }
-    // Migração transparente: se PIN está no formato legado, atualiza para SHA-256
-    if (!func.pin.startsWith('v1:') && onMigratePin) {
-      hashPin(pin).then(newHash => onMigratePin(func.id, newHash)).catch(() => {/* silently skip */});
+    // Funcionario is optional: if there are funcionarios, one must be selected and PIN verified
+    if (funcionarios.length > 0) {
+      if (!func) {
+        toast.error('Selecione o funcionário que recebeu');
+        return;
+      }
+      if (!func.pin) {
+        toast.error('Funcionário sem senha configurada — recadastre em Configurações');
+        return;
+      }
+      if (pin.length !== 4) {
+        toast.error('Senha do funcionário incorreta — recebimento não confirmado');
+        return;
+      }
+      let isValid = false;
+      try {
+        isValid = await verifyPin(pin, func.pin);
+      } catch (err) {
+        console.error('Erro ao verificar PIN:', err);
+        toast.error('Erro interno ao verificar senha — tente novamente');
+        return;
+      }
+      if (!isValid) {
+        toast.error('Senha do funcionário incorreta — recebimento não confirmado');
+        return;
+      }
+      // Migração transparente: se PIN está no formato legado, atualiza para SHA-256
+      if (!func.pin.startsWith('v1:') && onMigratePin) {
+        hashPin(pin).then(newHash => onMigratePin(func.id, newHash)).catch(() => {/* silently skip */});
+      }
     }
     const forma = formasPagamento.find(f => f.id === formaPagamentoId);
     if (!forma) {
@@ -100,7 +99,7 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
     onSubmit({
       dataPagamento,
       valorPago: valorN,
-      recebidoPor: func.nome,
+      recebidoPor: func?.nome ?? '',
       formaPagamento: forma.nome,
       maquininhaPagamento: maquininhaSel?.nome,
       enviarWhats,
@@ -112,7 +111,7 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
   return (
     <Card className="border-paid/20 shadow-lg">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Registrar Pagamento</CardTitle>
+        <CardTitle className="text-lg">Registrar Recebimento</CardTitle>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -215,10 +214,10 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
               required
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              ⚠️ O pagamento só é confirmado com a senha correta do funcionário.
+              ⚠️ O recebimento só é confirmado com a senha correta do funcionário.
             </p>
           </div>
-          <Button type="submit" className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">Confirmar Pagamento</Button>
+          <Button type="submit" className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">Confirmar Recebimento</Button>
         </form>
       </CardContent>
     </Card>

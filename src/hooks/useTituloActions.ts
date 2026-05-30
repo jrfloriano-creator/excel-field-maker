@@ -88,7 +88,6 @@ export function useTituloActions({
   };
 
   const handlePagar = (id: string) => {
-    if (config.funcionarios.length === 0) { toast.error('Cadastre um funcionário em Configurações'); return; }
     setPagarId(id);
   };
 

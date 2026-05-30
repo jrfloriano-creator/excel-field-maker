@@ -129,7 +129,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
           {titulo.situacao !== 'PAGO' && (
             <Button variant="outline" size="sm" className="flex-1 bg-card text-foreground" onClick={() => onPagar(titulo.id)}>
               <CreditCard className="h-4 w-4" />
-              Pagar
+              Receber
             </Button>
           )}
           <Button variant="ghost" size="sm" className="bg-card/60 text-foreground hover:bg-card" onClick={() => onEdit(titulo.id)}>

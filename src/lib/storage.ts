@@ -147,11 +147,13 @@ export function findCliente(clientes: Cliente[], id?: string): Cliente | undefin
  * numa mesma conexão sem transações concorrentes.
  */
 export async function importBackup(titulos: Titulo[], config: AppConfig): Promise<void> {
+  alert('[DEBUG importBackup] config.clientes=' + (config?.clientes?.length ?? 'undefined') + ', config.usuarios=' + (config?.usuarios?.length ?? 'undefined') + ', titulos=' + titulos.length);
   const usuarios = config.usuarios ?? [];
   const logs = config.logs ?? [];
   const configKv = { ...config };
   delete configKv.usuarios;
   delete configKv.logs;
+  alert('[DEBUG importBackup pos-delete] configKv.clientes=' + (configKv?.clientes?.length ?? 'undefined'));
   await dbDriver.importAll(titulos.map(normalizeTitulo), configKv, usuarios, logs);
 }
 

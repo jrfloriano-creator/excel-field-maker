@@ -48,9 +48,23 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
       if (!data || typeof data !== 'object') throw new Error('Arquivo inválido');
 
       const backupTitulos: Titulo[] = Array.isArray(data.titulos) ? data.titulos : [];
-      const backupConfig: AppConfig = (data.config && typeof data.config === 'object')
-        ? data.config
-        : config;
+
+      // Determina config base: data.config se existir, senão config prop atual
+      let backupConfig: AppConfig = (data.config && typeof data.config === 'object')
+        ? { ...data.config }
+        : { ...config };
+
+      // HIPOTESE: backup antigo pode ter clientes na raiz (data.clientes) em vez de data.config.clientes
+      if ((!backupConfig.clientes || backupConfig.clientes.length === 0) && Array.isArray(data.clientes) && data.clientes.length > 0) {
+        backupConfig.clientes = data.clientes;
+      }
+
+      alert(
+        '[DEBUG BackupPanel] data.config?.clientes=' + (data.config?.clientes?.length ?? 'undefined') +
+        ', backupConfig.clientes=' + (backupConfig?.clientes?.length ?? 'undefined') +
+        ', data.clientes(raiz)=' + (Array.isArray(data.clientes) ? data.clientes.length : 'N/A') +
+        ', data.titulos=' + (data.titulos?.length ?? 0)
+      );
 
       // Usa transação atômica única para evitar "database is locked"
       await importBackup(backupTitulos, backupConfig);

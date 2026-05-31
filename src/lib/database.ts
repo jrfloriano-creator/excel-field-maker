@@ -50,6 +50,7 @@ async function getTauriDb() {
 
 export const dbDriver = {
   async init() {
+    console.log('[init] isTauri:', isTauri());
     if (isTauri()) {
       return serialized(async () => {
         const db = await getTauriDb();
@@ -230,6 +231,8 @@ export const dbDriver = {
   },
 
   async importAll(titulos: any[], configKv: any, usuarios: any[], logs: any[]): Promise<void> {
+    console.log('[importAll] isTauri:', isTauri(), '__TAURI_INTERNALS__' in window);
+    alert('[DEBUG] importAll chamado. isTauri=' + isTauri() + ', titulos=' + titulos.length + ', usuarios=' + usuarios.length + ', clientes em configKv=' + (configKv.clientes ? configKv.clientes.length : 0));
     if (isTauri()) {
       return serialized(async () => {
         const db = await getTauriDb();
@@ -263,6 +266,11 @@ export const dbDriver = {
           await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', ['config', JSON.stringify(configKv)]);
         }
         console.log('[importAll] Config salva');
+        // Verificação pós-import: confirma que os dados foram realmente escritos
+        const check = await db.select('SELECT COUNT(*) as cnt FROM titulos');
+        const checkU = await db.select('SELECT COUNT(*) as cnt FROM usuarios');
+        console.log('[importAll] Verificacao pos-import: titulos no banco =', (check as any)[0]?.cnt, ', usuarios =', (checkU as any)[0]?.cnt);
+        alert('[DEBUG] Import finalizado. Titulos no banco: ' + ((check as any)[0]?.cnt || 0) + ', Usuarios: ' + ((checkU as any)[0]?.cnt || 0));
       });
     } else {
       // Dexie: usa transação multi-tabela

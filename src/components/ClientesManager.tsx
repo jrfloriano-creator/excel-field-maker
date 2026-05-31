@@ -131,7 +131,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Clientes ({clientes.length})</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Clientes ({clientes.length})</h2>
         {!showForm && (
           <Button size="sm" onClick={() => open()}>
             <UserPlus className="h-4 w-4 mr-1" /> Novo

@@ -59,13 +59,6 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
         backupConfig.clientes = data.clientes;
       }
 
-      alert(
-        '[DEBUG BackupPanel] data.config?.clientes=' + (data.config?.clientes?.length ?? 'undefined') +
-        ', backupConfig.clientes=' + (backupConfig?.clientes?.length ?? 'undefined') +
-        ', data.clientes(raiz)=' + (Array.isArray(data.clientes) ? data.clientes.length : 'N/A') +
-        ', data.titulos=' + (data.titulos?.length ?? 0)
-      );
-
       // Usa transação atômica única para evitar "database is locked"
       await importBackup(backupTitulos, backupConfig);
 

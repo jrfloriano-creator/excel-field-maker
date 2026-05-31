@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AppConfig, Usuario } from '@/types/titulo';
 import { verifyPin, hashPin } from '@/lib/storage';
 import { SessionUser, ensureMasterUser } from '@/lib/auth';
@@ -134,25 +133,44 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
             <Label style={{ fontSize: '12px', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               Usuário
             </Label>
-            <Select value={userId} onValueChange={setUserId}>
-              <SelectTrigger
+            {loadingUsers ? (
+              <div style={{
+                border: '1px solid #e2e8f0',
+                borderRadius: '9px',
+                padding: '8px 12px',
+                marginTop: '5px',
+                fontSize: '14px',
+                color: '#a0aec0',
+                background: '#f7fafc',
+              }}>
+                Carregando...
+              </div>
+            ) : (
+              <select
+                value={userId}
+                onChange={e => setUserId(e.target.value)}
                 style={{
+                  width: '100%',
                   fontFamily: "'Poppins', sans-serif",
                   border: '1px solid #e2e8f0',
                   borderRadius: '9px',
+                  padding: '8px 12px',
                   marginTop: '5px',
+                  fontSize: '14px',
+                  color: '#1a202c',
+                  background: 'white',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  appearance: 'auto',
                 }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
                 {usuarios.map(u => (
-                  <SelectItem key={u.id} value={u.id}>
+                  <option key={u.id} value={u.id}>
                     {u.nome} {u.master ? '(MASTER)' : `(${u.nivel})`}
-                  </SelectItem>
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
+              </select>
+            )}
           </div>
 
           <div>

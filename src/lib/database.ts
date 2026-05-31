@@ -50,7 +50,6 @@ async function getTauriDb() {
 
 export const dbDriver = {
   async init() {
-    console.log('[init] isTauri:', isTauri());
     if (isTauri()) {
       return serialized(async () => {
         const db = await getTauriDb();
@@ -231,33 +230,24 @@ export const dbDriver = {
   },
 
   async importAll(titulos: any[], configKv: any, usuarios: any[], logs: any[]): Promise<void> {
-    console.log('[importAll] isTauri:', isTauri(), '__TAURI_INTERNALS__' in window);
-    alert('[DEBUG] importAll chamado. isTauri=' + isTauri() + ', titulos=' + titulos.length + ', usuarios=' + usuarios.length + ', clientes em configKv=' + (configKv.clientes ? configKv.clientes.length : 0));
     if (isTauri()) {
       return serialized(async () => {
         const db = await getTauriDb();
-        console.log('[importAll] Iniciando importação:', { titulos: titulos.length, usuarios: usuarios.length, logs: logs.length });
         // Limpa e reimporta titulos
         await db.execute('DELETE FROM titulos');
-        console.log('[importAll] Titulos deletados');
         for (const t of titulos) {
           await db.execute('INSERT INTO titulos(id, data) VALUES($1, $2)', [t.id, JSON.stringify(t)]);
         }
-        console.log('[importAll] Titulos inseridos:', titulos.length);
         // Limpa e reimporta usuarios
         await db.execute('DELETE FROM usuarios');
-        console.log('[importAll] Usuarios deletados');
         for (const u of usuarios) {
           await db.execute('INSERT INTO usuarios(id, data) VALUES($1, $2)', [u.id, JSON.stringify(u)]);
         }
-        console.log('[importAll] Usuarios inseridos:', usuarios.length);
         // Limpa e reimporta logs
         await db.execute('DELETE FROM logs');
-        console.log('[importAll] Logs deletados');
         for (const l of logs) {
           await db.execute('INSERT INTO logs(id, data) VALUES($1, $2)', [l.id, JSON.stringify(l)]);
         }
-        console.log('[importAll] Logs inseridos:', logs.length);
         // Atualiza config kv
         const rows: any[] = await db.select('SELECT key FROM kv WHERE key = $1', ['config']);
         if (rows.length > 0) {
@@ -265,12 +255,6 @@ export const dbDriver = {
         } else {
           await db.execute('INSERT INTO kv(key, value) VALUES($1, $2)', ['config', JSON.stringify(configKv)]);
         }
-        console.log('[importAll] Config salva');
-        // Verificação pós-import: confirma que os dados foram realmente escritos
-        const check = await db.select('SELECT COUNT(*) as cnt FROM titulos');
-        const checkU = await db.select('SELECT COUNT(*) as cnt FROM usuarios');
-        console.log('[importAll] Verificacao pos-import: titulos no banco =', (check as any)[0]?.cnt, ', usuarios =', (checkU as any)[0]?.cnt);
-        alert('[DEBUG] Import finalizado. Titulos no banco: ' + ((check as any)[0]?.cnt || 0) + ', Usuarios: ' + ((checkU as any)[0]?.cnt || 0));
       });
     } else {
       // Dexie: usa transação multi-tabela

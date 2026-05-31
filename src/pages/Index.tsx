@@ -18,12 +18,13 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { VendasTab } from '@/components/VendasTab';
 import { Sidebar } from '@/components/Sidebar';
 import { IdleTimerManager } from '@/components/IdleTimerManager';
+import { AniversariantesPage } from '@/components/AniversariantesPage';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SessionUser, getSession, setSession, appendLog, hasPerm } from '@/lib/auth';
 
-type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes';
 
 // Real-time clock hook
 function useClock() {
@@ -43,6 +44,7 @@ const TAB_SUBTITLES: Record<Tab, string> = {
   promissoria: 'Promissórias',
   vendas: 'Vendas',
   config: 'Configurações',
+  aniversariantes: 'Aniversariantes',
 };
 
 const Index = () => {
@@ -201,15 +203,9 @@ const Index = () => {
                 titulo={actions.pagarTitulo}
                 creditoCliente={actions.creditoCliente}
                 config={config}
+                user={user}
                 onSubmit={actions.handleConfirmPagar}
                 onClose={() => actions.setPagarId(null)}
-                onMigratePin={(funcionarioId, newHash) =>
-                  updateConfig({
-                    funcionarios: config.funcionarios.map(f =>
-                      f.id === funcionarioId ? { ...f, pin: newHash } : f
-                    )
-                  })
-                }
               />
               <TitulosFilters
                 filtro={filters.filtro}
@@ -267,6 +263,8 @@ const Index = () => {
           )}
 
           {tab === 'promissoria' && <PromissoriaTabs config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
+
+          {tab === 'aniversariantes' && <AniversariantesPage config={config} />}
 
           {tab === 'vendas' && (
             <VendasTab config={config} onUpdate={updateConfig} user={user} onNewCliente={() => setTab('clientes')} />

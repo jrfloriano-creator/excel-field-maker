@@ -6,16 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
-import { Funcionario, FormaPagamento, Maquininha } from '@/types/titulo';
-import { verifyPin, hashPin } from '@/lib/storage';
+import { FormaPagamento, Maquininha } from '@/types/titulo';
 import { formatCurrency } from '@/lib/calculos';
 import { toast } from 'sonner';
 
 interface PagarFormProps {
   clienteNome: string;
   valorOriginal: number;
-  creditoDisponivel?: number; // crédito do mês anterior
-  funcionarios: Funcionario[];
+  creditoDisponivel?: number;
+  recebidoPor: string;
   formasPagamento?: FormaPagamento[];
   maquininhas?: Maquininha[];
   onSubmit: (data: {
@@ -29,16 +28,13 @@ interface PagarFormProps {
     creditoGerado: number;
   }) => void;
   onClose: () => void;
-  onMigratePin?: (funcionarioId: string, newHash: string) => void;
 }
 
-export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, funcionarios, formasPagamento = [], maquininhas = [], onSubmit, onClose, onMigratePin }: PagarFormProps) {
+export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, recebidoPor, formasPagamento = [], maquininhas = [], onSubmit, onClose }: PagarFormProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
   const [valorPago, setValorPago] = useState(valorOriginal.toString());
-  const [funcionarioId, setFuncionarioId] = useState('');
   const [formaPagamentoId, setFormaPagamentoId] = useState('');
   const [maquininhaId, setMaquininhaId] = useState('');
-  const [pin, setPin] = useState('');
   const [enviarWhats, setEnviarWhats] = useState(true);
   const [usarCredito, setUsarCredito] = useState(creditoDisponivel > 0);
 
@@ -52,40 +48,8 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
   const isPix = formaSel?.nome.toLowerCase().includes('pix') ?? false;
   const requireMaquininha = !!formaSel && !isPix;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const func = funcionarios.find(f => f.id === funcionarioId);
-    // Funcionario is optional: if there are funcionarios, one must be selected and PIN verified
-    if (funcionarios.length > 0) {
-      if (!func) {
-        toast.error('Selecione o funcionário que recebeu');
-        return;
-      }
-      if (!func.pin) {
-        toast.error('Funcionário sem senha configurada — recadastre em Configurações');
-        return;
-      }
-      if (pin.length !== 4) {
-        toast.error('Senha do funcionário incorreta — recebimento não confirmado');
-        return;
-      }
-      let isValid = false;
-      try {
-        isValid = await verifyPin(pin, func.pin);
-      } catch (err) {
-        console.error('Erro ao verificar PIN:', err);
-        toast.error('Erro interno ao verificar senha — tente novamente');
-        return;
-      }
-      if (!isValid) {
-        toast.error('Senha do funcionário incorreta — recebimento não confirmado');
-        return;
-      }
-      // Migração transparente: se PIN está no formato legado, atualiza para SHA-256
-      if (!func.pin.startsWith('v1:') && onMigratePin) {
-        hashPin(pin).then(newHash => onMigratePin(func.id, newHash)).catch(() => {/* silently skip */});
-      }
-    }
     const forma = formasPagamento.find(f => f.id === formaPagamentoId);
     if (!forma) {
       toast.error('Selecione a forma de pagamento');
@@ -99,7 +63,7 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
     onSubmit({
       dataPagamento,
       valorPago: valorN,
-      recebidoPor: func?.nome ?? '',
+      recebidoPor,
       formaPagamento: forma.nome,
       maquininhaPagamento: maquininhaSel?.nome,
       enviarWhats,
@@ -189,33 +153,8 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, f
             </div>
           )}
           <div>
-            <Label className="text-xs">Recebido por *</Label>
-            <Select value={funcionarioId} onValueChange={setFuncionarioId}>
-              <SelectTrigger>
-                <SelectValue placeholder={funcionarios.length === 0 ? 'Nenhum funcionário cadastrado' : 'Selecione o funcionário'} />
-              </SelectTrigger>
-              <SelectContent>
-                {funcionarios.map(f => (
-                  <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Senha do funcionário (4 dígitos) *</Label>
-            <Input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="••••"
-              value={pin}
-              onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="text-center text-xl tracking-[0.5em]"
-              required
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              ⚠️ O recebimento só é confirmado com a senha correta do funcionário.
-            </p>
+            <Label className="text-xs">Recebido por</Label>
+            <Input value={recebidoPor} disabled className="text-muted-foreground" />
           </div>
           <Button type="submit" className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">Confirmar Recebimento</Button>
         </form>

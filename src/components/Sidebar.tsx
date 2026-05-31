@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, List, ShoppingCart, Users,
-  ScrollText, BarChart3, Settings2, LogOut, Menu, X
+  ScrollText, BarChart3, Settings2, LogOut, Menu, X, Cake
 } from 'lucide-react';
 
-type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes';
 
 interface SidebarProps {
   tab: Tab;
@@ -20,6 +20,7 @@ const NAV_ITEMS: { id: Tab; icon: React.FC<{ className?: string }>; label: strin
   { id: 'lista', icon: List, label: 'Títulos' },
   { id: 'vendas', icon: ShoppingCart, label: 'Vendas' },
   { id: 'clientes', icon: Users, label: 'Clientes' },
+  { id: 'aniversariantes', icon: Cake, label: 'Aniversariantes' },
   { id: 'promissoria', icon: ScrollText, label: 'Promissórias' },
   { id: 'relatorios', icon: BarChart3, label: 'Relatórios' },
   { id: 'config', icon: Settings2, label: 'Configurações' },
@@ -106,7 +107,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             <LogOut className="w-4 h-4" />
             Sair
           </button>
-          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '6px' }}>v2.0.0</p>
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '6px' }}>v2.1.0</p>
         </div>
       </aside>
     </>

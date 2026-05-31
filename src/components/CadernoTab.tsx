@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AppConfig, Cliente, Titulo } from '@/types/titulo';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppConfig, Cliente, Titulo, Desconto } from '@/types/titulo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Save } from 'lucide-react';
+import { FileDown, Printer, Percent, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/promissoria';
+import { gerarCadernoPDF } from '@/lib/caderno';
+import { savePdf } from '@/lib/savePdf';
+import { aplicarDesconto, formatarDesconto } from '@/lib/descontos';
 
 interface Props {
   config: AppConfig;
@@ -36,6 +39,15 @@ export function CadernoTab({ config, onAddTitulos }: Props) {
   const [vencTocado, setVencTocado] = useState(false);
   const [valorTotal, setValorTotal] = useState('');
 
+  // Discount state
+  const [descontoId, setDescontoId] = useState<string>('');
+  const [descontoManual, setDescontoManual] = useState<string>('');
+
+  // Deduplication signature (same pattern as PromissoriaTab)
+  const savedSignatureRef = useRef<string>('');
+
+  const descontos = config.descontos || [];
+
   useEffect(() => {
     if (!vencTocado && dataEmissao) setPrimeiroVenc(addDays(dataEmissao, 30));
   }, [dataEmissao, vencTocado]);
@@ -46,17 +58,41 @@ export function CadernoTab({ config, onAddTitulos }: Props) {
   );
 
   const qtd = parseInt(quantidade) || 0;
-  const valor = parseFloat(valorTotal.replace(',', '.')) || 0;
-  const valorParcela = qtd > 0 ? valor / qtd : 0;
+  const valorBruto = parseFloat(valorTotal.replace(',', '.')) || 0;
 
-  const handleSalvar = () => {
-    if (!proprietario) { toast.error('Selecione o proprietário'); return; }
-    if (!cliente) { toast.error('Selecione o cliente'); return; }
-    if (qtd < 1) { toast.error('Quantidade inválida'); return; }
-    if (valor <= 0) { toast.error('Informe o valor total'); return; }
-    if (!primeiroVenc) { toast.error('Informe a data do 1º vencimento'); return; }
-    if (!onAddTitulos) return;
+  const descontoSelecionado: Desconto | null = descontos.find(d => d.id === descontoId) || null;
+  const descontoManualNum = parseFloat(descontoManual.replace(',', '.')) || 0;
 
+  const valorComDesconto = useMemo(() => {
+    if (valorBruto <= 0) return 0;
+    if (descontoSelecionado) return aplicarDesconto(valorBruto, descontoSelecionado);
+    if (descontoManualNum > 0) return Math.max(0, valorBruto - descontoManualNum);
+    return valorBruto;
+  }, [valorBruto, descontoSelecionado, descontoManualNum]);
+
+  const valorParcela = qtd > 0 ? valorComDesconto / qtd : 0;
+
+  // Reset dedup signature when relevant inputs change
+  useEffect(() => {
+    savedSignatureRef.current = '';
+  }, [clienteId, primeiroVenc, valorComDesconto, qtd]);
+
+  const validar = (): boolean => {
+    if (!proprietario) { toast.error('Selecione o proprietário'); return false; }
+    if (!cliente) { toast.error('Selecione o cliente'); return false; }
+    if (qtd < 1) { toast.error('Quantidade inválida'); return false; }
+    if (valorComDesconto <= 0) { toast.error('Informe o valor total'); return false; }
+    if (!primeiroVenc) { toast.error('Informe a data do 1º vencimento'); return false; }
+    return true;
+  };
+
+  /**
+   * Auto-save to DB — only once per unique combination of inputs (deduplication).
+   */
+  const salvarComoTitulos = () => {
+    if (!cliente || !onAddTitulos) return;
+    const signature = `${clienteId}|${primeiroVenc}|${valorComDesconto}|${qtd}|${dataEmissao}`;
+    if (savedSignatureRef.current === signature) return; // already saved
     const novos: Omit<Titulo, 'id' | 'numero'>[] = Array.from({ length: qtd }, (_, i) => ({
       tipo: qtd > 1 ? `Caderno ${i + 1}/${qtd}` : 'Caderno',
       cliente: cliente.nome,
@@ -68,10 +104,52 @@ export function CadernoTab({ config, onAddTitulos }: Props) {
       proprietario,
     }));
     onAddTitulos(novos);
-    toast.success(`${qtd} título(s) Caderno salvo(s)`);
-    setValorTotal('');
-    setQuantidade('1');
+    savedSignatureRef.current = signature;
+    toast.success('Titulo salvo automaticamente');
   };
+
+  const buildPDFData = () => ({
+    clienteNome: cliente!.nome,
+    dataEmissao,
+    valorTotal: valorComDesconto,
+    parcelas: Array.from({ length: qtd }, (_, i) => ({
+      numeroParcela: i + 1,
+      dataVencimento: addMonths(primeiroVenc, i),
+      valorParcela: Number(valorParcela.toFixed(2)),
+    })),
+    ...(descontoSelecionado
+      ? { desconto: { apelido: descontoSelecionado.apelido, valorOriginal: valorBruto } }
+      : descontoManualNum > 0
+        ? { desconto: { apelido: `R$ ${formatBRL(descontoManualNum)}`, valorOriginal: valorBruto } }
+        : {}),
+  });
+
+  const handlePDF = async () => {
+    if (!validar() || !cliente) return;
+    const pdf = gerarCadernoPDF(buildPDFData());
+    const filename = `caderno-${cliente.nome.replace(/\s+/g, '_')}-${dataEmissao}.pdf`;
+    await savePdf(pdf, filename, config.caminhoSalvarDados);
+    salvarComoTitulos();
+  };
+
+  const handleImprimir = () => {
+    if (!validar() || !cliente) return;
+    const pdf = gerarCadernoPDF(buildPDFData());
+    const blobUrl = pdf.output('bloburl');
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;';
+    iframe.src = blobUrl;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      setTimeout(() => {
+        try { iframe.contentWindow?.print(); } catch { toast.error('Não foi possível abrir o diálogo de impressão.'); }
+        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(blobUrl); }, 120_000);
+      }, 500);
+    };
+    salvarComoTitulos();
+  };
+
+  const hasDesconto = descontoSelecionado || descontoManualNum > 0;
 
   return (
     <div className="space-y-4">
@@ -112,9 +190,7 @@ export function CadernoTab({ config, onAddTitulos }: Props) {
               </SelectContent>
             </Select>
             {cliente && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                📱 {cliente.telefone || '—'}
-              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">📱 {cliente.telefone || '—'}</p>
             )}
           </div>
 
@@ -152,16 +228,90 @@ export function CadernoTab({ config, onAddTitulos }: Props) {
               onChange={e => setValorTotal(e.target.value)}
               placeholder="0,00"
             />
-            {qtd > 0 && valor > 0 && (
+            {qtd > 0 && valorBruto > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
                 {qtd}x de {formatBRL(valorParcela)}
               </p>
             )}
           </div>
 
-          <Button onClick={handleSalvar} className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-            <Save className="h-4 w-4 mr-1" /> Salvar no Banco de Títulos
-          </Button>
+          {/* Desconto */}
+          <div className="space-y-2 pt-1 border-t">
+            <Label className="text-xs flex items-center gap-1">
+              <Percent className="h-3 w-3 text-primary" /> Desconto (opcional)
+            </Label>
+            {descontos.length > 0 && (
+              <div className="flex gap-2">
+                <Select
+                  value={descontoId}
+                  onValueChange={(v) => { setDescontoId(v); setDescontoManual(''); }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Desconto pré-definido..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {descontos.map(d => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.apelido} — {formatarDesconto(d)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {descontoId && (
+                  <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => setDescontoId('')} title="Remover desconto">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+            {!descontoId && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Ou desconto manual (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Ex: 50.00"
+                  value={descontoManual}
+                  onChange={e => setDescontoManual(e.target.value)}
+                />
+              </div>
+            )}
+            {hasDesconto && valorBruto > 0 && (
+              <div className="p-2 rounded bg-green-500/10 text-xs">
+                <p className="text-green-700 dark:text-green-400 font-semibold">
+                  Total com desconto: <strong>{formatBRL(valorComDesconto)}</strong>
+                  {descontoSelecionado && (
+                    <span className="ml-2 font-normal text-muted-foreground">(desconto de {formatarDesconto(descontoSelecionado)})</span>
+                  )}
+                  {!descontoSelecionado && descontoManualNum > 0 && (
+                    <span className="ml-2 font-normal text-muted-foreground">(desconto de {formatBRL(descontoManualNum)})</span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground text-center pt-1">
+            Ao clicar em "Criar PDF" ou "Imprimir", os títulos são salvos automaticamente no banco (apenas uma vez por lote).
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={handlePDF}
+              disabled={!clienteId || qtd < 1 || valorComDesconto <= 0}
+              className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-sm"
+            >
+              <FileDown className="h-4 w-4 mr-1" /> Criar PDF
+            </Button>
+            <Button
+              onClick={handleImprimir}
+              disabled={!clienteId || qtd < 1 || valorComDesconto <= 0}
+              className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white shadow-sm"
+            >
+              <Printer className="h-4 w-4 mr-1" /> Imprimir
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

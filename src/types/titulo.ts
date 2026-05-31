@@ -93,6 +93,14 @@ export interface Funcionario {
   pin: string;
 }
 
+// ===== Descontos pré-definidos =====
+export interface Desconto {
+  id: string;
+  apelido: string;
+  valor: number;
+  tipo: 'valor' | 'porcento'; // porcento: 0–100
+}
+
 // ===== Controle de Acesso =====
 export type NivelUsuario = 'USUARIO' | 'GERENCIAL' | 'MASTER';
 
@@ -113,7 +121,6 @@ export type Permissao =
   | 'config.proprietarios'
   | 'config.proprietariosCor'
   | 'config.credor'
-  | 'config.funcionarios'
   | 'config.taxa'
   | 'config.pix'
   | 'config.formasPagamento'
@@ -181,7 +188,7 @@ export interface AppConfig {
   chavesPix: ChavePix[];
   telefonesAlerta: TelefoneAlerta[];
   horarioAlerta: string;
-  funcionarios: Funcionario[];
+  funcionarios?: Funcionario[]; // kept for backward compat with old configs
   proprietarios: ProprietarioConfig[];
   clientes: Cliente[];
   credor?: CredorConfig;
@@ -198,6 +205,8 @@ export interface AppConfig {
   caminhoSalvarDados?: string; // caminho/pasta para salvar PDFs e promissórias
   idleAtivo?: boolean;
   idleMinutes?: number;
+  descontos?: Desconto[]; // descontos pré-definidos
+  mensagemAniversario?: string; // mensagem padrão para aniversariantes
 }
 
 export const PERMISSAO_LABELS: Record<Permissao, string> = {
@@ -217,7 +226,6 @@ export const PERMISSAO_LABELS: Record<Permissao, string> = {
   'config.proprietarios': 'Config: Proprietários',
   'config.proprietariosCor': 'Config: Cor de fundo dos títulos',
   'config.credor': 'Config: Credor (Promissória)',
-  'config.funcionarios': 'Config: Funcionários autorizados',
   'config.taxa': 'Config: Taxa de juros',
   'config.pix': 'Config: Chaves PIX',
   'config.formasPagamento': 'Config: Formas de pagamento',

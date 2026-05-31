@@ -29,7 +29,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   clientes: [],
   credor: { nome: '', cpfCnpj: '', cidadeEstado: '' },
   usuarios: [],
-  logs: []
+  logs: [],
+  descontos: [],
+  mensagemAniversario: 'Feliz aniversário, {nome}! 🎂 Que seu dia seja especial!',
 };
 
 function normalizeTitulo(t: any): Titulo {

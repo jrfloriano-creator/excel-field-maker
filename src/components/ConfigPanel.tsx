@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { FormaPagamento, AppConfig, ChavePix, Titulo, ALL_PERMISSOES, PERMISSAO_LABELS, NivelUsuario, Permissao } from '@/types/titulo';
+import { FormaPagamento, AppConfig, ChavePix, Titulo, ALL_PERMISSOES, PERMISSAO_LABELS, NivelUsuario, Permissao, Desconto } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Trash2, Send, FolderOpen, Shield, Clock } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, Send, FolderOpen, Shield, Clock, Percent, DollarSign } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
-import { FuncionariosManager } from '@/components/FuncionariosManager';
 import { ProprietariosManager } from '@/components/ProprietariosManager';
 import { BackupPanel } from '@/components/BackupPanel';
 import { EmailPanel } from '@/components/EmailPanel';
@@ -41,7 +42,16 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
   const [novaPixChave, setNovaPixChave] = useState('');
   const [novaForma, setNovaForma] = useState('');
 
+  // Desconto form state
+  const [novoDescontoApelido, setNovoDescontoApelido] = useState('');
+  const [novoDescontoValor, setNovoDescontoValor] = useState('');
+  const [novoDescontoTipo, setNovoDescontoTipo] = useState<'valor' | 'porcento'>('valor');
+
+  // Mensagem aniversário local state
+  const [mensagemAniv, setMensagemAniv] = useState(config.mensagemAniversario ?? 'Feliz aniversário, {nome}! 🎂 Que seu dia seja especial!');
+
   const formasPagamento = config.formasPagamento || [];
+  const descontos = config.descontos || [];
   const permissoes = config.permissoes || defaultPermissoes();
 
   const can = (p: any) => hasPerm(config, user, p);
@@ -49,6 +59,11 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: 'cadastros' } }));
   }, []);
+
+  // Keep mensagemAniv in sync if config changes externally
+  useEffect(() => {
+    setMensagemAniv(config.mensagemAniversario ?? 'Feliz aniversário, {nome}! 🎂 Que seu dia seja especial!');
+  }, [config.mensagemAniversario]);
 
   const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
   const amanhaStr = amanha.toISOString().split('T')[0];
@@ -85,6 +100,24 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
     setNovaForma('');
   };
 
+  const handleAddDesconto = () => {
+    const apelido = novoDescontoApelido.trim();
+    const valorNum = parseFloat(novoDescontoValor.replace(',', '.'));
+    if (!apelido) { toast.error('Informe um apelido para o desconto'); return; }
+    if (isNaN(valorNum) || valorNum <= 0) { toast.error('Informe um valor válido'); return; }
+    if (novoDescontoTipo === 'porcento' && valorNum > 100) { toast.error('Percentual máximo é 100%'); return; }
+    const novo: Desconto = { id: generateId(), apelido, valor: valorNum, tipo: novoDescontoTipo };
+    onUpdate({ descontos: [...descontos, novo] });
+    setNovoDescontoApelido('');
+    setNovoDescontoValor('');
+    setNovoDescontoTipo('valor');
+    toast.success('Desconto adicionado');
+  };
+
+  const handleRemoveDesconto = (id: string) => {
+    onUpdate({ descontos: descontos.filter(d => d.id !== id) });
+  };
+
   const hasNivelPerm = (n: NivelUsuario, p: Permissao) => {
     if (n === 'MASTER') return true;
     return (permissoes[n] || []).includes(p);
@@ -106,7 +139,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
         <TabsContent value="cadastros" className="space-y-4 mt-4">
           <UsuariosManager config={config} onUpdate={onUpdate} />
 
-          {/* Permissões por Nível - tabela resumo */}
+          {/* Permissões por Nível */}
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -156,9 +189,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
           {can('config.proprietarios') && (
             <ProprietariosManager proprietarios={config.proprietarios} onUpdate={(proprietarios) => onUpdate({ proprietarios })} />
           )}
-          {can('config.funcionarios') && (
-            <FuncionariosManager funcionarios={config.funcionarios} onUpdate={(funcionarios) => onUpdate({ funcionarios })} />
-          )}
           {can('config.credor') && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">📝 Credor (Notas Promissórias)</CardTitle></CardHeader>
@@ -190,6 +220,75 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
               </CardContent>
             </Card>
           )}
+
+          {/* Descontos pré-definidos */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Percent className="h-4 w-4 text-primary" /> Descontos Pré-definidos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {descontos.length > 0 && (
+                <div className="space-y-1">
+                  {descontos.map(d => (
+                    <div key={d.id} className="flex items-center gap-2 p-2 bg-secondary rounded">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{d.apelido}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {d.tipo === 'valor' ? formatCurrency(d.valor) : `${d.valor}%`}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-destructive shrink-0" onClick={() => handleRemoveDesconto(d.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-2 pt-1 border-t">
+                <p className="text-xs text-muted-foreground font-medium">Adicionar desconto</p>
+                <div>
+                  <Label className="text-xs">Apelido</Label>
+                  <Input placeholder="Ex: Desconto fidelidade" value={novoDescontoApelido} onChange={e => setNovoDescontoApelido(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={novoDescontoTipo} onValueChange={(v) => setNovoDescontoTipo(v as 'valor' | 'porcento')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="valor">
+                          <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> R$ Fixo</span>
+                        </SelectItem>
+                        <SelectItem value="porcento">
+                          <span className="flex items-center gap-1"><Percent className="h-3 w-3" /> Percentual %</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">{novoDescontoTipo === 'valor' ? 'Valor (R$)' : 'Percentual (0–100)'}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={novoDescontoTipo === 'porcento' ? 100 : undefined}
+                      step="0.01"
+                      placeholder={novoDescontoTipo === 'valor' ? '0.00' : '0'}
+                      value={novoDescontoValor}
+                      onChange={e => setNovoDescontoValor(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="w-full" onClick={handleAddDesconto}>
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar Desconto
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {can('config.pix') && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">🔑 Chaves PIX ({config.chavesPix.length}/5)</CardTitle></CardHeader>
@@ -250,6 +349,35 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
               </CardContent>
             </Card>
           )}
+
+          {/* Mensagem de Aniversário */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">🎂 Mensagem de Aniversário</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs">Mensagem enviada ao cliente no WhatsApp</Label>
+                <Textarea
+                  placeholder="Ex: Feliz aniversário, {nome}! 🎂"
+                  value={mensagemAniv}
+                  onChange={e => setMensagemAniv(e.target.value)}
+                  rows={3}
+                  className="mt-1 text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Use <code className="bg-muted px-1 rounded">{'{nome}'}</code> para inserir o nome do cliente automaticamente.
+                </p>
+              </div>
+              <Button size="sm" className="w-full" onClick={() => {
+                onUpdate({ mensagemAniversario: mensagemAniv });
+                toast.success('Mensagem salva!');
+              }}>
+                Salvar Mensagem
+              </Button>
+            </CardContent>
+          </Card>
+
           {(can('config.emailCobranca') || can('config.emailEnviar')) && (
             <EmailPanel config={config} titulos={titulos} onUpdate={onUpdate} />
           )}

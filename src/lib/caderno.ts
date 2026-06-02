@@ -37,33 +37,40 @@ function nowStr(): string {
 
 /**
  * Generates a Caderno PDF in A4 format.
- * Layout (v2.1.1 spec):
- *  - Client full name (bold, uppercase) — emission date + time  (line 1)
- *  - 3 blank lines
- *  - Table with 7 columns (8pt font):
- *    No. | Data Vcto. | Valor Parcela | Valor Pago | Saldo | Data Pagamento | Recebido por
- *  - Separator line
- *  - 1 blank line
- *  - If discount: 'Desconto: {apelido}' and 'Valor Original: R$ X,XX'
- *  - 'Valor Total: R$ X,XX' (bold)
- *  - 5 blank lines
- *  - 'OBS.:' label
- *  - 10 observation lines (full-width underscores) with 2 blank lines between each
- *  - 5 blank lines
- *  - Separator line centered
- *  - 'Assinatura do Cliente' centered
- * Handles page breaks.
+ * EVERYTHING fits on ONE page — no page breaks.
+ *
+ * Layout spec:
+ *  1. Client full name (bold, uppercase) + emission date/time on the right
+ *  2. 3 blank lines
+ *  3. Table header (bold): No. | Data Vcto. | Valor Parcela | Valor Pago | Saldo | Data Pagamento | Recebido por
+ *  4. Table rows (one per parcela): blanks for Valor Pago, Saldo, Data Pagamento, Recebido por
+ *  5. Separator line (full width)
+ *  6. 1 blank line
+ *  7. 'Valor Total: R$ X,XX' (bold)
+ *  8. 2 blank lines
+ *  9. 'OBS.:' label
+ * 10. 7 OBS lines (full-width underscores), each with 1 blank line between them
+ * 11. 2 blank lines
+ * 12. Centered short separator line (~60mm)
+ * 13. 'Assinatura do Cliente' centered below
+ *
+ * Font 7pt for table rows ensures up to 12 parcelas fit on a single A4 page.
  */
 export function gerarCadernoPDF(data: CadernoData): jsPDF {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = 210;
-  const pageH = 297;
   const margin = 12;
-  const lineH = 6; // mm per line (tighter for 7 columns)
   const total = data.parcelas.length;
+
+  // Spacing constants — tuned for single-page fit with up to 12 parcelas
+  const lineH = 4.5;      // mm per table row (7pt rows)
+  const blankH = 4.0;     // mm per blank line
+  const obsLineH = 4.5;   // mm for an OBS underscore line
+  const obsGapH = 3.5;    // mm blank gap between OBS lines
+
   let y = margin;
 
-  // ---- Line 1: client name (bold, uppercase) — date+time ----
+  // ---- 1. Line 1: client name (bold, uppercase) + emission date/time ----
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
   pdf.text(data.clienteNome.toUpperCase(), margin, y);
@@ -71,151 +78,113 @@ export function gerarCadernoPDF(data: CadernoData): jsPDF {
   pdf.setFontSize(9);
   pdf.text(`Emissão: ${nowStr()}`, pageW - margin, y, { align: 'right' });
 
-  // 3 blank lines
-  y += lineH * 3;
+  // ---- 2. 3 blank lines ----
+  y += blankH * 3;
 
-  // ---- Table column positions (7 cols, A4 printable width ~186mm with margin=12) ----
+  // ---- 3. Table column positions (7 cols, printable width ~186mm) ----
   // No.(10) | DataVcto(25) | ValorParcela(28) | ValorPago(30) | Saldo(25) | DataPagamento(35) | RecebidoPor(rest)
   const cols = {
-    num: margin,           // ~10mm wide
-    dataVcto: margin + 10, // 25mm
-    valor: margin + 35,    // 28mm
-    valorPago: margin + 63,// 30mm
-    saldo: margin + 93,    // 25mm
-    dataPag: margin + 118, // 35mm
-    recebedor: margin + 153,// to end
+    num:       margin,
+    dataVcto:  margin + 10,
+    valor:     margin + 35,
+    valorPago: margin + 63,
+    saldo:     margin + 93,
+    dataPag:   margin + 118,
+    recebedor: margin + 153,
   };
 
-  const drawTableHeader = () => {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
-    pdf.text('No.', cols.num, y);
-    pdf.text('Data Vcto.', cols.dataVcto, y);
-    pdf.text('Valor Parcela', cols.valor, y);
-    pdf.text('Valor Pago', cols.valorPago, y);
-    pdf.text('Saldo', cols.saldo, y);
-    pdf.text('Data Pagamento', cols.dataPag, y);
-    pdf.text('Recebido por', cols.recebedor, y);
-
-    y += lineH * 0.5;
-    // Header underline
-    pdf.setDrawColor(100);
-    pdf.setLineWidth(0.3);
-    pdf.line(margin, y, pageW - margin, y);
-    y += lineH * 0.7;
-  };
-
-  drawTableHeader();
-
-  // Rows
-  pdf.setFont('helvetica', 'normal');
+  // Table header (bold, 8pt)
+  pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
+  pdf.text('No.',              cols.num,       y);
+  pdf.text('Data Vcto.',       cols.dataVcto,  y);
+  pdf.text('Valor Parcela',    cols.valor,     y);
+  pdf.text('Valor Pago',       cols.valorPago, y);
+  pdf.text('Saldo',            cols.saldo,     y);
+  pdf.text('Data Pagamento',   cols.dataPag,   y);
+  pdf.text('Recebido por',     cols.recebedor, y);
+
+  // Header underline
+  y += lineH * 0.5;
+  pdf.setDrawColor(100);
+  pdf.setLineWidth(0.3);
+  pdf.line(margin, y, pageW - margin, y);
+  y += lineH * 0.7;
+
+  // ---- 4. Table rows (7pt font, tight spacing) ----
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(7);
   for (const p of data.parcelas) {
-    // Check if we need a new page (leave room for footer)
-    if (y > pageH - 60) {
-      pdf.addPage();
-      y = margin;
-      drawTableHeader();
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-    }
-    // No. as 'X/N'
-    pdf.text(`${p.numeroParcela}/${total}`, cols.num, y);
-    // Data Vcto
-    pdf.text(formatDateBR(p.dataVencimento), cols.dataVcto, y);
-    // Valor Parcela
-    pdf.text(formatBRL(p.valorParcela), cols.valor, y);
-    // Valor Pago: blank
-    pdf.text('_________________', cols.valorPago, y);
-    // Saldo: blank
-    pdf.text('__________________', cols.saldo, y);
-    // Data Pagamento: blank with format hint
-    pdf.text('(_____)/(_____)/(_____)  ', cols.dataPag, y);
-    // Recebido por: blank line drawn
-    pdf.setDrawColor(180);
-    pdf.setLineWidth(0.2);
-    pdf.line(cols.recebedor, y + 1, pageW - margin, y + 1);
+    pdf.text(`${p.numeroParcela}/${total}`,       cols.num,       y);
+    pdf.text(formatDateBR(p.dataVencimento),       cols.dataVcto,  y);
+    pdf.text(formatBRL(p.valorParcela),            cols.valor,     y);
+    pdf.text('_________________',                  cols.valorPago, y);
+    pdf.text('__________________',                 cols.saldo,     y);
+    pdf.text('(_____)/(_____)/(______)',            cols.dataPag,   y);
+    pdf.text('_________________',                  cols.recebedor, y);
     y += lineH;
   }
 
-  // ---- After table ----
-  // Separator line
+  // ---- 5. Separator line (full width) ----
   pdf.setDrawColor(80);
   pdf.setLineWidth(0.4);
   pdf.line(margin, y, pageW - margin, y);
 
-  // 1 blank line
-  y += lineH;
+  // ---- 6. 1 blank line ----
+  y += blankH;
 
   // Discount info (if applicable)
   if (data.desconto) {
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.text(`Desconto: ${data.desconto.apelido}`, margin, y);
-    y += lineH;
+    y += blankH;
     pdf.text(`Valor Original: ${formatBRL(data.desconto.valorOriginal)}`, margin, y);
-    y += lineH;
+    y += blankH;
   }
 
-  // Total value (bold)
+  // ---- 7. 'Valor Total: R$ X,XX' (bold) ----
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
   pdf.text(`Valor Total: ${formatBRL(data.valorTotal)}`, margin, y);
 
-  // 5 blank lines
-  y += lineH * 5;
+  // ---- 8. 2 blank lines ----
+  y += blankH * 2 + 2; // extra 2mm for visual breathing room
 
-  // Check if there's enough space for OBS section (~10 obs lines * 3*lineH + margins + signature)
-  // Each obs line takes ~3*lineH = 18mm; 10 obs = 180mm + header + signature ~30mm
-  // If not enough room, add a new page
-  const obsNeeded = lineH + 10 * (lineH * 3) + lineH * 5 + lineH * 3;
-  if (y + obsNeeded > pageH - margin) {
-    pdf.addPage();
-    y = margin;
-  }
-
-  // OBS.: label
+  // ---- 9. 'OBS.:' label ----
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.text('OBS.:', margin, y);
-  y += lineH;
+  y += obsLineH;
 
-  // 10 observation lines: full-width underscores with 2 blank lines between each
+  // ---- 10. 7 OBS lines (full-width underscores), 1 blank line between each ----
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   const obsLineWidth = pageW - margin * 2;
-  const underscoreCount = Math.floor(obsLineWidth / 1.8); // approx chars that fill the width
+  const underscoreCount = Math.floor(obsLineWidth / 1.8);
   const obsLine = '_'.repeat(underscoreCount);
 
-  for (let i = 0; i < 10; i++) {
-    // Check page break for obs lines too
-    if (y > pageH - 30) {
-      pdf.addPage();
-      y = margin;
-    }
+  for (let i = 0; i < 7; i++) {
     pdf.text(obsLine, margin, y);
-    // 2 blank lines after each obs line
-    y += lineH * 3;
+    y += obsLineH;
+    if (i < 6) {
+      // 1 blank line between lines (not after the last one)
+      y += obsGapH;
+    }
   }
 
-  // 5 blank lines
-  y += lineH * 5;
+  // ---- 11. 2 blank lines ----
+  y += blankH * 2;
 
-  // Check page for signature
-  if (y + lineH * 3 > pageH - margin) {
-    pdf.addPage();
-    y = margin + lineH * 3;
-  }
-
-  // Separator line centered (full width)
-  const sigLineStart = pageW / 2 - 40;
-  const sigLineEnd = pageW / 2 + 40;
+  // ---- 12. Centered short separator line (~60mm) ----
+  const sigLineStart = pageW / 2 - 30;
+  const sigLineEnd   = pageW / 2 + 30;
   pdf.setDrawColor(80);
   pdf.setLineWidth(0.4);
   pdf.line(sigLineStart, y, sigLineEnd, y);
-  y += lineH;
+  y += blankH;
 
-  // 'Assinatura do Cliente' centered
+  // ---- 13. 'Assinatura do Cliente' centered ----
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.text('Assinatura do Cliente', pageW / 2, y, { align: 'center' });

@@ -45,8 +45,10 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, r
   const creditoGerado = diferenca > 0 ? diferenca : 0;
 
   const formaSel = formasPagamento.find(f => f.id === formaPagamentoId);
-  const isPix = formaSel?.nome.toLowerCase().includes('pix') ?? false;
-  const requireMaquininha = !!formaSel && !isPix;
+  const formaNome = formaSel?.nome.toLowerCase() ?? '';
+  const isPix = formaNome.includes('pix');
+  const isDinheiro = formaNome.includes('dinheiro');
+  const requireMaquininha = !!formaSel && !isPix && !isDinheiro;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

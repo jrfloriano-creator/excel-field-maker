@@ -128,6 +128,10 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
     c.telefone.includes(busca)
   );
 
+  const incompletos = clientes.filter(c =>
+    !c.nome || !c.telefone || !c.dataNascimento || !c.cpfCnpj
+  ).length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -137,6 +141,11 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
             <UserPlus className="h-4 w-4 mr-1" /> Novo
           </Button>
         )}
+      </div>
+      <div className="flex items-center gap-2 text-sm" style={{ color: '#000000' }}>
+        <span style={{ color: '#000000' }}>Clientes Cadastrados: <strong>{clientes.length}</strong></span>
+        <span style={{ color: '#000000' }}>—</span>
+        <span style={{ color: '#000000' }}>Cadastros Incompletos: <strong>{incompletos}</strong></span>
       </div>
 
       {showForm && (

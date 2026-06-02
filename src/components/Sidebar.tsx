@@ -107,7 +107,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             <LogOut className="w-4 h-4" />
             Sair
           </button>
-          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '6px' }}>v2.1.0</p>
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '6px' }}>v2.1.1</p>
         </div>
       </aside>
     </>

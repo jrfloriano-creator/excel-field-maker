@@ -122,9 +122,11 @@ export function useTituloActions({
         : `${t.tipo} ${t.numero}`;
       const msg = buildPagamentoWhatsMsg({
         apelido,
+        dataPagamento: data.dataPagamento,
         formaPagamento: data.formaPagamento,
         valorPago: data.valorPago,
         tipoTitulo: tipoTituloFormatado,
+        numeroTitulo: t.numero,
         recebidoPor: data.recebidoPor,
         creditoGerado: data.creditoGerado,
       });

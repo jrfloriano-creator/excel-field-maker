@@ -10,7 +10,9 @@ import { getContrastColor, darkenColor } from '@/lib/colors';
 import { openExternalUrl } from '@/lib/openUrl';
 import { gerarCadernoPDF } from '@/lib/caderno';
 import { gerarPromissoriaPDF, calcularNotas, PromissoriaData } from '@/lib/promissoria';
+import { savePdf } from '@/lib/savePdf';
 import { toast } from 'sonner';
+import { getPrinters, printPdf } from 'tauri-plugin-printer-v2';
 
 interface TituloCardProps {
   titulo: TituloComCalculo;
@@ -36,16 +38,18 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
 
   const isCaderno = titulo.tipo?.toLowerCase().startsWith('caderno');
 
-  const handleReimprimir = () => {
+  const handleReimprimir = async () => {
     if (!clienteRef && !titulo.cliente) {
       toast.error('Dados do cliente não encontrados para reimprimir.');
       return;
     }
 
+    toast.info('Gerando impressão...');
+
     try {
+      const caminho = config?.caminhoSalvarDados;
+
       if (isCaderno) {
-        // Reconstruct minimal CadernoData from the single título
-        // We try to rebuild lote from all titles of same client+type+emissao
         const cadernoData = {
           clienteNome: titulo.cliente,
           dataEmissao: titulo.dataEmissao,
@@ -59,8 +63,13 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
           ],
         };
         const pdf = gerarCadernoPDF(cadernoData);
-        pdf.autoPrint();
-        window.open(pdf.output('bloburl'), '_blank');
+        const nomeArquivo = `caderno-${titulo.cliente.replace(/\s+/g, '-')}.pdf`;
+        await savePdf(pdf, nomeArquivo, caminho);
+        if (caminho) {
+          const sep = caminho.includes('\\') ? '\\' : '/';
+          const fullPath = caminho.replace(/[\\/]$/, '') + sep + nomeArquivo;
+          await _printSavedPdf(fullPath);
+        }
       } else {
         // Promissória reprint
         const devedor: Cliente = clienteRef || {
@@ -85,11 +94,38 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
         };
         const notas = calcularNotas(promissoriaData);
         const pdf = gerarPromissoriaPDF(promissoriaData, notas);
-        pdf.autoPrint();
-        window.open(pdf.output('bloburl'), '_blank');
+        const nomeArquivo = `titulo-${titulo.cliente.replace(/\s+/g, '-')}.pdf`;
+        await savePdf(pdf, nomeArquivo, caminho);
+        if (caminho) {
+          const sep = caminho.includes('\\') ? '\\' : '/';
+          const fullPath = caminho.replace(/[\\/]$/, '') + sep + nomeArquivo;
+          await _printSavedPdf(fullPath);
+        }
       }
     } catch {
       toast.error('Erro ao gerar PDF para reimpressão.');
+    }
+  };
+
+  const _printSavedPdf = async (fullPath: string) => {
+    try {
+      const printersJson = await getPrinters();
+      const printersList: Array<{ name: string; is_default?: boolean }> = JSON.parse(printersJson);
+      const defaultPrinter = printersList.find(p => p.is_default)?.name || printersList[0]?.name;
+      if (!defaultPrinter) {
+        await openExternalUrl(fullPath);
+        return;
+      }
+      await printPdf({
+        id: `print-${Date.now()}`,
+        path: fullPath,
+        printer: defaultPrinter,
+        print_settings: '',
+        remove_after_print: false,
+      });
+      toast.success('Enviado para impressora.');
+    } catch {
+      await openExternalUrl(fullPath);
     }
   };
 

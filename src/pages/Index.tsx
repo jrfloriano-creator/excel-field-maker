@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTitulos } from '@/hooks/useTitulos';
 import { useFilters } from '@/hooks/useFilters';
 import { useTituloActions } from '@/hooks/useTituloActions';
@@ -20,6 +20,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { IdleTimerManager } from '@/components/IdleTimerManager';
 import { AniversariantesPage } from '@/components/AniversariantesPage';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SessionUser, getSession, setSession, appendLog, hasPerm } from '@/lib/auth';
@@ -69,6 +70,24 @@ const Index = () => {
 
   const filters = useFilters(titulosCalculados);
   const actions = useTituloActions({ titulos, titulosCalculados, config, updateConfig, addTitulo, updateTitulo, deleteTitulo, user });
+
+  const formAreaRef = useRef<HTMLDivElement>(null);
+
+  const scrollToForm = () => {
+    setTimeout(() => {
+      formAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
+  const handleEdit = (id: string) => {
+    actions.handleEdit(id);
+    scrollToForm();
+  };
+
+  const handlePagar = (id: string) => {
+    actions.handlePagar(id);
+    scrollToForm();
+  };
 
   if (loading || loadingSession) {
     return (
@@ -159,6 +178,17 @@ const Index = () => {
                   Todos
                 </button>
               )}
+              {tab === 'lista' && (
+                <button
+                  className="px-3 py-1.5 rounded-full text-xs font-medium text-white transition-all duration-200 whitespace-nowrap"
+                  style={filters.selectedMonth === ''
+                    ? { background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', boxShadow: '0 2px 8px rgba(79,172,254,0.4)', fontWeight: 600 }
+                    : { background: '#1a2035', border: '1px solid #334155' }}
+                  onClick={() => filters.setSelectedMonth('')}
+                >
+                  Todos
+                </button>
+              )}
               {filters.monthKeys.map(mk => {
                 const active = tab === 'lista' ? filters.selectedMonth === mk : filters.dashboardMonth === mk;
                 return (
@@ -190,34 +220,39 @@ const Index = () => {
           {/* TÍTULOS */}
           {tab === 'lista' && (
             <>
-              <TituloFormModal
-                show={actions.showForm}
-                editData={actions.editingTitulo}
-                config={config}
-                user={user}
-                onSubmit={actions.handleAdd}
-                onClose={() => { actions.setShowForm(false); actions.setEditingTitulo(null); }}
-              />
-              <PagarFormModal
-                pagarId={actions.pagarId}
-                titulo={actions.pagarTitulo}
-                creditoCliente={actions.creditoCliente}
-                config={config}
-                user={user}
-                onSubmit={actions.handleConfirmPagar}
-                onClose={() => actions.setPagarId(null)}
-              />
+              <div ref={formAreaRef}>
+                <TituloFormModal
+                  show={actions.showForm}
+                  editData={actions.editingTitulo}
+                  config={config}
+                  user={user}
+                  onSubmit={actions.handleAdd}
+                  onClose={() => { actions.setShowForm(false); actions.setEditingTitulo(null); }}
+                />
+                <PagarFormModal
+                  pagarId={actions.pagarId}
+                  titulo={actions.pagarTitulo}
+                  creditoCliente={actions.creditoCliente}
+                  config={config}
+                  user={user}
+                  onSubmit={actions.handleConfirmPagar}
+                  onClose={() => actions.setPagarId(null)}
+                />
+              </div>
               <TitulosFilters
                 filtro={filters.filtro}
                 setFiltro={filters.setFiltro}
                 titulosByMonth={filters.titulosByMonth}
+                proprietarioFilter={filters.proprietarioFilter}
+                setProprietarioFilter={filters.setProprietarioFilter}
+                proprietarios={config.proprietarios}
               />
               <TitulosTable
                 titulosFiltrados={filters.titulosFiltrados}
                 config={config}
-                onEdit={actions.handleEdit}
+                onEdit={handleEdit}
                 onDelete={actions.askDelete}
-                onPagar={actions.handlePagar}
+                onPagar={handlePagar}
                 onAddNew={() => { actions.setEditingTitulo(null); actions.setShowForm(true); }}
               />
               {!actions.showForm && (
@@ -234,18 +269,39 @@ const Index = () => {
 
           {/* DASHBOARD */}
           {tab === 'dashboard' && (
-            <DashboardChart
-              titulos={
-                filters.dashboardMonth
-                  ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === filters.dashboardMonth)
-                  : titulosCalculados
-              }
-              allTitulos={titulosCalculados}
-              showValorTotal={hasPerm(config, user, 'dash.valorTotal')}
-              onClickVencidos={() => { filters.setFiltro('VENCIDO'); setTab('lista'); }}
-              vendas={config.vendas || []}
-              selectedMonth={filters.dashboardMonth}
-            />
+            <>
+              {config.proprietarios.length > 0 && (
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Proprietário:</span>
+                  <Select
+                    value={filters.dashboardProprietarioFilter}
+                    onValueChange={filters.setDashboardProprietarioFilter}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-48">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TODOS">Todos</SelectItem>
+                      {config.proprietarios.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <DashboardChart
+                titulos={
+                  filters.dashboardMonth
+                    ? filters.titulosDashboardByProprietario.filter(t => getMonthKey(t.vencimento) === filters.dashboardMonth)
+                    : filters.titulosDashboardByProprietario
+                }
+                allTitulos={filters.titulosDashboardByProprietario}
+                showValorTotal={hasPerm(config, user, 'dash.valorTotal')}
+                onClickVencidos={() => { filters.setFiltro('VENCIDO'); setTab('lista'); }}
+                vendas={config.vendas || []}
+                selectedMonth={filters.dashboardMonth ?? undefined}
+              />
+            </>
           )}
 
           {tab === 'relatorios' && <Relatorios titulos={titulos} config={config} />}

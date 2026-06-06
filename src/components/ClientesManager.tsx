@@ -25,6 +25,19 @@ interface Props {
 
 const today = () => new Date().toISOString().split('T')[0];
 
+function validarCPF(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  const calc = (len: number) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += parseInt(digits[i]) * (len + 1 - i);
+    const rem = (sum * 10) % 11;
+    return rem === 10 || rem === 11 ? 0 : rem;
+  };
+  return calc(9) === parseInt(digits[9]) && calc(10) === parseInt(digits[10]);
+}
+
 const empty: Omit<Cliente, 'id'> = {
   nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', dataCadastro: '', indicacao: '',
 };
@@ -36,6 +49,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
   const [data, setData] = useState<Omit<Cliente, 'id'>>(empty);
   const [busca, setBusca] = useState('');
   const [loadingCep, setLoadingCep] = useState(false);
+  const [cpfError, setCpfError] = useState('');
 
   const doOpen = (c?: Cliente) => {
     if (c) {
@@ -70,6 +84,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
     setShowForm(false);
     setEditing(null);
     setData(empty);
+    setCpfError('');
   };
 
   const handleCepBlur = async () => {
@@ -98,9 +113,27 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
     }
   };
 
+  const handleCpfBlur = () => {
+    const val = (data.cpfCnpj || '').trim();
+    if (!val) { setCpfError(''); return; }
+    const digits = val.replace(/\D/g, '');
+    if (digits.length === 11 && !validarCPF(val)) {
+      setCpfError('CPF inválido');
+    } else {
+      setCpfError('');
+    }
+  };
+
   const handleSave = () => {
     if (!data.nome.trim()) {
       toast.error('Nome é obrigatório');
+      return;
+    }
+    const cpfVal = (data.cpfCnpj || '').trim();
+    const cpfDigits = cpfVal.replace(/\D/g, '');
+    if (cpfDigits.length === 11 && !validarCPF(cpfVal)) {
+      setCpfError('CPF inválido');
+      toast.error('CPF inválido');
       return;
     }
     if (editing) {
@@ -126,7 +159,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
   const filtrados = clientes.filter(c =>
     c.nome.toLowerCase().includes(busca.toLowerCase()) ||
     c.telefone.includes(busca)
-  );
+  ).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
 
   const incompletos = clientes.filter(c =>
     !c.nome || !c.telefone || !c.dataNascimento || !c.cpfCnpj
@@ -217,9 +250,12 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
               <Label className="text-xs">CPF/CNPJ</Label>
               <Input
                 value={data.cpfCnpj || ''}
-                onChange={e => setData({ ...data, cpfCnpj: e.target.value })}
+                onChange={e => { setData({ ...data, cpfCnpj: e.target.value }); setCpfError(''); }}
+                onBlur={handleCpfBlur}
                 placeholder="000.000.000-00"
+                className={cpfError ? 'border-destructive' : ''}
               />
+              {cpfError && <p className="text-xs text-destructive mt-0.5">{cpfError}</p>}
             </div>
             <div>
               <Label className="text-xs">CEP</Label>

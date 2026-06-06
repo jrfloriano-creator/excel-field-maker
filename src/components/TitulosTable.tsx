@@ -35,6 +35,7 @@ export function TitulosTable({ titulosFiltrados, config, onEdit, onDelete, onPag
           chavesPix={config.chavesPix}
           proprietarios={config.proprietarios}
           clientes={config.clientes}
+          config={config}
         />
       ))}
     </div>

@@ -22,6 +22,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
   const [primeiroVencimento, setPrimeiroVencimento] = useState('');
   const [valorTotal, setValorTotal] = useState('');
   const [clienteId, setClienteId] = useState('');
+  const [proprietarioId, setProprietarioId] = useState<string>('');
 
   // Discount state
   const [descontoId, setDescontoId] = useState<string>('');        // selected pre-defined discount id
@@ -32,11 +33,19 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
 
   const credor = config.credor || { nome: '', cpfCnpj: '', cidadeEstado: '' };
   const descontos = config.descontos || [];
+  const proprietarios = config.proprietarios || [];
 
   // Preenche cidade/estado a partir do credor (uma vez)
   useEffect(() => {
     if (!cidadeEstado && credor.cidadeEstado) setCidadeEstado(credor.cidadeEstado);
   }, [credor.cidadeEstado, cidadeEstado]);
+
+  // Inicializa proprietário padrão
+  useEffect(() => {
+    if (!proprietarioId && proprietarios.length > 0) {
+      setProprietarioId(proprietarios[0].id);
+    }
+  }, [proprietarios, proprietarioId]);
 
   // Auto-preenche data do 1º vencimento com hoje + 30 dias
   useEffect(() => {
@@ -88,7 +97,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
   // Reseta a assinatura quando os inputs mudam (permite nova impressão = novo save)
   useEffect(() => {
     savedSignatureRef.current = '';
-  }, [clienteId, primeiroVencimento, valorComDesconto, qtdNum]);
+  }, [clienteId, primeiroVencimento, valorComDesconto, qtdNum, proprietarioId]);
 
   const camposFaltandoDevedor = (c?: Cliente): string[] => {
     if (!c) return [];
@@ -121,10 +130,10 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
    */
   const salvarComoTitulos = () => {
     if (!devedor || !onAddTitulos) return;
-    const signature = `${clienteId}|${primeiroVencimento}|${valorComDesconto}|${qtdNum}`;
+    const signature = `${clienteId}|${primeiroVencimento}|${valorComDesconto}|${qtdNum}|${proprietarioId}`;
     if (savedSignatureRef.current === signature) return;
     const hoje = new Date().toISOString().split('T')[0];
-    const proprietarioPadrao = config.proprietarios[0]?.id || '';
+    const proprietarioEfetivo = proprietarioId || config.proprietarios[0]?.id || '';
     const novos: Omit<Titulo, 'id' | 'numero'>[] = notas.map(n => ({
       tipo: `Promissória ${n.numero}`,
       cliente: devedor.nome,
@@ -133,7 +142,7 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
       dataEmissao: hoje,
       vencimento: n.vencimento.toISOString().split('T')[0],
       valor: n.valor,
-      proprietario: proprietarioPadrao,
+      proprietario: proprietarioEfetivo,
     }));
     onAddTitulos(novos);
     savedSignatureRef.current = signature;
@@ -303,6 +312,25 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Proprietário</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <Label className="text-xs">Proprietário do título</Label>
+          {proprietarios.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum proprietário cadastrado em Configurações</p>
+          ) : (
+            <Select value={proprietarioId} onValueChange={setProprietarioId}>
+              <SelectTrigger><SelectValue placeholder="Selecione o proprietário" /></SelectTrigger>
+              <SelectContent>
+                {proprietarios.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </CardContent>
       </Card>
 

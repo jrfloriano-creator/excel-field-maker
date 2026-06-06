@@ -1,13 +1,16 @@
-import { TituloComCalculo, ChavePix, ProprietarioConfig, Cliente } from '@/types/titulo';
+import { TituloComCalculo, ChavePix, ProprietarioConfig, Cliente, AppConfig } from '@/types/titulo';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatCurrency, formatDate, formatPhone, getWhatsAppLink } from '@/lib/calculos';
-import { MessageCircle, Trash2, CreditCard, Pencil } from 'lucide-react';
+import { MessageCircle, Trash2, CreditCard, Pencil, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
 import { getContrastColor, darkenColor } from '@/lib/colors';
 import { openExternalUrl } from '@/lib/openUrl';
+import { gerarCadernoPDF } from '@/lib/caderno';
+import { gerarPromissoriaPDF, calcularNotas, PromissoriaData } from '@/lib/promissoria';
+import { toast } from 'sonner';
 
 interface TituloCardProps {
   titulo: TituloComCalculo;
@@ -17,9 +20,10 @@ interface TituloCardProps {
   chavesPix: ChavePix[];
   proprietarios: ProprietarioConfig[];
   clientes?: Cliente[];
+  config?: AppConfig;
 }
 
-export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, proprietarios, clientes }: TituloCardProps) {
+export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, proprietarios, clientes, config }: TituloCardProps) {
   const [selectedPixId, setSelectedPixId] = useState<string>('');
   const selectedPix = chavesPix.find(p => p.id === selectedPixId);
   const clienteRef = clientes?.find(c => c.id === titulo.clienteId);
@@ -29,6 +33,65 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
   const bgColor = propConfig?.cor || '#e5e7eb';
   const fgColor = getContrastColor(bgColor);
   const borderColor = darkenColor(bgColor, 40);
+
+  const isCaderno = titulo.tipo?.toLowerCase().startsWith('caderno');
+
+  const handleReimprimir = () => {
+    if (!clienteRef && !titulo.cliente) {
+      toast.error('Dados do cliente não encontrados para reimprimir.');
+      return;
+    }
+
+    try {
+      if (isCaderno) {
+        // Reconstruct minimal CadernoData from the single título
+        // We try to rebuild lote from all titles of same client+type+emissao
+        const cadernoData = {
+          clienteNome: titulo.cliente,
+          dataEmissao: titulo.dataEmissao,
+          valorTotal: titulo.valor,
+          parcelas: [
+            {
+              numeroParcela: 1,
+              dataVencimento: titulo.vencimento,
+              valorParcela: titulo.valor,
+            },
+          ],
+        };
+        const pdf = gerarCadernoPDF(cadernoData);
+        pdf.autoPrint();
+        window.open(pdf.output('bloburl'), '_blank');
+      } else {
+        // Promissória reprint
+        const devedor: Cliente = clienteRef || {
+          id: titulo.clienteId || '',
+          nome: titulo.cliente,
+          telefone: titulo.telefone || '',
+          cep: '',
+          logradouro: '',
+          numero: '',
+          bairro: '',
+          cidade: '',
+          estado: '',
+        };
+        const credor = config?.credor || { nome: '', cpfCnpj: '' };
+        const promissoriaData: PromissoriaData = {
+          quantidade: 1,
+          cidadeEstado: credor.cidadeEstado || '',
+          primeiroVencimento: titulo.vencimento,
+          valorTotal: titulo.valor,
+          credor,
+          devedor,
+        };
+        const notas = calcularNotas(promissoriaData);
+        const pdf = gerarPromissoriaPDF(promissoriaData, notas);
+        pdf.autoPrint();
+        window.open(pdf.output('bloburl'), '_blank');
+      }
+    } catch {
+      toast.error('Erro ao gerar PDF para reimpressão.');
+    }
+  };
 
   return (
     <Card className="overflow-hidden border-2" style={{ backgroundColor: bgColor, color: fgColor, borderColor }}>
@@ -50,7 +113,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
           </div>
           <div>
             <p className="opacity-70 text-xs">Vencimento</p>
-            <p className="font-medium">{formatDate(titulo.vencimento)}</p>
+            <p className="text-xl font-bold" style={{ color: '#3b82f6' }}>{formatDate(titulo.vencimento)}</p>
           </div>
           <div>
             <p className="opacity-70 text-xs">Valor</p>
@@ -108,7 +171,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
           </div>
         )}
 
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-3 flex-wrap">
           {titulo.telefone && titulo.situacao === 'VENCIDO' && (
             <Button
               variant="outline"
@@ -132,6 +195,10 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
               Receber
             </Button>
           )}
+          <Button variant="ghost" size="sm" className="bg-card/60 text-foreground hover:bg-card" onClick={handleReimprimir} title="Reimprimir">
+            <Printer className="h-4 w-4" />
+            <span className="ml-1 text-xs">Reimprimir</span>
+          </Button>
           <Button variant="ghost" size="sm" className="bg-card/60 text-foreground hover:bg-card" onClick={() => onEdit(titulo.id)}>
             <Pencil className="h-4 w-4" />
           </Button>

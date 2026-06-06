@@ -8,6 +8,8 @@ export function useFilters(titulosCalculados: TituloComCalculo[]) {
   const [filtro, setFiltro] = useState<FiltroSituacao>('TODOS');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [dashboardMonth, setDashboardMonth] = useState<string | null>(null);
+  const [proprietarioFilter, setProprietarioFilter] = useState<string>('TODOS');
+  const [dashboardProprietarioFilter, setDashboardProprietarioFilter] = useState<string>('TODOS');
 
   const monthKeys = useMemo(
     () => Array.from(new Set(titulosCalculados.map(t => getMonthKey(t.vencimento)))).sort(),
@@ -23,16 +25,32 @@ export function useFilters(titulosCalculados: TituloComCalculo[]) {
     if (dashboardMonth === null) setDashboardMonth(def);
   }, [monthKeys, selectedMonth, dashboardMonth]);
 
+  // Títulos filtered by proprietário (for lista tab)
+  const titulosByProprietario = useMemo(
+    () => proprietarioFilter === 'TODOS'
+      ? titulosCalculados
+      : titulosCalculados.filter(t => t.proprietario === proprietarioFilter),
+    [titulosCalculados, proprietarioFilter]
+  );
+
   const titulosByMonth = useMemo(
     () => selectedMonth
-      ? titulosCalculados.filter(t => getMonthKey(t.vencimento) === selectedMonth)
-      : titulosCalculados,
-    [titulosCalculados, selectedMonth]
+      ? titulosByProprietario.filter(t => getMonthKey(t.vencimento) === selectedMonth)
+      : titulosByProprietario,
+    [titulosByProprietario, selectedMonth]
   );
 
   const titulosFiltrados = useMemo(
     () => filtro === 'TODOS' ? titulosByMonth : titulosByMonth.filter(t => t.situacao === filtro),
     [titulosByMonth, filtro]
+  );
+
+  // Títulos filtered by proprietário (for dashboard tab)
+  const titulosDashboardByProprietario = useMemo(
+    () => dashboardProprietarioFilter === 'TODOS'
+      ? titulosCalculados
+      : titulosCalculados.filter(t => t.proprietario === dashboardProprietarioFilter),
+    [titulosCalculados, dashboardProprietarioFilter]
   );
 
   return {
@@ -42,5 +60,8 @@ export function useFilters(titulosCalculados: TituloComCalculo[]) {
     monthKeys,
     titulosByMonth,
     titulosFiltrados,
+    proprietarioFilter, setProprietarioFilter,
+    dashboardProprietarioFilter, setDashboardProprietarioFilter,
+    titulosDashboardByProprietario,
   };
 }

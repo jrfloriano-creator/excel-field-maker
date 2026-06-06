@@ -318,7 +318,7 @@ const Index = () => {
             />
           )}
 
-          {tab === 'promissoria' && <PromissoriaTabs config={config} onAddTitulos={(novos) => addTitulos(novos)} />}
+          {tab === 'promissoria' && <PromissoriaTabs config={config} titulos={titulos} onAddTitulos={(novos) => addTitulos(novos)} />}
 
           {tab === 'aniversariantes' && <AniversariantesPage config={config} />}
 

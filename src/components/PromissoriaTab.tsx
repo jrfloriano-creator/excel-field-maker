@@ -10,13 +10,15 @@ import { toast } from 'sonner';
 import { calcularNotas, formatBRL, gerarPromissoriaPDF, dateToLong } from '@/lib/promissoria';
 import { savePdf, openFolder } from '@/lib/savePdf';
 import { aplicarDesconto, formatarDesconto } from '@/lib/descontos';
+import { ReimpressaoDialog } from './ReimpressaoDialog';
 
 interface Props {
   config: AppConfig;
+  titulos?: Titulo[];
   onAddTitulos?: (titulos: Omit<Titulo, 'id' | 'numero'>[]) => void;
 }
 
-export function PromissoriaTab({ config, onAddTitulos }: Props) {
+export function PromissoriaTab({ config, titulos = [], onAddTitulos }: Props) {
   const [quantidade, setQuantidade] = useState<string>('');
   const [cidadeEstado, setCidadeEstado] = useState('');
   const [primeiroVencimento, setPrimeiroVencimento] = useState('');
@@ -188,9 +190,12 @@ export function PromissoriaTab({ config, onAddTitulos }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">📄 Notas Promissórias</h2>
-        <Button variant="outline" size="sm" onClick={handleAbrirPasta} className="gap-1 text-xs">
-          <FolderOpen className="h-3.5 w-3.5" /> Títulos Salvos
-        </Button>
+        <div className="flex gap-2">
+          <ReimpressaoDialog titulos={titulos} config={config} tipo="promissoria" />
+          <Button variant="outline" size="sm" onClick={handleAbrirPasta} className="gap-1 text-xs">
+            <FolderOpen className="h-3.5 w-3.5" /> Títulos Salvos
+          </Button>
+        </div>
       </div>
 
       {(!credor.nome || !credor.cpfCnpj) && (

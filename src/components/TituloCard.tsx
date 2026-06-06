@@ -108,25 +108,41 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
   };
 
   const _printSavedPdf = async (fullPath: string) => {
+    // Normalize to Windows backslash path (required by the plugin and PowerShell)
+    const winPath = fullPath.replace(/\//g, '\\');
+
+    // 1st attempt: Rust command via PowerShell Start-Process -Verb Print (most reliable on Windows)
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('print_pdf_file', { path: winPath });
+      toast.success('Enviado para impressora.');
+      return;
+    } catch (e) {
+      console.warn('[print] print_pdf_file falhou, tentando plugin...', e);
+    }
+
+    // 2nd attempt: tauri-plugin-printer-v2 printPdf
     try {
       const printersJson = await getPrinters();
       const printersList: Array<{ name: string; is_default?: boolean }> = JSON.parse(printersJson);
       const defaultPrinter = printersList.find(p => p.is_default)?.name || printersList[0]?.name;
-      if (!defaultPrinter) {
-        await openExternalUrl(fullPath);
+      if (defaultPrinter) {
+        await printPdf({
+          id: `print-${Date.now()}`,
+          path: winPath,
+          printer: defaultPrinter,
+          print_settings: '',
+          remove_after_print: false,
+        });
+        toast.success('Enviado para impressora.');
         return;
       }
-      await printPdf({
-        id: `print-${Date.now()}`,
-        path: fullPath,
-        printer: defaultPrinter,
-        print_settings: '',
-        remove_after_print: false,
-      });
-      toast.success('Enviado para impressora.');
-    } catch {
-      await openExternalUrl(fullPath);
+    } catch (e) {
+      console.warn('[print] printPdf plugin falhou, abrindo arquivo...', e);
     }
+
+    // 3rd fallback: open file (user prints manually)
+    await openExternalUrl(winPath);
   };
 
   return (

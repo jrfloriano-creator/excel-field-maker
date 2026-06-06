@@ -11,9 +11,11 @@ import { formatBRL } from '@/lib/promissoria';
 import { gerarCadernoPDF } from '@/lib/caderno';
 import { savePdf } from '@/lib/savePdf';
 import { aplicarDesconto, formatarDesconto } from '@/lib/descontos';
+import { ReimpressaoDialog } from './ReimpressaoDialog';
 
 interface Props {
   config: AppConfig;
+  titulos?: Titulo[];
   onAddTitulos?: (titulos: Omit<Titulo, 'id' | 'numero'>[]) => void;
 }
 
@@ -29,7 +31,7 @@ function addMonths(iso: string, months: number) {
   return dt.toISOString().split('T')[0];
 }
 
-export function CadernoTab({ config, onAddTitulos }: Props) {
+export function CadernoTab({ config, titulos = [], onAddTitulos }: Props) {
   const hoje = new Date().toISOString().split('T')[0];
   const [proprietario, setProprietario] = useState(config.proprietarios[0]?.id || '');
   const [clienteId, setClienteId] = useState('');
@@ -153,6 +155,10 @@ export function CadernoTab({ config, onAddTitulos }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">📓 Lançamento Caderno</h2>
+        <ReimpressaoDialog titulos={titulos} config={config} tipo="caderno" />
+      </div>
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Lançamento de Venda em Caderno</CardTitle>

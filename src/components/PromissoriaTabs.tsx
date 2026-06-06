@@ -6,10 +6,11 @@ import { CadernoTab } from './CadernoTab';
 
 interface Props {
   config: AppConfig;
+  titulos?: Titulo[];
   onAddTitulos?: (titulos: Omit<Titulo, 'id' | 'numero'>[]) => void;
 }
 
-export function PromissoriaTabs({ config, onAddTitulos }: Props) {
+export function PromissoriaTabs({ config, titulos = [], onAddTitulos }: Props) {
   const [sub, setSub] = useState('promissoria');
 
   useEffect(() => {
@@ -23,10 +24,10 @@ export function PromissoriaTabs({ config, onAddTitulos }: Props) {
         <TabsTrigger value="caderno" className="text-xs">📓 Lançamento Caderno</TabsTrigger>
       </TabsList>
       <TabsContent value="promissoria" className="mt-4">
-        <PromissoriaTab config={config} onAddTitulos={onAddTitulos} />
+        <PromissoriaTab config={config} titulos={titulos} onAddTitulos={onAddTitulos} />
       </TabsContent>
       <TabsContent value="caderno" className="mt-4">
-        <CadernoTab config={config} onAddTitulos={onAddTitulos} />
+        <CadernoTab config={config} titulos={titulos} onAddTitulos={onAddTitulos} />
       </TabsContent>
     </Tabs>
   );

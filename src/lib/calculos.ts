@@ -60,11 +60,11 @@ export function formatPhone(phone: string): string {
 
 export function getWhatsAppLink(phone: string, cliente: string, valor: number, vencimento: string, chavePix?: { nome: string; chave: string }): string {
   const digits = phone.replace(/\D/g, '');
-  let msg = `Olá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
+  let msg = `*Controle Financeiro ZOOM*\n\nOlá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
   if (chavePix) {
     msg += `\n\nou utilize a Chave PIX a seguir para o pagamento:\n${chavePix.nome}: ${chavePix.chave}`;
   }
-  return `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
+  return `https://api.whatsapp.com/send?phone=55${digits}&text=${encodeURIComponent(msg)}`;
 }
 
 export function buildPagamentoWhatsMsg(opts: {
@@ -77,18 +77,16 @@ export function buildPagamentoWhatsMsg(opts: {
   recebidoPor: string;
   creditoGerado?: number;
 }): string {
-  const { apelido, dataPagamento, formaPagamento, valorPago, tipoTitulo, numeroTitulo, recebidoPor, creditoGerado } = opts;
+  const { apelido, formaPagamento, valorPago, tipoTitulo, recebidoPor, creditoGerado } = opts;
   const creditoMsg = (creditoGerado && creditoGerado > 0)
-    ? `Obs. O valor pago a mais de ${formatCurrency(creditoGerado)} sera abatido no valor do proximo mes.\n`
+    ? `\n\nObs. O valor pago a mais de ${formatCurrency(creditoGerado)} será abatido no valor do próximo mês.`
     : '';
-  const msg =
-    `Ola ${apelido}, recebemos seu pagamento em ${formatDate(dataPagamento)} na forma de ${formaPagamento} no valor de ${formatCurrency(valorPago)}, referente a(o) ${tipoTitulo} ${numeroTitulo}.\nRecebido por ${recebidoPor}\n\n${creditoMsg}Agradecemos a preferencia!`;
-  return msg;
+  return `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}, referente a/ao ${tipoTitulo}, recebido por ${recebidoPor}.${creditoMsg}\n\nAgradecemos a preferência!`;
 }
 
 export function whatsLink(phone: string, msg: string): string {
   const digits = phone.replace(/\D/g, '');
-  return `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
+  return `https://api.whatsapp.com/send?phone=55${digits}&text=${encodeURIComponent(msg)}`;
 }
 
 export function getMonthKey(dateStr: string): string {

@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
-import { FormaPagamento, Maquininha } from '@/types/titulo';
+import { FormaPagamento, Maquininha, Usuario } from '@/types/titulo';
 import { formatCurrency } from '@/lib/calculos';
+import { verifyPin } from '@/lib/storage';
 import { toast } from 'sonner';
 
 interface PagarFormProps {
@@ -15,6 +16,8 @@ interface PagarFormProps {
   valorOriginal: number;
   creditoDisponivel?: number;
   recebidoPor: string;
+  recebidoPorId?: string;
+  usuarios?: Usuario[];
   formasPagamento?: FormaPagamento[];
   maquininhas?: Maquininha[];
   onSubmit: (data: {
@@ -30,13 +33,27 @@ interface PagarFormProps {
   onClose: () => void;
 }
 
-export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, recebidoPor, formasPagamento = [], maquininhas = [], onSubmit, onClose }: PagarFormProps) {
+export function PagarForm({
+  clienteNome,
+  valorOriginal,
+  creditoDisponivel = 0,
+  recebidoPor,
+  recebidoPorId,
+  usuarios = [],
+  formasPagamento = [],
+  maquininhas = [],
+  onSubmit,
+  onClose,
+}: PagarFormProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
   const [valorPago, setValorPago] = useState(valorOriginal.toString());
   const [formaPagamentoId, setFormaPagamentoId] = useState('');
   const [maquininhaId, setMaquininhaId] = useState('');
   const [enviarWhats, setEnviarWhats] = useState(true);
   const [usarCredito, setUsarCredito] = useState(creditoDisponivel > 0);
+  const [usuarioId, setUsuarioId] = useState(recebidoPorId || usuarios[0]?.id || '');
+  const [pinUsuario, setPinUsuario] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const valorN = parseFloat(valorPago) || 0;
   const credito = usarCredito ? creditoDisponivel : 0;
@@ -47,13 +64,17 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, r
   const formaSel = formasPagamento.find(f => f.id === formaPagamentoId);
   const formaNome = formaSel?.nome.toLowerCase() ?? '';
   const isPix = formaNome.includes('pix');
-  const isDinheiro = formaNome.includes('dinheiro');
-  const requireMaquininha = !!formaSel && !isPix && !isDinheiro;
+  // FEAT 10: maquininha obrigatória para qualquer pagamento exceto PIX
+  const requireMaquininha = !!formaSel && !isPix;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const usuarioSel = usuarios.find(u => u.id === usuarioId);
+  const nomeRecebedor = usuarioSel?.nome ?? recebidoPor;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const forma = formasPagamento.find(f => f.id === formaPagamentoId);
-    if (!forma) {
+    if (submitting) return;
+
+    if (!formaSel) {
       toast.error('Selecione a forma de pagamento');
       return;
     }
@@ -61,17 +82,38 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, r
       toast.error('Selecione a maquininha utilizada para recebimento');
       return;
     }
-    const maquininhaSel = maquininhas.find(m => m.id === maquininhaId);
-    onSubmit({
-      dataPagamento,
-      valorPago: valorN,
-      recebidoPor,
-      formaPagamento: forma.nome,
-      maquininhaPagamento: maquininhaSel?.nome,
-      enviarWhats,
-      creditoAplicado: credito,
-      creditoGerado,
-    });
+    if (!usuarioSel) {
+      toast.error('Selecione quem está recebendo');
+      return;
+    }
+    if (pinUsuario.length !== 4) {
+      toast.error('Informe a senha (4 dígitos) do usuário que está recebendo');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const ok = await verifyPin(pinUsuario, usuarioSel.pin);
+      if (!ok) {
+        toast.error('Senha do usuário incorreta');
+        setPinUsuario('');
+        setSubmitting(false);
+        return;
+      }
+      const maquininhaSel = maquininhas.find(m => m.id === maquininhaId);
+      onSubmit({
+        dataPagamento,
+        valorPago: valorN,
+        recebidoPor: nomeRecebedor,
+        formaPagamento: formaSel.nome,
+        maquininhaPagamento: maquininhaSel?.nome,
+        enviarWhats,
+        creditoAplicado: credito,
+        creditoGerado,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -141,7 +183,7 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, r
           </div>
           {requireMaquininha && (
             <div>
-              <Label className="text-xs">Maquininha *</Label>
+              <Label className="text-xs">Maquininha * (obrigatório exceto PIX)</Label>
               <Select value={maquininhaId} onValueChange={setMaquininhaId}>
                 <SelectTrigger>
                   <SelectValue placeholder={maquininhas.length === 0 ? 'Cadastre em Config › Financeiro' : 'Selecione a maquininha'} />
@@ -155,10 +197,37 @@ export function PagarForm({ clienteNome, valorOriginal, creditoDisponivel = 0, r
             </div>
           )}
           <div>
-            <Label className="text-xs">Recebido por</Label>
-            <Input value={recebidoPor} disabled className="text-muted-foreground" />
+            <Label className="text-xs">Recebido por *</Label>
+            <Select value={usuarioId} onValueChange={(v) => { setUsuarioId(v); setPinUsuario(''); }}>
+              <SelectTrigger>
+                <SelectValue placeholder={usuarios.length === 0 ? 'Cadastre usuários' : 'Selecione o usuário'} />
+              </SelectTrigger>
+              <SelectContent>
+                {usuarios.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.nome}{u.master ? ' (MASTER)' : ` (${u.nivel})`}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Button type="submit" className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">Confirmar Recebimento</Button>
+          <div>
+            <Label className="text-xs">Senha (4 dígitos) do usuário *</Label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={pinUsuario}
+              onChange={e => setPinUsuario(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="••••"
+              className="text-center tracking-[0.5em] font-bold"
+              autoComplete="off"
+            />
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Confirme a senha cadastrada do usuário selecionado em Config › Cadastros.
+            </p>
+          </div>
+          <Button type="submit" disabled={submitting} className="w-full bg-paid hover:bg-paid/90 text-paid-foreground">
+            {submitting ? 'Validando…' : 'Confirmar Recebimento'}
+          </Button>
         </form>
       </CardContent>
     </Card>

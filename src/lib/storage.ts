@@ -101,7 +101,10 @@ export function getNextNumero(titulos: Titulo[]): number {
   return Math.max(...titulos.map(t => t.numero)) + 1;
 }
 
-const bufferToBase64 = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const bufferToBase64 = (buf: ArrayBuffer | Uint8Array) => {
+  const arr = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  return btoa(String.fromCharCode(...arr));
+};
 const base64ToBuffer = (b64: string) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 
 export function legacyHashPin(pin: string): string {

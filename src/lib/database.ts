@@ -15,6 +15,7 @@ class FinanceiroDatabase extends Dexie {
   titulos!: Table<Titulo, string>;
   usuarios!: Table<Usuario, string>;
   logs!: Table<LogEntry, string>;
+  kv!: Table<{ key: string; value: any }, string>;
 
   constructor() {
     super('FinanceiroDB');
@@ -99,7 +100,7 @@ export const dbDriver = {
     } else {
       await dexieDb.transaction('rw', dexieDb.titulos, async () => {
         const currentIds = titulos.map(t => t.id);
-        const existing = await dexieDb.titulos.keys();
+        const existing = await dexieDb.titulos.toCollection().primaryKeys();
         const toDelete = existing.filter(id => !currentIds.includes(id as string));
         await dexieDb.titulos.bulkDelete(toDelete as string[]);
         await dexieDb.titulos.bulkPut(titulos);
@@ -140,7 +141,7 @@ export const dbDriver = {
     } else {
       await dexieDb.transaction('rw', dexieDb.usuarios, async () => {
         const currentIds = usuarios.map(u => u.id);
-        const existing = await dexieDb.usuarios.keys();
+        const existing = await dexieDb.usuarios.toCollection().primaryKeys();
         const toDelete = existing.filter(id => !currentIds.includes(id as string));
         await dexieDb.usuarios.bulkDelete(toDelete as string[]);
         await dexieDb.usuarios.bulkPut(usuarios);
@@ -192,7 +193,7 @@ export const dbDriver = {
     } else {
       await dexieDb.transaction('rw', dexieDb.logs, async () => {
         const currentIds = logs.map(l => l.id);
-        const existing = await dexieDb.logs.keys();
+        const existing = await dexieDb.logs.toCollection().primaryKeys();
         const toDelete = existing.filter(id => !currentIds.includes(id as string));
         await dexieDb.logs.bulkDelete(toDelete as string[]);
         await dexieDb.logs.bulkPut(logs);

@@ -137,7 +137,7 @@ export function CadernoTab({ config, titulos = [], onAddTitulos }: Props) {
   const handleImprimir = () => {
     if (!validar() || !cliente) return;
     const pdf = gerarCadernoPDF(buildPDFData());
-    const blobUrl = pdf.output('bloburl');
+    const blobUrl = String(pdf.output('bloburl'));
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;';
     iframe.src = blobUrl;

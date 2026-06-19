@@ -162,13 +162,39 @@ export function PromissoriaTab({ config, titulos = [], onAddTitulos }: Props) {
     salvarComoTitulos();
   };
 
-  const handleImprimir = () => {
+  const handleImprimir = async () => {
     if (!validar() || !devedor) return;
     const pdf = gerarPromissoriaPDF(
       { quantidade: qtdNum, cidadeEstado, primeiroVencimento, valorTotal: valorComDesconto, credor, devedor },
       notas
     );
-    const blobUrl = pdf.output('bloburl');
+    const filename = `promissorias-${devedor.nome.replace(/\s+/g, '_')}.pdf`;
+
+    // Salva PDF primeiro (no caminho configurado em Tauri; download no browser).
+    // Lembre-se: salvarComoTitulos() é idempotente — não duplica títulos no banco
+    // mesmo que o usuário imprima várias vezes a mesma promissória.
+    await savePdf(pdf, filename, config.caminhoSalvarDados);
+    salvarComoTitulos();
+
+    const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+    // 1) Tauri desktop: invoca diálogo nativo do Windows para selecionar impressora
+    if (isTauri && config.caminhoSalvarDados) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const sep = config.caminhoSalvarDados.includes('\\') ? '\\' : '/';
+        const fullPath = config.caminhoSalvarDados.replace(/[\\/]$/, '') + sep + filename;
+        const winPath = fullPath.replace(/\//g, '\\');
+        await invoke('print_pdf_file', { path: winPath });
+        toast.success('Enviado para impressora (escolha a impressora no diálogo do Windows).');
+        return;
+      } catch (e) {
+        console.warn('[print] Tauri print_pdf_file falhou, usando fallback iframe', e);
+      }
+    }
+
+    // 2) Fallback browser: abre diálogo de impressão do navegador
+    const blobUrl = String(pdf.output('bloburl'));
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;';
     iframe.src = blobUrl;
@@ -179,7 +205,6 @@ export function PromissoriaTab({ config, titulos = [], onAddTitulos }: Props) {
         setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(blobUrl); }, 120_000);
       }, 500);
     };
-    salvarComoTitulos();
   };
 
   const handleAbrirPasta = () => { openFolder(config.caminhoSalvarDados); };

@@ -15,6 +15,7 @@ class FinanceiroDatabase extends Dexie {
   titulos!: Table<Titulo, string>;
   usuarios!: Table<Usuario, string>;
   logs!: Table<LogEntry, string>;
+  kv!: Table<{ key: string; value: any }, string>;
 
   constructor() {
     super('FinanceiroDB');

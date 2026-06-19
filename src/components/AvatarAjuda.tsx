@@ -15,19 +15,29 @@ const DICAS: Record<string, Dica> = {
       'Use as abas de meses no topo para filtrar por período.',
       'Filtros: Todos / Vencidos / No Prazo / Pagos.',
       'Toque no botão + para cadastrar um novo título.',
-      'Cada cartão tem borda colorida: verde=pago, vermelho=vencido, azul=no prazo.',
-      'No "Registrar Pagamento" escolha a Forma de Pagamento (cadastrada em Config › Financeiro).',
-      'PIN é necessário para editar ou pagar títulos, conforme nível do usuário.',
+      'Cada cartão tem borda colorida pelo proprietário; status indica Pago/Vencido/No Prazo.',
+      'Botão "Cobrar" abre WhatsApp do cliente (PIX opcional, em atraso).',
+      'Botão "Receber" abre o card Registrar Recebimento.',
+      'No Registrar Recebimento: selecione Forma de Pagamento, Maquininha (obrigatória exceto PIX), o usuário que recebeu e digite a senha dele de 4 dígitos.',
+      'Botão "Reimprimir" gera novamente o PDF/Promissória do título (não duplica no banco).',
     ],
   },
   clientes: {
     titulo: '👥 Aba Clientes',
     itens: [
-      'Cadastre Nome, Apelido, Telefone, E-mail e Aniversário.',
-      'Campos "Data de Cadastro" e "Indicação" registram quando e como o cliente chegou.',
+      'Cadastre Nome, Apelido, Telefone, E-mail, CPF/CNPJ e Aniversário.',
       'Digite o CEP e clique na lupa para preencher o endereço automaticamente.',
       'Clientes incompletos exibem o aviso ⚠ Incompleto.',
-      'Toque no cliente para abrir detalhes e enviar relação por WhatsApp.',
+      'Botão "Enviar títulos" abre o WhatsApp com a relação completa do cliente (cabeçalho Controle Financeiro ZOOM).',
+      'Toque no cliente para abrir detalhes.',
+    ],
+  },
+  aniversariantes: {
+    titulo: '🎂 Aba Aniversariantes',
+    itens: [
+      'Veja clientes que fazem aniversário hoje e no mês.',
+      'Envie mensagem personalizada via WhatsApp.',
+      'Configure o texto padrão em Config › Alertas › Mensagem de Aniversário.',
     ],
   },
   dashboard: {
@@ -36,17 +46,17 @@ const DICAS: Record<string, Dica> = {
       'Selecione o mês para visualizar o gráfico do período.',
       'Use "Todos" para ver o total geral.',
       'Card "Total de Títulos por Tipo" mostra a quantidade por categoria.',
+      'Clique em "Vencidos" para abrir a lista filtrada.',
     ],
   },
   relatorios: {
     titulo: '📑 Aba Relatórios',
     itens: [
       'Filtre por Proprietário, Tipo (Duplicata/Caderno/Cheque/Boleto/Outros).',
-      'Use Data Início/Fim para filtrar por intervalo de datas.',
-      'O filtro Mês é desativado ao usar datas.',
+      'Use Data Início/Fim para filtrar por intervalo (desativa o filtro Mês).',
       'Selecionar um cliente mostra o histórico completo desse cliente.',
-      'Botão PDF exporta o relatório filtrado.',
-      'Botão "Cobrar via WhatsApp" envia cobrança para títulos em atraso.',
+      'Botão PDF gera o relatório com cabeçalho "Controle Financeiro ZOOM".',
+      'Botão "Cobrar via WhatsApp" envia cobrança para títulos em atraso, incluindo PIX se cadastrado.',
     ],
   },
   vendas: {
@@ -57,8 +67,93 @@ const DICAS: Record<string, Dica> = {
       'Informe o valor, desconto (em R$ ou %) e observações.',
       'Escolha a forma de pagamento (cadastrada em Config › Financeiro).',
       'Para cartão, informe parcelas e a maquininha usada.',
-      'Botão "Vendas do Dia" mostra total e permite gerar PDF, imprimir ou enviar por WhatsApp.',
+      'Botão "Vendas do Dia" abre a lista com totalizador, opções de PDF, Imprimir e WhatsApp.',
+      'O envio por WhatsApp usa o telefone ativo em Config › Alertas › Telefones para Alerta Diário.',
     ],
+  },
+  promissoria: {
+    titulo: '📄 Promissórias / Caderno',
+    itens: [
+      'Use as sub-abas para escolher Promissória ou Lançamento Caderno.',
+      'Botão "Imprimir" abre o diálogo de impressão (Windows no app desktop, navegador na web).',
+      'Reimprimir o mesmo lote não duplica os títulos no banco.',
+    ],
+  },
+};
+
+const SUB_DICAS: Record<string, Record<string, Dica>> = {
+  promissoria: {
+    promissoria: {
+      titulo: '📄 Promissória',
+      itens: [
+        'Selecione um cliente cadastrado completo como devedor.',
+        'Informe quantidade de notas, valor total e 1º vencimento.',
+        'As parcelas seguintes vencem 30 em 30 dias.',
+        'Botão "Criar PDF" salva o arquivo no caminho configurado (Config › Sistema).',
+        'Botão "Imprimir" abre o diálogo nativo do Windows para escolher a impressora (no app desktop).',
+        'O lote é salvo no Banco de Títulos apenas UMA vez, mesmo imprimindo várias vezes.',
+        'Configure o Credor antes em Config › Cadastros.',
+      ],
+    },
+    caderno: {
+      titulo: '📓 Lançamento Caderno',
+      itens: [
+        'Use para registrar vendas em caderno sem gerar promissória.',
+        'Escolha o Proprietário e o Cliente cadastrado.',
+        'Quantidade de parcelas divide o Valor Total automaticamente.',
+        '1º vencimento sugere +30 dias da emissão (pode alterar).',
+        'O botão vermelho salva direto no Banco de Títulos.',
+      ],
+    },
+  },
+  config: {
+    cadastros: {
+      titulo: '👥 Config › Cadastros',
+      itens: [
+        'Usuários: cada um tem nível (USUÁRIO/GERENCIAL/MASTER) e senha de 4 dígitos.',
+        'A senha do usuário é exigida ao Registrar Recebimento de títulos.',
+        'Proprietários: usados na cor/identificação dos títulos.',
+        'Credor: nome, CPF/CNPJ e Cidade/Estado usados nas Promissórias.',
+        'Motivos de Alteração: lista usada ao editar/excluir títulos e clientes.',
+      ],
+    },
+    financeiro: {
+      titulo: '💰 Config › Financeiro',
+      itens: [
+        'Taxa de Juros Mensal aplicada nos títulos vencidos.',
+        'Cadastre Descontos pré-definidos (R$ ou %) para reusar nas promissórias.',
+        'Cadastre até 5 Chaves PIX (aparecem na cobrança WhatsApp).',
+        'Formas de Pagamento aparecem ao Registrar Recebimento (Dinheiro, PIX, Cartão...).',
+        'Maquininhas: usadas em pagamentos de cartão (obrigatória exceto PIX).',
+      ],
+    },
+    alertas: {
+      titulo: '🔔 Config › Alertas',
+      itens: [
+        'Cadastre telefones para receber alerta diário (vencem amanhã).',
+        'Esses telefones também recebem o resumo de Vendas do Dia.',
+        'Configure a mensagem de aniversário enviada aos clientes.',
+        'Painel de E-mail envia cobranças/textos livres via Gmail Web.',
+      ],
+    },
+    aparencia: {
+      titulo: '🎨 Config › Aparência',
+      itens: [
+        'Modo Escuro alterna o tema do app.',
+        'Avatar de Ajuda: ative/desative este mascote.',
+        'Logo da Empresa: faça upload do logotipo para impressões e tela de login.',
+      ],
+    },
+    sistema: {
+      titulo: '⚙️ Config › Sistema',
+      itens: [
+        'Pasta para Salvar Dados: caminho no PC onde os PDFs/Promissórias serão salvos.',
+        'Backup gera um único arquivo JSON com títulos + configurações.',
+        'Importação restaura tudo (substitui dados atuais).',
+        'Timer de Ociosidade: bloqueia o app após inatividade.',
+        'LOG do Sistema: registra todas as operações (inclui Vendas à Vista por usuário).',
+      ],
+    },
   },
 };
 

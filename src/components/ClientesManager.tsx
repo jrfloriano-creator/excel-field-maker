@@ -341,9 +341,9 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
                 const status = t.dataPagamento ? '✅ PAGO' : 'EM ABERTO';
                 return `${i + 1}. ${t.tipo} | Emissão: ${formatDate(t.dataEmissao)} | Venc.: ${formatDate(t.vencimento)} | Valor: ${formatCurrency(t.valor)} | ${status}`;
               }).join('\n');
-              const msg = `Conforme solicitado ${apelido}, segue a relação de suas parcelas:\n\n${linhas}`;
+              const msg = `*Controle Financeiro ZOOM*\n\nConforme solicitado ${apelido}, segue a relação de suas parcelas:\n\n${linhas}`;
               const digits = c.telefone.replace(/\D/g, '');
-              const link = `https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`;
+              const link = `https://api.whatsapp.com/send?phone=55${digits}&text=${encodeURIComponent(msg)}`;
               await openExternalUrl(link);
             };
             const camposFaltando: string[] = [];

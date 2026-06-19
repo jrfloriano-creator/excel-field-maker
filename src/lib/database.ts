@@ -100,7 +100,7 @@ export const dbDriver = {
     } else {
       await dexieDb.transaction('rw', dexieDb.titulos, async () => {
         const currentIds = titulos.map(t => t.id);
-        const existing = await dexieDb.titulos.keys();
+        const existing = await dexieDb.titulos.toCollection().primaryKeys();
         const toDelete = existing.filter(id => !currentIds.includes(id as string));
         await dexieDb.titulos.bulkDelete(toDelete as string[]);
         await dexieDb.titulos.bulkPut(titulos);

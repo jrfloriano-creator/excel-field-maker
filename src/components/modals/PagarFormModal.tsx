@@ -20,6 +20,8 @@ export function PagarFormModal({ pagarId, titulo, creditoCliente, config, user, 
       valorOriginal={titulo.valorCorrigido}
       creditoDisponivel={Math.max(0, creditoCliente)}
       recebidoPor={user?.nome ?? ''}
+      recebidoPorId={user?.id}
+      usuarios={config.usuarios || []}
       formasPagamento={config.formasPagamento || []}
       maquininhas={config.maquininhas || []}
       onSubmit={onSubmit}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TituloComCalculo, VendaVista } from '@/types/titulo';
+import { AppConfig, TituloComCalculo, VendaVista } from '@/types/titulo';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -17,6 +17,7 @@ interface DashboardChartProps {
   onClickVencidos?: () => void;
   vendas?: VendaVista[];
   selectedMonth?: string;
+  config?: AppConfig;
 }
 
 const COR_VENCIDO = '#ff6b6b';
@@ -48,6 +49,7 @@ export function DashboardChart({
   onClickVencidos,
   vendas = [],
   selectedMonth = '',
+  config,
 }: DashboardChartProps) {
   const vencidos = titulos.filter(t => t.situacao === 'VENCIDO');
   const noPrazo = titulos.filter(t => t.situacao === 'NO PRAZO');
@@ -97,6 +99,47 @@ export function DashboardChart({
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, v]) => v);
   }, [allTitulos, titulos]);
+
+  const weeklyMetaCards = useMemo(() => {
+    const monthKey = selectedMonth || new Date().toISOString().slice(0, 7);
+    const [yearStr, monthStr] = monthKey.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+    if (Number.isNaN(year) || Number.isNaN(monthIndex)) return [];
+
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const weekBuckets = Array.from({ length: 4 }, (_, index) => ({
+      label: `Meta Semana ${index + 1}`,
+      actual: 0,
+      meta: config?.metaSemanal ?? 5000,
+      days: [] as number[],
+    }));
+
+    let currentWeek = 0;
+    for (let day = 1; day <= daysInMonth && currentWeek < 4; day += 1) {
+      const date = new Date(year, monthIndex, day);
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek !== 0) {
+        weekBuckets[currentWeek].days.push(day);
+      }
+      if (dayOfWeek === 6 && currentWeek < 3) {
+        currentWeek += 1;
+      }
+    }
+
+    const source = allTitulos || titulos;
+    source.forEach((titulo) => {
+      if (titulo.situacao === 'PAGO') return;
+      if (!titulo.vencimento.startsWith(monthKey)) return;
+      const day = Number(titulo.vencimento.slice(8, 10));
+      const bucket = weekBuckets.find((week) => week.days.includes(day));
+      if (bucket) {
+        bucket.actual += titulo.valor;
+      }
+    });
+
+    return weekBuckets;
+  }, [allTitulos, titulos, selectedMonth, config?.metaSemanal]);
 
   if (titulos.length === 0 && (!allTitulos || allTitulos.length === 0)) {
     return (
@@ -279,6 +322,27 @@ export function DashboardChart({
             </Card>
           )}
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {weeklyMetaCards.map((week) => {
+          const reached = week.actual >= week.meta;
+          return (
+            <Card key={week.label}>
+              <CardHeader className="pb-2 border-b">
+                <CardTitle className="text-sm font-semibold">{week.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className={`text-2xl font-bold ${reached ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(week.actual)}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {formatCurrency(week.actual)} / {formatCurrency(week.meta)}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Tipos por contagem */}

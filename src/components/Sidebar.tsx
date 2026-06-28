@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, List, ShoppingCart, Users,
-  ScrollText, BarChart3, Settings2, LogOut, Menu, X, Cake
+  ScrollText, BarChart3, Settings2, LogOut, X, Cake, ChevronDown, Receipt
 } from 'lucide-react';
 
-type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes' | 'contas-pagar';
 
 interface SidebarProps {
   tab: Tab;
@@ -15,7 +15,7 @@ interface SidebarProps {
   logoEmpresa?: string;
 }
 
-const NAV_ITEMS: { id: Tab; icon: React.FC<{ className?: string }>; label: string }[] = [
+const NAV_ITEMS: { id: Exclude<Tab, 'config' | 'contas-pagar'>; icon: React.FC<{ className?: string }>; label: string }[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'lista', icon: List, label: 'Títulos' },
   { id: 'vendas', icon: ShoppingCart, label: 'Vendas' },
@@ -23,18 +23,22 @@ const NAV_ITEMS: { id: Tab; icon: React.FC<{ className?: string }>; label: strin
   { id: 'aniversariantes', icon: Cake, label: 'Aniversariantes' },
   { id: 'promissoria', icon: ScrollText, label: 'Promissórias' },
   { id: 'relatorios', icon: BarChart3, label: 'Relatórios' },
-  { id: 'config', icon: Settings2, label: 'Configurações' },
 ];
 
 export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoEmpresa }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(tab === 'config' || tab === 'contas-pagar');
 
-  // Close sidebar when tab changes on mobile
   useEffect(() => {
     setMobileOpen(false);
   }, [tab]);
 
-  // Close on escape
+  useEffect(() => {
+    if (tab === 'config' || tab === 'contas-pagar') {
+      setConfigOpen(true);
+    }
+  }, [tab]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false); };
     document.addEventListener('keydown', handler);
@@ -45,7 +49,6 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
 
   return (
     <>
-      {/* Hamburger button (mobile only) */}
       <button
         className="zoom-hamburger"
         onClick={() => setMobileOpen(v => !v)}
@@ -58,14 +61,11 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
         )}
       </button>
 
-      {/* Overlay */}
       {mobileOpen && (
         <div className="zoom-overlay active" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`zoom-sidebar${mobileOpen ? ' mobile-open' : ''}`}>
-        {/* Header */}
         <div className="zoom-sidebar-header">
           <div className="zoom-logo-box">
             {logoEmpresa ? (
@@ -80,7 +80,6 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="zoom-nav">
           {NAV_ITEMS.map(item => (
             <button
@@ -92,9 +91,42 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
               {item.label}
             </button>
           ))}
+
+          <div className="space-y-1">
+            <button
+              className={`zoom-nav-btn${tab === 'config' || tab === 'contas-pagar' ? ' active' : ''}`}
+              onClick={() => setConfigOpen(value => !value)}
+              aria-expanded={configOpen}
+            >
+              <Settings2 className="w-[18px] h-[18px] flex-shrink-0" />
+              <span className="flex-1 text-left">Configurações</span>
+              <ChevronDown className={`w-4 h-4 transition-transform${configOpen ? ' rotate-180' : ''}`} />
+            </button>
+
+            {configOpen && (
+              <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
+                <button
+                  className={`zoom-nav-btn text-sm${tab === 'config' ? ' active' : ''}`}
+                  onClick={() => onTabChange('config')}
+                >
+                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
+                  Configurações Gerais
+                </button>
+
+                {userLevel === 'MASTER' && (
+                  <button
+                    className={`zoom-nav-btn text-sm${tab === 'contas-pagar' ? ' active' : ''}`}
+                    onClick={() => onTabChange('contas-pagar')}
+                  >
+                    <Receipt className="w-[16px] h-[16px] flex-shrink-0" />
+                    Contas a Pagar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </nav>
 
-        {/* Footer */}
         <div className="zoom-sidebar-footer">
           <div className="zoom-user-badge">
             <div className="zoom-avatar">{initial}</div>
@@ -107,7 +139,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             <LogOut className="w-4 h-4" />
             Sair
           </button>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.1.5</p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.0</p>
         </div>
       </aside>
     </>

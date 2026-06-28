@@ -67,6 +67,69 @@ export interface MotivoAlteracao {
   texto: string;
 }
 
+export type ContaPagarCategoria =
+  | 'FORNECEDOR'
+  | 'FUNCIONARIO'
+  | 'IMPOSTO'
+  | 'ALUGUEL'
+  | 'UTILIDADE'
+  | 'SERVICO'
+  | 'OUTRO';
+
+export type ContaPagarStatus = 'PENDENTE' | 'PAGO' | 'VENCIDO' | 'CANCELADO';
+
+export interface ContaPagar {
+  id: string;
+  numero: number;
+  descricao: string;
+  categoria: ContaPagarCategoria;
+  grupo_despesa?: string;
+  favorecido: string;
+  valor: number;
+  vencimento: string;
+  competencia?: string;
+  status: ContaPagarStatus;
+  observacoes?: string;
+  centroCustoId?: string;
+  centroCustoNome?: string;
+  formaPagamentoId?: string;
+  formaPagamentoNome?: string;
+  createdAt: string;
+  updatedAt: string;
+  paidAt?: string;
+  paidAmount?: number;
+  reversalReason?: string;
+  reversedAt?: string;
+  reversedBy?: string;
+}
+
+export interface ContaPagarComCalculo extends ContaPagar {
+  diasParaVencimento: number;
+  agrupamentoFavorecido: string;
+}
+
+export interface ContaPagarCentroCusto {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  createdAt: string;
+}
+
+export interface ContaPagarFormaPagamento {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  createdAt: string;
+}
+
+export interface ContasPagarConfig {
+  ativo: boolean;
+  centrosCusto: ContaPagarCentroCusto[];
+  formasPagamento: ContaPagarFormaPagamento[];
+  categoriasFavoritas: ContaPagarCategoria[];
+  gruposDespesa?: string[];
+}
+
 export type Situacao = 'VENCIDO' | 'NO PRAZO' | 'PAGO';
 
 export interface TituloComCalculo extends Titulo {
@@ -168,6 +231,7 @@ export interface VendaVista {
 export type LogTipo =
   | 'login' | 'logout'
   | 'titulo.criar' | 'titulo.editar' | 'titulo.excluir' | 'titulo.pagar'
+  | 'conta-pagar.criar' | 'conta-pagar.editar' | 'conta-pagar.excluir' | 'conta-pagar.pagar' | 'conta-pagar.reverter'
   | 'cliente.criar' | 'cliente.editar' | 'cliente.excluir'
   | 'venda.vista'
   | 'whatsapp.pagamento';
@@ -184,6 +248,9 @@ export interface LogEntry {
 export interface AppConfig {
   taxa: number;
   pin: string | null;
+  metaSemanal?: number;
+  nomeEmpresa?: string;
+  empresa?: string;
   darkMode: boolean;
   chavesPix: ChavePix[];
   telefonesAlerta: TelefoneAlerta[];
@@ -207,6 +274,7 @@ export interface AppConfig {
   idleMinutes?: number;
   descontos?: Desconto[]; // descontos pré-definidos
   mensagemAniversario?: string; // mensagem padrão para aniversariantes
+  contasPagar?: ContasPagarConfig;
 }
 
 export const PERMISSAO_LABELS: Record<Permissao, string> = {

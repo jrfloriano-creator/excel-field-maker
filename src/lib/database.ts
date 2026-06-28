@@ -1,4 +1,4 @@
-import { AppConfig, LogEntry, Titulo, Usuario } from '@/types/titulo';
+import { AppConfig, ContaPagar, LogEntry, Titulo, Usuario } from '@/types/titulo';
 import Dexie, { Table } from 'dexie';
 
 // --- Mutex: serializa TODAS as operações SQLite para evitar "database is locked" ---
@@ -16,6 +16,7 @@ class FinanceiroDatabase extends Dexie {
   usuarios!: Table<Usuario, string>;
   logs!: Table<LogEntry, string>;
   kv!: Table<{ key: string; value: any }, string>;
+  contasPagar!: Table<ContaPagar, string>;
 
   constructor() {
     super('FinanceiroDB');
@@ -23,6 +24,7 @@ class FinanceiroDatabase extends Dexie {
       titulos: 'id',
       usuarios: 'id',
       logs: 'id',
+      contasPagar: 'id, status, vencimento, categoria',
       kv: 'key'
     });
   }
@@ -58,6 +60,7 @@ export const dbDriver = {
         await db.execute(`CREATE TABLE IF NOT EXISTS titulos (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
         await db.execute(`CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
         await db.execute(`CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
+        await db.execute(`CREATE TABLE IF NOT EXISTS contas_pagar (id TEXT PRIMARY KEY, data TEXT NOT NULL, status TEXT NOT NULL, vencimento TEXT NOT NULL, categoria TEXT NOT NULL)`);
         // WAL mode allows concurrent reads; busy_timeout prevents SQLITE_BUSY errors
         await db.execute('PRAGMA journal_mode=WAL');
         await db.execute('PRAGMA busy_timeout=5000');
@@ -197,6 +200,50 @@ export const dbDriver = {
         const toDelete = existing.filter(id => !currentIds.includes(id as string));
         await dexieDb.logs.bulkDelete(toDelete as string[]);
         await dexieDb.logs.bulkPut(logs);
+      });
+    }
+  },
+
+  async getContasPagar(): Promise<ContaPagar[]> {
+    if (isTauri()) {
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const rows: any[] = await db.select('SELECT data FROM contas_pagar ORDER BY vencimento ASC, id ASC');
+        return rows.map(r => JSON.parse(r.data));
+      });
+    } else {
+      return await dexieDb.contasPagar.orderBy('vencimento').toArray();
+    }
+  },
+
+  async saveContasPagar(contas: ContaPagar[]): Promise<void> {
+    if (isTauri()) {
+      return serialized(async () => {
+        const db = await getTauriDb();
+        const existing: any[] = await db.select('SELECT id FROM contas_pagar');
+        const existingIds = new Set(existing.map(r => r.id));
+        const currentIds = new Set(contas.map(conta => conta.id));
+
+        for (const conta of contas) {
+          await db.execute(
+            'INSERT INTO contas_pagar(id, data, status, vencimento, categoria) VALUES($1, $2, $3, $4, $5) ON CONFLICT(id) DO UPDATE SET data = excluded.data, status = excluded.status, vencimento = excluded.vencimento, categoria = excluded.categoria',
+            [conta.id, JSON.stringify(conta), conta.status, conta.vencimento, conta.categoria]
+          );
+        }
+
+        for (const id of existingIds) {
+          if (!currentIds.has(id)) {
+            await db.execute('DELETE FROM contas_pagar WHERE id = $1', [id]);
+          }
+        }
+      });
+    } else {
+      await dexieDb.transaction('rw', dexieDb.contasPagar, async () => {
+        const currentIds = contas.map(conta => conta.id);
+        const existing = await dexieDb.contasPagar.keys();
+        const toDelete = existing.filter(id => !currentIds.includes(id as string));
+        await dexieDb.contasPagar.bulkDelete(toDelete as string[]);
+        await dexieDb.contasPagar.bulkPut(contas);
       });
     }
   },

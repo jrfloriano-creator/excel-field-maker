@@ -1,4 +1,4 @@
-import { Titulo, AppConfig, Cliente, ProprietarioConfig, Usuario, LogEntry } from '@/types/titulo';
+import { Titulo, AppConfig, Cliente, ProprietarioConfig, Usuario, LogEntry, ContasPagarConfig, ContaPagar } from '@/types/titulo';
 import { dbDriver } from './database';
 
 const CONFIG_KEY = 'config';
@@ -14,9 +14,32 @@ const DEFAULT_PROPRIETARIOS: ProprietarioConfig[] = [
   { id: LEGACY_RAMON_ID, nome: 'Ramon', cor: '#BFE0FA' },
 ];
 
+export const DEFAULT_CONTAS_PAGAR_CONFIG: ContasPagarConfig = {
+  ativo: false,
+  centrosCusto: [],
+  formasPagamento: [],
+  categoriasFavoritas: ['FORNECEDOR', 'SERVICO', 'UTILIDADE'],
+  gruposDespesa: [
+    'Remunerações',
+    'Encargos Sociais',
+    'Benefícios',
+    'Ocupação',
+    'Tarifas Públicas',
+    'Prestadores de Serviços',
+    'Seguros',
+    'Manutenção',
+    'Marketing',
+    'Viagens',
+    'Gerais',
+    'Financeiros',
+    'Depreciação',
+  ],
+};
+
 export const DEFAULT_CONFIG: AppConfig = {
   taxa: 0.01,
   pin: null,
+  metaSemanal: 5000,
   darkMode: false,
   chavesPix: [],
   telefonesAlerta: [
@@ -32,6 +55,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   logs: [],
   descontos: [],
   mensagemAniversario: 'Feliz aniversário, {nome}! 🎂 Que seu dia seja especial!',
+  contasPagar: DEFAULT_CONTAS_PAGAR_CONFIG,
 };
 
 function normalizeTitulo(t: any): Titulo {
@@ -55,12 +79,27 @@ export async function saveTitulos(titulos: Titulo[]): Promise<void> {
   await dbDriver.saveTitulos(titulos);
 }
 
+export async function getContasPagar(): Promise<ContaPagar[]> {
+  return await dbDriver.getContasPagar();
+}
+
+export async function saveContasPagar(contas: ContaPagar[]): Promise<void> {
+  await dbDriver.saveContasPagar(contas);
+}
+
 export async function getConfig(): Promise<AppConfig> {
   const raw = await dbDriver.kvGet(CONFIG_KEY);
   if (!raw) return { ...DEFAULT_CONFIG };
   try {
     let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    const merged: AppConfig = { ...DEFAULT_CONFIG, ...parsed };
+    const merged: AppConfig = {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+      contasPagar: {
+        ...DEFAULT_CONTAS_PAGAR_CONFIG,
+        ...(parsed?.contasPagar || {}),
+      },
+    };
     if (!merged.proprietarios || merged.proprietarios.length === 0) {
       merged.proprietarios = DEFAULT_PROPRIETARIOS;
     }
@@ -99,6 +138,11 @@ export function generateId(): string {
 export function getNextNumero(titulos: Titulo[]): number {
   if (titulos.length === 0) return 1;
   return Math.max(...titulos.map(t => t.numero)) + 1;
+}
+
+export function getNextNumeroContaPagar(contas: ContaPagar[]): number {
+  if (contas.length === 0) return 1;
+  return Math.max(...contas.map(conta => conta.numero || 0)) + 1;
 }
 
 const bufferToBase64 = (buf: ArrayBuffer | Uint8Array) => {

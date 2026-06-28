@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTitulos } from '@/hooks/useTitulos';
 import { useFilters } from '@/hooks/useFilters';
 import { useTituloActions } from '@/hooks/useTituloActions';
@@ -19,15 +20,15 @@ import { VendasTab } from '@/components/VendasTab';
 import { Sidebar } from '@/components/Sidebar';
 import { IdleTimerManager } from '@/components/IdleTimerManager';
 import { AniversariantesPage } from '@/components/AniversariantesPage';
+import { ContasPagarTab } from '@/components/contas-pagar/ContasPagarTab';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SessionUser, getSession, setSession, appendLog, hasPerm } from '@/lib/auth';
 
-type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes';
+type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes' | 'contas-pagar';
 
-// Real-time clock hook
 function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -46,9 +47,13 @@ const TAB_SUBTITLES: Record<Tab, string> = {
   vendas: 'Vendas',
   config: 'Configurações',
   aniversariantes: 'Aniversariantes',
+  'contas-pagar': 'Contas a Pagar',
 };
 
+const VALID_TABS: Tab[] = ['lista', 'dashboard', 'relatorios', 'clientes', 'promissoria', 'vendas', 'config', 'aniversariantes', 'contas-pagar'];
+
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { titulos, config, updateConfig, addTitulo, addTitulos, updateTitulo, deleteTitulo, replaceTitulos, loading } = useTitulos();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -58,6 +63,26 @@ const Index = () => {
   useEffect(() => {
     getSession().then(u => { setUser(u); setLoadingSession(false); });
   }, []);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get('tab') as Tab | null;
+    if (!requestedTab || !VALID_TABS.includes(requestedTab)) return;
+    if (requestedTab === 'contas-pagar' && user?.nivel !== 'MASTER') {
+      if (tab !== 'dashboard') setTab('dashboard');
+      return;
+    }
+    if (requestedTab !== tab) {
+      setTab(requestedTab);
+    }
+  }, [searchParams, user, tab]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', tab);
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [tab, searchParams, setSearchParams]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', config.darkMode);
@@ -119,7 +144,6 @@ const Index = () => {
     setUser(null);
   };
 
-  // Format clock
   const clockDate = now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
   const clockTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -127,7 +151,6 @@ const Index = () => {
 
   return (
     <div className="zoom-layout">
-      {/* Sidebar */}
       <Sidebar
         tab={tab}
         onTabChange={(t) => setTab(t)}
@@ -137,9 +160,7 @@ const Index = () => {
         logoEmpresa={config.logoEmpresa}
       />
 
-      {/* Main wrapper */}
       <div className="zoom-main">
-        {/* Top Header */}
         <header className="zoom-top-header">
           <div className="zoom-header-title">
             Sistema <span>ZOOM</span>
@@ -163,7 +184,6 @@ const Index = () => {
           </div>
         </header>
 
-        {/* Month bar */}
         {showMonthBar && filters.monthKeys.length > 0 && (
           <div className="zoom-month-bar">
             <div className="zoom-month-bar-inner">
@@ -208,16 +228,13 @@ const Index = () => {
           </div>
         )}
 
-        {/* Content */}
         <main className="zoom-content">
-          {/* Page title */}
           <div className="mb-5 flex items-baseline gap-3 flex-wrap">
             <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1a202c', fontFamily: 'Poppins, sans-serif' }}>
               {TAB_SUBTITLES[tab]}
             </h2>
           </div>
 
-          {/* TÍTULOS */}
           {tab === 'lista' && (
             <>
               <div ref={formAreaRef}>
@@ -267,7 +284,6 @@ const Index = () => {
             </>
           )}
 
-          {/* DASHBOARD */}
           {tab === 'dashboard' && (
             <>
               {config.proprietarios.length > 0 && (
@@ -300,6 +316,7 @@ const Index = () => {
                 onClickVencidos={() => { filters.setFiltro('VENCIDO'); setTab('lista'); }}
                 vendas={config.vendas || []}
                 selectedMonth={filters.dashboardMonth ?? undefined}
+                config={config}
               />
             </>
           )}
@@ -328,6 +345,14 @@ const Index = () => {
 
           {tab === 'config' && (
             <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} user={user} />
+          )}
+
+          {tab === 'contas-pagar' && (
+            <ContasPagarTab
+              config={config}
+              updateConfig={updateConfig}
+              user={user}
+            />
           )}
         </main>
       </div>

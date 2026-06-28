@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FormaPagamento, AppConfig, ChavePix, Titulo, ALL_PERMISSOES, PERMISSAO_LABELS, NivelUsuario, Permissao, Desconto } from '@/types/titulo';
+import { FormaPagamento, AppConfig, ChavePix, Titulo, ALL_PERMISSOES, PERMISSAO_LABELS, NivelUsuario, Permissao, Desconto, ContaPagarCategoria, ContasPagarConfig } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ interface ConfigPanelProps {
   titulos?: Titulo[];
   onImportTitulos?: (titulos: Titulo[]) => void;
   user: SessionUser | null;
+  initialTab?: 'cadastros' | 'financeiro' | 'contas-pagar' | 'alertas' | 'aparencia' | 'sistema';
 }
 
 const NIVEL_LABELS: Record<NivelUsuario, string> = {
@@ -37,10 +38,22 @@ const NIVEL_LABELS: Record<NivelUsuario, string> = {
   USUARIO: 'USUÁRIO',
 };
 
-export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, user }: ConfigPanelProps) {
+const CONTAS_PAGAR_CATEGORIAS: { value: ContaPagarCategoria; label: string }[] = [
+  { value: 'FORNECEDOR', label: 'Fornecedor' },
+  { value: 'FUNCIONARIO', label: 'Funcionário' },
+  { value: 'IMPOSTO', label: 'Imposto' },
+  { value: 'ALUGUEL', label: 'Aluguel' },
+  { value: 'UTILIDADE', label: 'Utilidade' },
+  { value: 'SERVICO', label: 'Serviço' },
+  { value: 'OUTRO', label: 'Outro' },
+];
+
+export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, user, initialTab = 'cadastros' }: ConfigPanelProps) {
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
   const [novaForma, setNovaForma] = useState('');
+  const [novoCentroCusto, setNovoCentroCusto] = useState('');
+  const [novaFormaContaPagar, setNovaFormaContaPagar] = useState('');
 
   // Desconto form state
   const [novoDescontoApelido, setNovoDescontoApelido] = useState('');
@@ -51,10 +64,11 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
   const [mensagemAniv, setMensagemAniv] = useState(config.mensagemAniversario ?? 'Feliz aniversário, {nome}! 🎂 Que seu dia seja especial!');
 
   const formasPagamento = config.formasPagamento || [];
+  const contasPagarConfig: ContasPagarConfig = config.contasPagar || { ativo: false, centrosCusto: [], formasPagamento: [], categoriasFavoritas: [] };
   const descontos = config.descontos || [];
   const permissoes = config.permissoes || defaultPermissoes();
 
-  const can = (p: any) => hasPerm(config, user, p);
+  const can = (p: Permissao) => hasPerm(config, user, p);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: 'cadastros' } }));
@@ -100,6 +114,56 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
     setNovaForma('');
   };
 
+  const handleUpdateContasPagar = (data: Partial<AppConfig['contasPagar']>) => {
+    onUpdate({
+      contasPagar: {
+        ...contasPagarConfig,
+        ...data,
+      },
+    });
+  };
+
+  const handleAddCentroCusto = () => {
+    const nome = novoCentroCusto.trim();
+    if (!nome) return;
+    if (contasPagarConfig.centrosCusto.some(item => item.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error('Centro de custo já cadastrado');
+      return;
+    }
+    handleUpdateContasPagar({
+      centrosCusto: [
+        ...contasPagarConfig.centrosCusto,
+        { id: generateId(), nome, ativo: true, createdAt: new Date().toISOString() },
+      ],
+    });
+    setNovoCentroCusto('');
+  };
+
+  const handleAddFormaContaPagar = () => {
+    const nome = novaFormaContaPagar.trim();
+    if (!nome) return;
+    if (contasPagarConfig.formasPagamento.some(item => item.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error('Forma de pagamento já cadastrada');
+      return;
+    }
+    handleUpdateContasPagar({
+      formasPagamento: [
+        ...contasPagarConfig.formasPagamento,
+        { id: generateId(), nome, ativo: true, createdAt: new Date().toISOString() },
+      ],
+    });
+    setNovaFormaContaPagar('');
+  };
+
+  const handleToggleCategoriaFavorita = (categoria: ContaPagarCategoria) => {
+    const exists = contasPagarConfig.categoriasFavoritas.includes(categoria);
+    handleUpdateContasPagar({
+      categoriasFavoritas: exists
+        ? contasPagarConfig.categoriasFavoritas.filter(item => item !== categoria)
+        : [...contasPagarConfig.categoriasFavoritas, categoria],
+    });
+  };
+
   const handleAddDesconto = () => {
     const apelido = novoDescontoApelido.trim();
     const valorNum = parseFloat(novoDescontoValor.replace(',', '.'));
@@ -127,10 +191,11 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
 
-      <Tabs defaultValue="cadastros" className="w-full" onValueChange={(v) => window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: v } }))}>
-        <TabsList className="grid w-full grid-cols-5 h-auto">
+      <Tabs value={initialTab} className="w-full" onValueChange={(v) => window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: v } }))}>
+        <TabsList className="grid w-full grid-cols-6 h-auto">
           <TabsTrigger value="cadastros" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">👥 Cadastros</TabsTrigger>
           <TabsTrigger value="financeiro" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">💰 Financeiro</TabsTrigger>
+          <TabsTrigger value="contas-pagar" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🧾 Contas a Pagar</TabsTrigger>
           <TabsTrigger value="alertas" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🔔 Alertas</TabsTrigger>
           <TabsTrigger value="aparencia" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🎨 Aparência</TabsTrigger>
           <TabsTrigger value="sistema" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">⚙️ Sistema</TabsTrigger>
@@ -331,6 +396,133 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
           )}
         </TabsContent>
 
+        <TabsContent value="contas-pagar" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">🧾 Fase 1 — Configuração do Módulo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Ativar Contas a Pagar</p>
+                  <p className="text-[11px] text-muted-foreground">Habilita a base de configuração para as próximas fases do módulo.</p>
+                </div>
+                <Switch
+                  checked={contasPagarConfig.ativo}
+                  onCheckedChange={(checked) => handleUpdateContasPagar({ ativo: checked })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Categorias favoritas</Label>
+                <div className="flex flex-wrap gap-2">
+                  {CONTAS_PAGAR_CATEGORIAS.map(categoria => {
+                    const active = contasPagarConfig.categoriasFavoritas.includes(categoria.value);
+                    return (
+                      <Button
+                        key={categoria.value}
+                        type="button"
+                        variant={active ? 'default' : 'outline'}
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => handleToggleCategoriaFavorita(categoria.value)}
+                      >
+                        {categoria.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Centros de Custo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {contasPagarConfig.centrosCusto.map(item => (
+                <div key={item.id} className="flex items-center gap-2 p-2 bg-secondary rounded">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{item.nome}</p>
+                    <p className="text-[11px] text-muted-foreground">{item.ativo ? 'Ativo' : 'Inativo'}</p>
+                  </div>
+                  <Switch
+                    checked={item.ativo}
+                    onCheckedChange={(checked) => handleUpdateContasPagar({
+                      centrosCusto: contasPagarConfig.centrosCusto.map(current => current.id === item.id ? { ...current, ativo: checked } : current),
+                    })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => handleUpdateContasPagar({
+                      centrosCusto: contasPagarConfig.centrosCusto.filter(current => current.id !== item.id),
+                    })}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: Administrativo"
+                  value={novoCentroCusto}
+                  onChange={e => setNovoCentroCusto(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCentroCusto(); } }}
+                />
+                <Button variant="outline" size="sm" onClick={handleAddCentroCusto}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Formas de Pagamento do Módulo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {contasPagarConfig.formasPagamento.map(item => (
+                <div key={item.id} className="flex items-center gap-2 p-2 bg-secondary rounded">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{item.nome}</p>
+                    <p className="text-[11px] text-muted-foreground">{item.ativo ? 'Ativo' : 'Inativo'}</p>
+                  </div>
+                  <Switch
+                    checked={item.ativo}
+                    onCheckedChange={(checked) => handleUpdateContasPagar({
+                      formasPagamento: contasPagarConfig.formasPagamento.map(current => current.id === item.id ? { ...current, ativo: checked } : current),
+                    })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => handleUpdateContasPagar({
+                      formasPagamento: contasPagarConfig.formasPagamento.filter(current => current.id !== item.id),
+                    })}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: Boleto"
+                  value={novaFormaContaPagar}
+                  onChange={e => setNovaFormaContaPagar(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddFormaContaPagar(); } }}
+                />
+                <Button variant="outline" size="sm" onClick={handleAddFormaContaPagar}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="alertas" className="space-y-4 mt-4">
           {can('config.telefonesAlerta') && (
             <Card>
@@ -421,7 +613,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
                   title="Selecionar pasta"
                   onClick={async () => {
                     try {
-                      if ((window as any).__TAURI_INTERNALS__) {
+                      if ('__TAURI_INTERNALS__' in window) {
                         const { open } = await import('@tauri-apps/plugin-dialog');
                         const selected = await open({ directory: true, multiple: false, title: 'Selecionar pasta para salvar dados' });
                         if (selected && typeof selected === 'string') {

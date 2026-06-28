@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Controle Financeiro ZOOM",
-  "version": "2.1.5",
+  "version": "2.2.0",
   "identifier": "com.financeiro.zoom",
   "build": {
     "beforeDevCommand": "npm run dev",

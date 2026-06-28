@@ -66,23 +66,38 @@ const Index = () => {
 
   useEffect(() => {
     const requestedTab = searchParams.get('tab') as Tab | null;
-    if (!requestedTab || !VALID_TABS.includes(requestedTab)) return;
-    if (requestedTab === 'contas-pagar' && user?.nivel !== 'MASTER') {
-      if (tab !== 'dashboard') setTab('dashboard');
+
+    if (!requestedTab || !VALID_TABS.includes(requestedTab)) {
+      if (tab !== 'dashboard') {
+        setTab('dashboard');
+      }
       return;
     }
+
+    if (requestedTab === 'contas-pagar' && user?.nivel !== 'MASTER') {
+      if (tab !== 'dashboard') {
+        setTab('dashboard');
+      }
+      return;
+    }
+
     if (requestedTab !== tab) {
       setTab(requestedTab);
     }
-  }, [searchParams, user, tab]);
+  }, [searchParams, tab, user?.nivel]);
 
   useEffect(() => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('tab', tab);
-    if (nextParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
+    const currentTab = searchParams.get('tab');
+    const nextTab = tab === 'contas-pagar' && user?.nivel !== 'MASTER' ? 'dashboard' : tab;
+
+    if (currentTab === nextTab) {
+      return;
     }
-  }, [tab, searchParams, setSearchParams]);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', nextTab);
+    setSearchParams(nextParams, { replace: true });
+  }, [tab, user?.nivel, searchParams, setSearchParams]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', config.darkMode);

@@ -49,6 +49,7 @@ const CONTAS_PAGAR_CATEGORIAS: { value: ContaPagarCategoria; label: string }[] =
 ];
 
 export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, user, initialTab = 'cadastros' }: ConfigPanelProps) {
+  const [activeTab, setActiveTab] = useState<ConfigPanelProps['initialTab']>(initialTab);
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
   const [novaForma, setNovaForma] = useState('');
@@ -73,6 +74,10 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: 'cadastros' } }));
   }, []);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Keep mensagemAniv in sync if config changes externally
   useEffect(() => {
@@ -191,7 +196,14 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Configurações</h2>
 
-      <Tabs value={initialTab} className="w-full" onValueChange={(v) => window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: v } }))}>
+      <Tabs
+        value={activeTab}
+        className="w-full"
+        onValueChange={(v) => {
+          setActiveTab(v as ConfigPanelProps['initialTab']);
+          window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: v } }));
+        }}
+      >
         <TabsList className="grid w-full grid-cols-6 h-auto">
           <TabsTrigger value="cadastros" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">👥 Cadastros</TabsTrigger>
           <TabsTrigger value="financeiro" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">💰 Financeiro</TabsTrigger>

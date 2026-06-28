@@ -29,6 +29,11 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(tab === 'config' || tab === 'contas-pagar');
 
+  const openConfigSubTab = (subTab: 'cadastros' | 'financeiro' | 'contas-pagar' | 'alertas' | 'aparencia' | 'sistema') => {
+    window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: subTab } }));
+    onTabChange('config');
+  };
+
   useEffect(() => {
     setMobileOpen(false);
   }, [tab]);
@@ -107,16 +112,48 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
               <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
                 <button
                   className={`zoom-nav-btn text-sm${tab === 'config' ? ' active' : ''}`}
-                  onClick={() => onTabChange('config')}
+                  onClick={() => openConfigSubTab('cadastros')}
                 >
                   <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
-                  Configurações Gerais
+                  Cadastros
+                </button>
+
+                <button
+                  className="zoom-nav-btn text-sm"
+                  onClick={() => openConfigSubTab('financeiro')}
+                >
+                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
+                  Tipos de Título / Descontos
+                </button>
+
+                <button
+                  className="zoom-nav-btn text-sm"
+                  onClick={() => openConfigSubTab('alertas')}
+                >
+                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
+                  Alertas
+                </button>
+
+                <button
+                  className="zoom-nav-btn text-sm"
+                  onClick={() => openConfigSubTab('aparencia')}
+                >
+                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
+                  Aparência
+                </button>
+
+                <button
+                  className="zoom-nav-btn text-sm"
+                  onClick={() => openConfigSubTab('sistema')}
+                >
+                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
+                  Sistema
                 </button>
 
                 {userLevel === 'MASTER' && (
                   <button
                     className={`zoom-nav-btn text-sm${tab === 'contas-pagar' ? ' active' : ''}`}
-                    onClick={() => onTabChange('contas-pagar')}
+                    onClick={() => openConfigSubTab('contas-pagar')}
                   >
                     <Receipt className="w-[16px] h-[16px] flex-shrink-0" />
                     Contas a Pagar
@@ -139,7 +176,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             <LogOut className="w-4 h-4" />
             Sair
           </button>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.2</p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.3</p>
         </div>
       </aside>
     </>

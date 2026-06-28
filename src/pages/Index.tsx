@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { SessionUser, getSession, setSession, appendLog, hasPerm } from '@/lib/auth';
 
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes' | 'contas-pagar';
+type ConfigSubTab = 'cadastros' | 'financeiro' | 'contas-pagar' | 'alertas' | 'aparencia' | 'sistema';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -51,6 +52,7 @@ const TAB_SUBTITLES: Record<Tab, string> = {
 };
 
 const VALID_TABS: Tab[] = ['lista', 'dashboard', 'relatorios', 'clientes', 'promissoria', 'vendas', 'config', 'aniversariantes', 'contas-pagar'];
+const VALID_CONFIG_SUB_TABS: ConfigSubTab[] = ['cadastros', 'financeiro', 'contas-pagar', 'alertas', 'aparencia', 'sistema'];
 
 function sanitizeTab(requestedTab: Tab | null, userLevel?: SessionUser['nivel']): Tab {
   if (!requestedTab || !VALID_TABS.includes(requestedTab)) {
@@ -64,12 +66,21 @@ function sanitizeTab(requestedTab: Tab | null, userLevel?: SessionUser['nivel'])
   return requestedTab;
 }
 
+function sanitizeConfigSubTab(requestedSubTab: string | null): ConfigSubTab {
+  if (!requestedSubTab || !VALID_CONFIG_SUB_TABS.includes(requestedSubTab as ConfigSubTab)) {
+    return 'cadastros';
+  }
+
+  return requestedSubTab as ConfigSubTab;
+}
+
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { titulos, config, updateConfig, addTitulo, addTitulos, updateTitulo, deleteTitulo, replaceTitulos, loading } = useTitulos();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [tab, setTab] = useState<Tab>(() => sanitizeTab((new URLSearchParams(window.location.search).get('tab') as Tab | null), undefined));
+  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>(() => sanitizeConfigSubTab(new URLSearchParams(window.location.search).get('configSubTab')));
   const now = useClock();
 
   useEffect(() => {
@@ -84,17 +95,45 @@ const Index = () => {
   }, [resolvedTab]);
 
   useEffect(() => {
+    const requestedConfigSubTab = searchParams.get('configSubTab');
+    const resolvedConfigSubTab = sanitizeConfigSubTab(requestedConfigSubTab);
+
+    setConfigSubTab(currentSubTab => currentSubTab === resolvedConfigSubTab ? currentSubTab : resolvedConfigSubTab);
+  }, [searchParams]);
+
+  useEffect(() => {
     const currentTab = searchParams.get('tab') as Tab | null;
     const nextTab = sanitizeTab(tab, user?.nivel);
+    const currentConfigSubTab = searchParams.get('configSubTab');
+    const nextConfigSubTab = sanitizeConfigSubTab(configSubTab);
 
-    if (currentTab === nextTab) {
+    if (currentTab === nextTab && currentConfigSubTab === nextConfigSubTab) {
       return;
     }
 
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', nextTab);
+    if (nextTab === 'config') {
+      nextParams.set('configSubTab', nextConfigSubTab);
+    } else {
+      nextParams.delete('configSubTab');
+    }
     setSearchParams(nextParams, { replace: true });
-  }, [tab, user?.nivel, searchParams, setSearchParams]);
+  }, [tab, configSubTab, user?.nivel, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string; sub?: string }>).detail;
+      if (detail?.tab !== 'config') {
+        return;
+      }
+
+      setConfigSubTab(sanitizeConfigSubTab(detail.sub ?? null));
+    };
+
+    window.addEventListener('avatar-subtab', handler as EventListener);
+    return () => window.removeEventListener('avatar-subtab', handler as EventListener);
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', config.darkMode);
@@ -356,7 +395,7 @@ const Index = () => {
           )}
 
           {tab === 'config' && (
-            <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} user={user} />
+            <ConfigPanel config={config} onUpdate={updateConfig} titulos={titulos} onImportTitulos={replaceTitulos} user={user} initialTab={configSubTab} />
           )}
 
           {tab === 'contas-pagar' && (

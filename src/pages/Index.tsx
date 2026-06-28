@@ -52,43 +52,40 @@ const TAB_SUBTITLES: Record<Tab, string> = {
 
 const VALID_TABS: Tab[] = ['lista', 'dashboard', 'relatorios', 'clientes', 'promissoria', 'vendas', 'config', 'aniversariantes', 'contas-pagar'];
 
+function sanitizeTab(requestedTab: Tab | null, userLevel?: SessionUser['nivel']): Tab {
+  if (!requestedTab || !VALID_TABS.includes(requestedTab)) {
+    return 'dashboard';
+  }
+
+  if (requestedTab === 'contas-pagar' && userLevel !== 'MASTER') {
+    return 'dashboard';
+  }
+
+  return requestedTab;
+}
+
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { titulos, config, updateConfig, addTitulo, addTitulos, updateTitulo, deleteTitulo, replaceTitulos, loading } = useTitulos();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [tab, setTab] = useState<Tab>(() => sanitizeTab((new URLSearchParams(window.location.search).get('tab') as Tab | null), undefined));
   const now = useClock();
 
   useEffect(() => {
     getSession().then(u => { setUser(u); setLoadingSession(false); });
   }, []);
 
-  useEffect(() => {
-    const requestedTab = searchParams.get('tab') as Tab | null;
-
-    if (!requestedTab || !VALID_TABS.includes(requestedTab)) {
-      if (tab !== 'dashboard') {
-        setTab('dashboard');
-      }
-      return;
-    }
-
-    if (requestedTab === 'contas-pagar' && user?.nivel !== 'MASTER') {
-      if (tab !== 'dashboard') {
-        setTab('dashboard');
-      }
-      return;
-    }
-
-    if (requestedTab !== tab) {
-      setTab(requestedTab);
-    }
-  }, [searchParams, tab, user?.nivel]);
+  const requestedTab = searchParams.get('tab') as Tab | null;
+  const resolvedTab = sanitizeTab(requestedTab, user?.nivel);
 
   useEffect(() => {
-    const currentTab = searchParams.get('tab');
-    const nextTab = tab === 'contas-pagar' && user?.nivel !== 'MASTER' ? 'dashboard' : tab;
+    setTab(currentTab => currentTab === resolvedTab ? currentTab : resolvedTab);
+  }, [resolvedTab]);
+
+  useEffect(() => {
+    const currentTab = searchParams.get('tab') as Tab | null;
+    const nextTab = sanitizeTab(tab, user?.nivel);
 
     if (currentTab === nextTab) {
       return;

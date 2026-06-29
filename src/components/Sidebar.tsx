@@ -25,6 +25,19 @@ const NAV_ITEMS: { id: Exclude<Tab, 'config' | 'contas-pagar'>; icon: React.FC<{
   { id: 'relatorios', icon: BarChart3, label: 'Relatórios' },
 ];
 
+const CONFIG_SUB_ITEMS: {
+  id: 'cadastros' | 'financeiro' | 'alertas' | 'aparencia' | 'sistema' | 'contas-pagar';
+  label: string;
+  visible?: (userLevel: string) => boolean;
+}[] = [
+  { id: 'cadastros', label: 'Cadastros' },
+  { id: 'financeiro', label: 'Tipos de Título / Descontos' },
+  { id: 'alertas', label: 'Alertas' },
+  { id: 'aparencia', label: 'Aparência' },
+  { id: 'sistema', label: 'Sistema' },
+  { id: 'contas-pagar', label: 'Config. Contas a Pagar', visible: (userLevel) => userLevel === 'MASTER' },
+];
+
 export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoEmpresa }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(tab === 'config' || tab === 'contas-pagar');
@@ -99,7 +112,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
 
           <div className="space-y-1">
             <button
-              className={`zoom-nav-btn${tab === 'config' || tab === 'contas-pagar' ? ' active' : ''}`}
+              className={`zoom-nav-btn${tab === 'config' ? ' active' : ''}`}
               onClick={() => setConfigOpen(value => !value)}
               aria-expanded={configOpen}
             >
@@ -110,58 +123,29 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
 
             {configOpen && (
               <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
-                <button
-                  className={`zoom-nav-btn text-sm${tab === 'config' ? ' active' : ''}`}
-                  onClick={() => openConfigSubTab('cadastros')}
-                >
-                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
-                  Cadastros
-                </button>
-
-                <button
-                  className="zoom-nav-btn text-sm"
-                  onClick={() => openConfigSubTab('financeiro')}
-                >
-                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
-                  Tipos de Título / Descontos
-                </button>
-
-                <button
-                  className="zoom-nav-btn text-sm"
-                  onClick={() => openConfigSubTab('alertas')}
-                >
-                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
-                  Alertas
-                </button>
-
-                <button
-                  className="zoom-nav-btn text-sm"
-                  onClick={() => openConfigSubTab('aparencia')}
-                >
-                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
-                  Aparência
-                </button>
-
-                <button
-                  className="zoom-nav-btn text-sm"
-                  onClick={() => openConfigSubTab('sistema')}
-                >
-                  <Settings2 className="w-[16px] h-[16px] flex-shrink-0" />
-                  Sistema
-                </button>
-
-                {userLevel === 'MASTER' && (
+                {CONFIG_SUB_ITEMS.filter(item => !item.visible || item.visible(userLevel)).map(item => (
                   <button
-                    className={`zoom-nav-btn text-sm${tab === 'contas-pagar' ? ' active' : ''}`}
-                    onClick={() => openConfigSubTab('contas-pagar')}
+                    key={item.id}
+                    className="zoom-nav-btn text-sm"
+                    onClick={() => openConfigSubTab(item.id)}
                   >
                     <Receipt className="w-[16px] h-[16px] flex-shrink-0" />
-                    Contas a Pagar
+                    {item.label}
                   </button>
-                )}
+                ))}
               </div>
             )}
           </div>
+
+          {userLevel === 'MASTER' && (
+            <button
+              className={`zoom-nav-btn${tab === 'contas-pagar' ? ' active' : ''}`}
+              onClick={() => onTabChange('contas-pagar')}
+            >
+              <Receipt className="w-[18px] h-[18px] flex-shrink-0" />
+              Contas a Pagar
+            </button>
+          )}
         </nav>
 
         <div className="zoom-sidebar-footer">
@@ -176,7 +160,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             <LogOut className="w-4 h-4" />
             Sair
           </button>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.3</p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.4</p>
         </div>
       </aside>
     </>

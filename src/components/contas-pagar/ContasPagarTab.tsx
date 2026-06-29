@@ -212,143 +212,145 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
         </Button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>TÍTULO</CardTitle>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'titulo' ? null : 'titulo')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
-              <Button size="sm" onClick={handleSalvarTipoTitulo}><Save className="h-4 w-4 mr-1" />Salvar</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Input value={novoTipoTitulo} onChange={(event) => setNovoTipoTitulo(event.target.value)} placeholder="Novo tipo de título" className={configEdit === 'titulo' ? 'text-red-600' : ''} />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {tiposTitulo.map(tipo => (
-                <div key={tipo} className="rounded border px-3 py-1 text-sm">{tipo}</div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>CREDOR</CardTitle>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'credor' ? null : 'credor')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
-              <Button size="sm" onClick={handleSalvarCredor}><Save className="h-4 w-4 mr-1" />Salvar</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div><Label>Nome Empresa</Label><Input value={credorDraft.nomeEmpresa} onChange={(event) => setCredorDraft(prev => ({ ...prev, nomeEmpresa: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>Nome Fantasia</Label><Input value={credorDraft.nomeFantasia || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, nomeFantasia: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>Rua</Label><Input value={credorDraft.rua || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, rua: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>Bairro</Label><Input value={credorDraft.bairro || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, bairro: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>CEP</Label><Input value={credorDraft.cep || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, cep: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>Número</Label><Input value={credorDraft.numero || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, numero: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>Telefone</Label><Input value={credorDraft.telefone || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, telefone: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-              <div><Label>Telefone WhatsApp</Label><Input value={credorDraft.telefoneWhatsapp || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, telefoneWhatsapp: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
-            </div>
-            <div className="space-y-2">
-              <Label>Contatos</Label>
-              {credorDraft.contatos.map((contato, index) => (
-                <div key={contato.id} className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
-                  <Input value={contato.nome} onChange={(event) => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.map(item => item.id === contato.id ? { ...item, nome: event.target.value } : item) }))} placeholder={`Contato ${index + 1}`} className={configEdit === 'credor' ? 'text-red-600' : ''} />
-                  <Input value={contato.telefone || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.map(item => item.id === contato.id ? { ...item, telefone: event.target.value } : item) }))} placeholder="Telefone" className={configEdit === 'credor' ? 'text-red-600' : ''} />
-                  <Input value={contato.whatsapp || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.map(item => item.id === contato.id ? { ...item, whatsapp: event.target.value } : item) }))} placeholder="WhatsApp" className={configEdit === 'credor' ? 'text-red-600' : ''} />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.filter(item => item.id !== contato.id) }))}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={() => setCredorDraft(prev => ({ ...prev, contatos: [...prev.contatos, { id: generateId(), nome: '', telefone: '', whatsapp: '' }] }))}>
-                <Plus className="h-4 w-4 mr-1" />Adicionar contato
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>DESPESAS</CardTitle>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'despesa' ? null : 'despesa')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
-              <Button size="sm" onClick={handleSalvarDespesa}><Save className="h-4 w-4 mr-1" />Salvar</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-2 md:grid-cols-2">
-              <Input value={novaDespesaNome} onChange={(event) => setNovaDespesaNome(event.target.value)} placeholder="Nova despesa fixa" className={configEdit === 'despesa' ? 'text-red-600' : ''} />
-              <Select value={novaDespesaGrupo || 'none'} onValueChange={(value) => setNovaDespesaGrupo(value === 'none' ? '' : value)}>
-                <SelectTrigger><SelectValue placeholder="Grupo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Selecione</SelectItem>
-                  {gruposDetalhados.map(grupo => <SelectItem key={grupo.id} value={grupo.nome}>{grupo.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              {despesasFixas.map(item => <div key={item.id} className="rounded border px-3 py-2 text-sm">{item.nome} • {item.grupo}</div>)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>GRUPO</CardTitle>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'grupo' ? null : 'grupo')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
-              <Button size="sm" onClick={handleSalvarGrupo}><Save className="h-4 w-4 mr-1" />Salvar</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input value={novoGrupoNome} onChange={(event) => setNovoGrupoNome(event.target.value)} placeholder="Novo grupo de despesa" className={configEdit === 'grupo' ? 'text-red-600' : ''} />
-            <div className="space-y-2">
-              {gruposDetalhados.map(grupo => <div key={grupo.id} className="rounded border px-3 py-2 text-sm">{grupo.nome}</div>)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {activeTab === 'lancamento' ? (
-        <Card>
-          <CardHeader><CardTitle>Lançamento de Títulos</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-4">
-              <div>
-                <Label>Tipo de Título</Label>
-                <Select value={lancamentoForm.tipoTitulo || 'none'} onValueChange={(value) => setLancamentoForm(prev => ({ ...prev, tipoTitulo: value === 'none' ? '' : value }))}>
-                  <SelectTrigger className={editingLancamentoId ? 'text-red-600' : ''}><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{tiposTitulo.map(tipo => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}</SelectContent>
-                </Select>
+        <>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>TÍTULO</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'titulo' ? null : 'titulo')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
+                  <Button size="sm" onClick={handleSalvarTipoTitulo}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input value={novoTipoTitulo} onChange={(event) => setNovoTipoTitulo(event.target.value)} placeholder="Novo tipo de título" className={configEdit === 'titulo' ? 'text-red-600' : ''} />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tiposTitulo.map(tipo => (
+                    <div key={tipo} className="rounded border px-3 py-1 text-sm">{tipo}</div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>CREDOR</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'credor' ? null : 'credor')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
+                  <Button size="sm" onClick={handleSalvarCredor}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div><Label>Nome Empresa</Label><Input value={credorDraft.nomeEmpresa} onChange={(event) => setCredorDraft(prev => ({ ...prev, nomeEmpresa: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>Nome Fantasia</Label><Input value={credorDraft.nomeFantasia || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, nomeFantasia: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>Rua</Label><Input value={credorDraft.rua || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, rua: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>Bairro</Label><Input value={credorDraft.bairro || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, bairro: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>CEP</Label><Input value={credorDraft.cep || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, cep: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>Número</Label><Input value={credorDraft.numero || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, numero: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>Telefone</Label><Input value={credorDraft.telefone || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, telefone: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                  <div><Label>Telefone WhatsApp</Label><Input value={credorDraft.telefoneWhatsapp || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, telefoneWhatsapp: event.target.value }))} className={configEdit === 'credor' ? 'text-red-600' : ''} /></div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Contatos</Label>
+                  {credorDraft.contatos.map((contato, index) => (
+                    <div key={contato.id} className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
+                      <Input value={contato.nome} onChange={(event) => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.map(item => item.id === contato.id ? { ...item, nome: event.target.value } : item) }))} placeholder={`Contato ${index + 1}`} className={configEdit === 'credor' ? 'text-red-600' : ''} />
+                      <Input value={contato.telefone || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.map(item => item.id === contato.id ? { ...item, telefone: event.target.value } : item) }))} placeholder="Telefone" className={configEdit === 'credor' ? 'text-red-600' : ''} />
+                      <Input value={contato.whatsapp || ''} onChange={(event) => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.map(item => item.id === contato.id ? { ...item, whatsapp: event.target.value } : item) }))} placeholder="WhatsApp" className={configEdit === 'credor' ? 'text-red-600' : ''} />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setCredorDraft(prev => ({ ...prev, contatos: prev.contatos.filter(item => item.id !== contato.id) }))}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setCredorDraft(prev => ({ ...prev, contatos: [...prev.contatos, { id: generateId(), nome: '', telefone: '', whatsapp: '' }] }))}>
+                    <Plus className="h-4 w-4 mr-1" />Adicionar contato
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>DESPESAS</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'despesa' ? null : 'despesa')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
+                  <Button size="sm" onClick={handleSalvarDespesa}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <Input value={novaDespesaNome} onChange={(event) => setNovaDespesaNome(event.target.value)} placeholder="Nova despesa fixa" className={configEdit === 'despesa' ? 'text-red-600' : ''} />
+                  <Select value={novaDespesaGrupo || 'none'} onValueChange={(value) => setNovaDespesaGrupo(value === 'none' ? '' : value)}>
+                    <SelectTrigger><SelectValue placeholder="Grupo" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Selecione</SelectItem>
+                      {gruposDetalhados.map(grupo => <SelectItem key={grupo.id} value={grupo.nome}>{grupo.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  {despesasFixas.map(item => <div key={item.id} className="rounded border px-3 py-2 text-sm">{item.nome} • {item.grupo}</div>)}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>GRUPO</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setConfigEdit(configEdit === 'grupo' ? null : 'grupo')}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
+                  <Button size="sm" onClick={handleSalvarGrupo}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Input value={novoGrupoNome} onChange={(event) => setNovoGrupoNome(event.target.value)} placeholder="Novo grupo de despesa" className={configEdit === 'grupo' ? 'text-red-600' : ''} />
+                <div className="space-y-2">
+                  {gruposDetalhados.map(grupo => <div key={grupo.id} className="rounded border px-3 py-2 text-sm">{grupo.nome}</div>)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle>Lançamento de Títulos</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div>
+                  <Label>Tipo de Título</Label>
+                  <Select value={lancamentoForm.tipoTitulo || 'none'} onValueChange={(value) => setLancamentoForm(prev => ({ ...prev, tipoTitulo: value === 'none' ? '' : value }))}>
+                    <SelectTrigger className={editingLancamentoId ? 'text-red-600' : ''}><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{tiposTitulo.map(tipo => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Credor</Label>
+                  <Select value={lancamentoForm.credorId || 'none'} onValueChange={(value) => setLancamentoForm(prev => ({ ...prev, credorId: value === 'none' ? '' : value }))}>
+                    <SelectTrigger className={editingLancamentoId ? 'text-red-600' : ''}><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{credores.map(credor => <SelectItem key={credor.id} value={credor.id}>{credor.nomeEmpresa}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Valor</Label>
+                  <Input value={lancamentoForm.valor} onChange={(event) => setLancamentoForm(prev => ({ ...prev, valor: event.target.value }))} className={editingLancamentoId ? 'text-red-600' : ''} />
+                </div>
+                <div>
+                  <Label>Data de Vencimento</Label>
+                  <Input type="date" value={lancamentoForm.vencimento} onChange={(event) => setLancamentoForm(prev => ({ ...prev, vencimento: event.target.value }))} className={editingLancamentoId ? 'text-red-600' : ''} />
+                </div>
               </div>
-              <div>
-                <Label>Credor</Label>
-                <Select value={lancamentoForm.credorId || 'none'} onValueChange={(value) => setLancamentoForm(prev => ({ ...prev, credorId: value === 'none' ? '' : value }))}>
-                  <SelectTrigger className={editingLancamentoId ? 'text-red-600' : ''}><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{credores.map(credor => <SelectItem key={credor.id} value={credor.id}>{credor.nomeEmpresa}</SelectItem>)}</SelectContent>
-                </Select>
+              {credorSelecionado && <div className="text-sm text-muted-foreground">Credor selecionado: {credorSelecionado.nomeEmpresa}</div>}
+              <div className="flex gap-2">
+                <Button onClick={handleSalvarLancamento}>Salvar</Button>
+                <Button variant="outline" onClick={() => {
+                  const conta = contas.find(item => item.id === editingLancamentoId);
+                  if (conta) handleEditarLancamento(conta);
+                }}>Editar</Button>
               </div>
-              <div>
-                <Label>Valor</Label>
-                <Input value={lancamentoForm.valor} onChange={(event) => setLancamentoForm(prev => ({ ...prev, valor: event.target.value }))} className={editingLancamentoId ? 'text-red-600' : ''} />
-              </div>
-              <div>
-                <Label>Data de Vencimento</Label>
-                <Input type="date" value={lancamentoForm.vencimento} onChange={(event) => setLancamentoForm(prev => ({ ...prev, vencimento: event.target.value }))} className={editingLancamentoId ? 'text-red-600' : ''} />
-              </div>
-            </div>
-            {credorSelecionado && <div className="text-sm text-muted-foreground">Credor selecionado: {credorSelecionado.nomeEmpresa}</div>}
-            <div className="flex gap-2">
-              <Button onClick={handleSalvarLancamento}>Salvar</Button>
-              <Button variant="outline" onClick={() => {
-                const conta = contas.find(item => item.id === editingLancamentoId);
-                if (conta) handleEditarLancamento(conta);
-              }}>Editar</Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </>
       ) : activeTab === 'grafico' ? (
         <ContasPagarGrafico
           contas={contasCalculadas}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, List, ShoppingCart, Users,
-  ScrollText, BarChart3, Settings2, LogOut, X, Cake, ChevronDown, Receipt
+  ScrollText, BarChart3, Settings2, LogOut, X, Cake, Receipt
 } from 'lucide-react';
 
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes' | 'contas-pagar';
@@ -25,36 +25,11 @@ const NAV_ITEMS: { id: Exclude<Tab, 'config' | 'contas-pagar'>; icon: React.FC<{
   { id: 'relatorios', icon: BarChart3, label: 'Relatórios' },
 ];
 
-const CONFIG_SUB_ITEMS: {
-  id: 'cadastros' | 'financeiro' | 'alertas' | 'aparencia' | 'sistema' | 'contas-pagar';
-  label: string;
-  visible?: (userLevel: string) => boolean;
-}[] = [
-  { id: 'cadastros', label: 'Cadastros' },
-  { id: 'financeiro', label: 'Tipos de Título / Descontos' },
-  { id: 'alertas', label: 'Alertas' },
-  { id: 'aparencia', label: 'Aparência' },
-  { id: 'sistema', label: 'Sistema' },
-  { id: 'contas-pagar', label: 'Config. Contas a Pagar', visible: (userLevel) => userLevel === 'MASTER' },
-];
-
 export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoEmpresa }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [configOpen, setConfigOpen] = useState(tab === 'config' || tab === 'contas-pagar');
-
-  const openConfigSubTab = (subTab: 'cadastros' | 'financeiro' | 'contas-pagar' | 'alertas' | 'aparencia' | 'sistema') => {
-    window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: subTab } }));
-    onTabChange('config');
-  };
 
   useEffect(() => {
     setMobileOpen(false);
-  }, [tab]);
-
-  useEffect(() => {
-    if (tab === 'config' || tab === 'contas-pagar') {
-      setConfigOpen(true);
-    }
   }, [tab]);
 
   useEffect(() => {
@@ -110,32 +85,13 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             </button>
           ))}
 
-          <div className="space-y-1">
-            <button
-              className={`zoom-nav-btn${tab === 'config' ? ' active' : ''}`}
-              onClick={() => setConfigOpen(value => !value)}
-              aria-expanded={configOpen}
-            >
-              <Settings2 className="w-[18px] h-[18px] flex-shrink-0" />
-              <span className="flex-1 text-left">Configurações</span>
-              <ChevronDown className={`w-4 h-4 transition-transform${configOpen ? ' rotate-180' : ''}`} />
-            </button>
-
-            {configOpen && (
-              <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
-                {CONFIG_SUB_ITEMS.filter(item => !item.visible || item.visible(userLevel)).map(item => (
-                  <button
-                    key={item.id}
-                    className="zoom-nav-btn text-sm"
-                    onClick={() => openConfigSubTab(item.id)}
-                  >
-                    <Receipt className="w-[16px] h-[16px] flex-shrink-0" />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            className={`zoom-nav-btn${tab === 'config' ? ' active' : ''}`}
+            onClick={() => onTabChange('config')}
+          >
+            <Settings2 className="w-[18px] h-[18px] flex-shrink-0" />
+            Configurações
+          </button>
 
           {userLevel === 'MASTER' && (
             <button
@@ -160,7 +116,7 @@ export function Sidebar({ tab, onTabChange, onLogout, userName, userLevel, logoE
             <LogOut className="w-4 h-4" />
             Sair
           </button>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.4</p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: '8px', letterSpacing: '0.05em' }}>v2.2.5</p>
         </div>
       </aside>
     </>

@@ -14,12 +14,13 @@ import {
 import { AlertTriangle, DollarSign, FileText, ShoppingCart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ContaPagarComCalculo, Titulo, TituloComCalculo } from '@/types/titulo';
+import { ContaPagarComCalculo, Titulo, TituloComCalculo, VendaVista } from '@/types/titulo';
 import { calcularTitulo, formatCurrency } from '@/lib/calculos';
 
 interface ContasPagarGraficoProps {
   contas: ContaPagarComCalculo[];
   titulos: Titulo[];
+  vendas: VendaVista[];
   taxa: number;
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
@@ -77,6 +78,7 @@ function DailyTooltip({ active, payload, label }: any) {
 export function ContasPagarGrafico({
   contas,
   titulos,
+  vendas,
   taxa,
   selectedMonth,
   onSelectMonth,
@@ -106,26 +108,26 @@ export function ContasPagarGrafico({
     [titulosCalculados, effectiveMonth]
   );
 
-  const overdueCount = useMemo(() => contas.filter(conta => conta.status === 'VENCIDO').length, [contas]);
+  const overdueCount = useMemo(() => contasDoMes.filter(conta => conta.status === 'VENCIDO').length, [contasDoMes]);
   const pendingTotal = useMemo(
-    () => contas.filter(conta => conta.status !== 'PAGO').reduce((sum, conta) => sum + conta.valor, 0),
-    [contas]
+    () => contasDoMes.filter(conta => conta.status !== 'PAGO').reduce((sum, conta) => sum + conta.valor, 0),
+    [contasDoMes]
   );
   const totalVendas = useMemo(
-    () => titulosCalculados.reduce((sum, titulo) => sum + titulo.valor, 0),
-    [titulosCalculados]
+    () => vendas.filter(venda => !effectiveMonth || venda.data.startsWith(effectiveMonth)).reduce((sum, venda) => sum + venda.valor, 0),
+    [effectiveMonth, vendas]
   );
 
   const totalTitulosPorTipo = useMemo(() => {
     const grouped = new Map<string, number>();
-    contas.forEach(conta => {
-      const key = normalizeTituloTipo(conta.categoria);
-      grouped.set(key, (grouped.get(key) || 0) + conta.valor);
+    contasDoMes.forEach(conta => {
+      const key = normalizeTituloTipo(conta.tipoTitulo || conta.categoria);
+      grouped.set(key, (grouped.get(key) || 0) + 1);
     });
     return Array.from(grouped.entries())
       .map(([tipo, total]) => ({ tipo, total }))
       .sort((a, b) => b.total - a.total);
-  }, [contas]);
+  }, [contasDoMes]);
 
   const dailyData = useMemo(() => {
     if (!effectiveMonth) return [];
@@ -133,9 +135,9 @@ export function ContasPagarGrafico({
     return Array.from({ length: days }, (_, index) => {
       const day = index + 1;
       const dayString = `${effectiveMonth}-${String(day).padStart(2, '0')}`;
-      const receitas = titulosDoMes
-        .filter(titulo => titulo.vencimento === dayString)
-        .reduce((sum, titulo) => sum + titulo.valor, 0);
+      const receitas = vendas
+        .filter(venda => venda.data === dayString)
+        .reduce((sum, venda) => sum + venda.valor, 0);
       const pagamentos = contasDoMes
         .filter(conta => conta.vencimento === dayString)
         .reduce((sum, conta) => sum + conta.valor, 0);
@@ -146,7 +148,7 @@ export function ContasPagarGrafico({
         pagamentos,
       };
     });
-  }, [contasDoMes, effectiveMonth, titulosDoMes]);
+  }, [contasDoMes, effectiveMonth, vendas]);
 
   const credorData = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -219,9 +221,9 @@ export function ContasPagarGrafico({
             </div>
             <div className="min-w-0">
               <div className="text-sm text-muted-foreground">Total de Títulos</div>
-              <div className="text-2xl font-bold">{formatCompactCurrency(totalTitulosPorTipo.reduce((sum, item) => sum + item.total, 0))}</div>
+              <div className="text-2xl font-bold">{totalTitulosPorTipo.reduce((sum, item) => sum + item.total, 0)}</div>
               <div className="text-xs text-muted-foreground truncate">
-                {totalTitulosPorTipo.map(item => `${item.tipo}: ${formatCompactCurrency(item.total)}`).join(' • ')}
+                {totalTitulosPorTipo.map(item => `${item.tipo}: ${item.total}`).join(' • ')}
               </div>
             </div>
           </CardContent>
@@ -235,7 +237,7 @@ export function ContasPagarGrafico({
             <div>
               <div className="text-sm text-muted-foreground">Total de Vendas</div>
               <div className="text-2xl font-bold">{formatCompactCurrency(totalVendas)}</div>
-              <div className="text-xs text-muted-foreground">{titulosCalculados.length} título(s) no sistema</div>
+              <div className="text-xs text-muted-foreground">{vendas.filter(venda => !effectiveMonth || venda.data.startsWith(effectiveMonth)).length} venda(s) no período</div>
             </div>
           </CardContent>
         </Card>

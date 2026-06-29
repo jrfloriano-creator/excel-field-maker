@@ -50,9 +50,6 @@ const CONTAS_PAGAR_CATEGORIAS: { value: ContaPagarCategoria; label: string }[] =
 
 export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, user, initialTab = 'cadastros' }: ConfigPanelProps) {
   const [activeTab, setActiveTab] = useState<ConfigPanelProps['initialTab']>(initialTab);
-  const [contaPagarCategoriaSelecionada, setContaPagarCategoriaSelecionada] = useState<ContaPagarCategoria | null>(
-    () => config.contasPagar?.categoriasFavoritas?.[0] ?? null
-  );
   const [novaPixNome, setNovaPixNome] = useState('');
   const [novaPixChave, setNovaPixChave] = useState('');
   const [novaForma, setNovaForma] = useState('');
@@ -81,13 +78,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
-
-  useEffect(() => {
-    if (contaPagarCategoriaSelecionada) return;
-    if (config.contasPagar?.categoriasFavoritas?.length) {
-      setContaPagarCategoriaSelecionada(config.contasPagar.categoriasFavoritas[0]);
-    }
-  }, [config.contasPagar?.categoriasFavoritas, contaPagarCategoriaSelecionada]);
 
   // Keep mensagemAniv in sync if config changes externally
   useEffect(() => {
@@ -447,10 +437,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
                         variant={active ? 'default' : 'outline'}
                         size="sm"
                         className="text-xs"
-                        onClick={() => {
-                          setContaPagarCategoriaSelecionada(categoria.value);
-                          handleToggleCategoriaFavorita(categoria.value);
-                        }}
+                        onClick={() => handleToggleCategoriaFavorita(categoria.value)}
                       >
                         {categoria.label}
                       </Button>
@@ -458,24 +445,6 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
                   })}
                 </div>
               </div>
-
-              {contaPagarCategoriaSelecionada && (
-                <Card className="border-dashed">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">
-                      Cadastro da categoria {CONTAS_PAGAR_CATEGORIAS.find(item => item.value === contaPagarCategoriaSelecionada)?.label}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      Categoria selecionada para cadastro e configuração no módulo de Contas a Pagar.
-                    </p>
-                    <div className="rounded-md border bg-secondary/40 px-3 py-2 text-sm font-medium">
-                      {CONTAS_PAGAR_CATEGORIAS.find(item => item.value === contaPagarCategoriaSelecionada)?.label}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </CardContent>
           </Card>
 

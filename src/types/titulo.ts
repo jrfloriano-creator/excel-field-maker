@@ -83,8 +83,10 @@ export interface ContaPagar {
   numero: number;
   descricao: string;
   categoria: ContaPagarCategoria;
+  tipoTitulo?: string;
   grupo_despesa?: string;
   favorecido: string;
+  credorId?: string;
   valor: number;
   vencimento: string;
   competencia?: string;
@@ -128,6 +130,49 @@ export interface ContasPagarConfig {
   formasPagamento: ContaPagarFormaPagamento[];
   categoriasFavoritas: ContaPagarCategoria[];
   gruposDespesa?: string[];
+  tiposTitulo?: string[];
+  credores?: ContaPagarCredor[];
+  despesasFixas?: ContaPagarDespesaFixa[];
+  gruposDetalhados?: ContaPagarGrupoDespesa[];
+}
+
+export interface ContaPagarContato {
+  id: string;
+  nome: string;
+  telefone?: string;
+  whatsapp?: string;
+}
+
+export interface ContaPagarCredor {
+  id: string;
+  nomeEmpresa: string;
+  nomeFantasia?: string;
+  rua?: string;
+  bairro?: string;
+  cep?: string;
+  numero?: string;
+  telefone?: string;
+  telefoneWhatsapp?: string;
+  contatos: ContaPagarContato[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContaPagarDespesaFixa {
+  id: string;
+  nome: string;
+  grupo: string;
+  ativo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContaPagarGrupoDespesa {
+  id: string;
+  nome: string;
+  itens: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type Situacao = 'VENCIDO' | 'NO PRAZO' | 'PAGO';

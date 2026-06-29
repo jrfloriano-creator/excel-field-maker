@@ -29,14 +29,15 @@ const STATUS_CLASSES = {
 } as const;
 
 export function ContaPagarCard({ conta, onEdit, onDelete, onPagar, onReverter }: ContaPagarCardProps) {
+  const pago = conta.status === 'PAGO';
   return (
     <Card className="border-border/70 shadow-sm">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-semibold truncate">{conta.descricao}</p>
+            <p className={`font-semibold truncate ${pago ? 'text-blue-600' : ''}`}>{conta.descricao}</p>
             <p className="text-xs text-muted-foreground truncate">
-              #{conta.numero} • {conta.favorecido} • {conta.categoria}
+              #{conta.numero} • {conta.tipoTitulo || conta.categoria} • {conta.favorecido}
             </p>
           </div>
           <Badge variant="outline" className={STATUS_CLASSES[conta.status]}>
@@ -51,7 +52,7 @@ export function ContaPagarCard({ conta, onEdit, onDelete, onPagar, onReverter }:
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Valor</p>
-            <p className="font-medium">{formatCurrency(conta.valor)}</p>
+            <p className={`font-medium ${pago ? 'text-blue-600' : ''}`}>{formatCurrency(conta.valor)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Competência</p>
@@ -67,7 +68,7 @@ export function ContaPagarCard({ conta, onEdit, onDelete, onPagar, onReverter }:
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Pago em</p>
-              <p className="font-medium">{conta.paidAt ? formatDate(conta.paidAt) : '—'}</p>
+              <p className="font-medium text-blue-600">{conta.paidAt ? formatDate(conta.paidAt) : '—'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Valor pago</p>

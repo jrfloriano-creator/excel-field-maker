@@ -10,23 +10,23 @@ interface ContasPagarDespesasProps {
   config: AppConfig;
   contas: ContaPagar[];
   onUpdateConta: (id: string, data: Partial<ContaPagar>) => Promise<void>;
+  onUpdateConfig: (data: Partial<NonNullable<AppConfig['contasPagar']>>) => void;
 }
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DEFAULT_GRUPOS_DESPESA = [
-  'Remunerações',
-  'Encargos Sociais',
-  'Benefícios',
-  'Ocupação',
-  'Tarifas Públicas',
-  'Prestadores de Serviços',
-  'Seguros',
-  'Manutenção',
-  'Marketing',
-  'Viagens',
-  'Gerais',
-  'Financeiros',
-  'Depreciação',
+  'REMUNERAÇÕES',
+  'ENCARGOS SOCIAIS',
+  'BENEFÍCIOS',
+  'OCUPAÇÃO',
+  'TARIFAS PÚBLICAS',
+  'PRESTADORES SERVIÇOS',
+  'SEGUROS',
+  'MANUTENÇÃO',
+  'MARKETING',
+  'VIAGENS',
+  'GERAIS',
+  'FINANCEIROS',
 ];
 
 function parseCurrencyInput(value: string) {
@@ -35,13 +35,17 @@ function parseCurrencyInput(value: string) {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
-export function ContasPagarDespesas({ config, contas, onUpdateConta }: ContasPagarDespesasProps) {
+export function ContasPagarDespesas({ config, contas, onUpdateConta, onUpdateConfig }: ContasPagarDespesasProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>('TODOS');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [newItemByGroup, setNewItemByGroup] = useState<Record<string, string>>({});
 
   const companyName = config.nomeEmpresa || config.empresa || config.credor?.nome || 'Empresa';
-  const gruposDespesa = config.contasPagar?.gruposDespesa?.length ? config.contasPagar.gruposDespesa : DEFAULT_GRUPOS_DESPESA;
+  const gruposDetalhados = config.contasPagar?.gruposDetalhados || [];
+  const gruposDespesa = gruposDetalhados.length
+    ? gruposDetalhados.map(item => item.nome)
+    : (config.contasPagar?.gruposDespesa?.length ? config.contasPagar.gruposDespesa : DEFAULT_GRUPOS_DESPESA);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
@@ -60,9 +64,10 @@ export function ContasPagarDespesas({ config, contas, onUpdateConta }: ContasPag
     return gruposDespesa.map(grupo => {
       const items = contasFiltradas.filter(conta => (conta.grupo_despesa || '').trim() === grupo);
       const total = items.reduce((sum, conta) => sum + conta.valor, 0);
-      return { grupo, items, total };
+      const cadastro = gruposDetalhados.find(item => item.nome === grupo);
+      return { grupo, items, total, cadastro };
     });
-  }, [contasFiltradas, gruposDespesa]);
+  }, [contasFiltradas, gruposDespesa, gruposDetalhados]);
 
   const totalGeral = useMemo(
     () => grupos.reduce((sum, grupo) => sum + grupo.total, 0),
@@ -84,6 +89,19 @@ export function ContasPagarDespesas({ config, contas, onUpdateConta }: ContasPag
     if (!Number.isFinite(parsed) || parsed < 0) return;
     await onUpdateConta(conta.id, { valor: parsed });
     cancelEditing();
+  };
+
+  const addSubItem = (grupo: string) => {
+    const nome = (newItemByGroup[grupo] || '').trim();
+    if (!nome) return;
+    const updated = gruposDetalhados.map(item => item.nome === grupo ? { ...item, itens: [...item.itens, nome], updatedAt: new Date().toISOString() } : item);
+    onUpdateConfig({ gruposDetalhados: updated });
+    setNewItemByGroup(prev => ({ ...prev, [grupo]: '' }));
+  };
+
+  const removeSubItem = (grupo: string, itemNome: string) => {
+    const updated = gruposDetalhados.map(item => item.nome === grupo ? { ...item, itens: item.itens.filter(sub => sub !== itemNome), updatedAt: new Date().toISOString() } : item);
+    onUpdateConfig({ gruposDetalhados: updated });
   };
 
   return (
@@ -134,7 +152,7 @@ export function ContasPagarDespesas({ config, contas, onUpdateConta }: ContasPag
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {grupos.map(({ grupo, items, total }) => (
+        {grupos.map(({ grupo, items, total, cadastro }) => (
           <Card key={grupo} className="h-full">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
@@ -197,6 +215,21 @@ export function ContasPagarDespesas({ config, contas, onUpdateConta }: ContasPag
                   );
                 })
               )}
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs font-medium text-muted-foreground">Sub-itens cadastrados</p>
+                <div className="flex flex-wrap gap-2">
+                  {(cadastro?.itens || []).map(item => (
+                    <div key={item} className="flex items-center gap-1 rounded-full border px-2 py-1 text-xs">
+                      <span>{item}</span>
+                      <button type="button" onClick={() => removeSubItem(grupo, item)}>×</button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input value={newItemByGroup[grupo] || ''} onChange={event => setNewItemByGroup(prev => ({ ...prev, [grupo]: event.target.value }))} placeholder="Novo sub-item" />
+                  <Button type="button" size="sm" onClick={() => addSubItem(grupo)}>Criar</Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         ))}

@@ -134,6 +134,7 @@ export interface ContasPagarConfig {
   credores?: ContaPagarCredor[];
   despesasFixas?: ContaPagarDespesaFixa[];
   gruposDetalhados?: ContaPagarGrupoDespesa[];
+  multa?: number;
 }
 
 export interface ContaPagarContato {

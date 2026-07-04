@@ -1,201 +1,271 @@
-import { Titulo, AppConfig, Cliente, ProprietarioConfig, Funcionario, ChavePix, TelefoneAlerta } from '@/types/titulo';
+import { Titulo, AppConfig, ContaPagar } from '@/types/titulo';
+import { getTitulos, getContasPagar, getConfig, saveContasPagar, importBackup } from './storage';
 
-/* ============= CSV helpers ============= */
+/**
+ * Sistema de backup automático/manual do Controle Financeiro ZOOM.
+ *
+ * - Desktop (Tauri): grava arquivos JSON reais na pasta
+ *   "Documentos/Backup Sistema Zoom" usando @tauri-apps/plugin-fs.
+ * - Web/PWA: usa localStorage como fallback (não há acesso a pastas do SO).
+ */
 
-function escapeCSV(value: any): string {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  if (/[",\n\r;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+const PASTA_BACKUP_NOME = 'Backup Sistema Zoom';
+const LS_BACKUP_PREFIX = 'zoom_backup_arquivo_';
+const LS_HISTORICO_KEY = 'zoom_backup_historico';
+const MAX_BACKUPS_AUTOMATICOS = 10;
+const INTERVALO_BACKUP_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+export type TipoBackup = 'manual' | 'automatico';
+
+export interface BackupInfo {
+  nome: string;
+  caminho?: string; // caminho completo no disco (apenas Tauri)
+  data: string; // ISO timestamp de criação
+  tipo: TipoBackup;
+  tamanho?: number; // bytes
 }
 
-function toCSV(headers: string[], rows: any[][]): string {
-  const lines = [headers.map(escapeCSV).join(',')];
-  for (const row of rows) lines.push(row.map(escapeCSV).join(','));
-  return lines.join('\n');
+interface BackupPayload {
+  versao: number;
+  tipo: TipoBackup;
+  exportadoEm: string;
+  titulos: Titulo[];
+  contasPagar: ContaPagar[];
+  config: AppConfig;
 }
 
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  let cur: string[] = [];
-  let field = '';
-  let inQuotes = false;
-  let i = 0;
-  // remove BOM
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-  while (i < text.length) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
-      }
-      field += c; i++; continue;
+const isTauri = () => {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+};
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function formatTimestamp(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
+
+function parseNomeBackup(nome: string): { tipo: TipoBackup; data: string } | null {
+  const match = nome.match(/^backup_(manual|automatico)_(.+)\.json$/);
+  if (!match) return null;
+  const tipo = match[1] as TipoBackup;
+  const isoLike = match[2].replace(/T(\d{2})-(\d{2})-(\d{2})$/, 'T$1:$2:$3');
+  const dateObj = new Date(isoLike);
+  return { tipo, data: isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString() };
+}
+
+/* ============= Histórico (metadados) ============= */
+
+function getHistoricoBackups(): BackupInfo[] {
+  try {
+    const raw = localStorage.getItem(LS_HISTORICO_KEY);
+    return raw ? (JSON.parse(raw) as BackupInfo[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function salvarHistoricoBackup(info: BackupInfo): Promise<void> {
+  const historico = getHistoricoBackups();
+  historico.push(info);
+  localStorage.setItem(LS_HISTORICO_KEY, JSON.stringify(historico));
+}
+
+/* ============= Pasta de backup (Tauri) ============= */
+
+/** Cria (se necessário) a pasta "Backup Sistema Zoom" em Documentos e retorna o caminho. */
+export async function criarPastaBackup(): Promise<string | null> {
+  if (!isTauri()) return null;
+  try {
+    const { mkdir, exists } = await import('@tauri-apps/plugin-fs');
+    const { documentDir, join } = await import('@tauri-apps/api/path');
+    const docDir = await documentDir();
+    const pastaPath = await join(docDir, PASTA_BACKUP_NOME);
+    const jaExiste = await exists(pastaPath);
+    if (!jaExiste) {
+      await mkdir(pastaPath, { recursive: true });
     }
-    if (c === '"') { inQuotes = true; i++; continue; }
-    if (c === ',') { cur.push(field); field = ''; i++; continue; }
-    if (c === '\r') { i++; continue; }
-    if (c === '\n') { cur.push(field); rows.push(cur); cur = []; field = ''; i++; continue; }
-    field += c; i++;
+    return pastaPath;
+  } catch (e) {
+    console.error('[backup] falha ao criar pasta de backup', e);
+    return null;
   }
-  // último campo
-  if (field.length > 0 || cur.length > 0) { cur.push(field); rows.push(cur); }
-  return rows.filter(r => r.length > 1 || (r.length === 1 && r[0] !== ''));
 }
 
-function rowsToObjects(rows: string[][]): Record<string, string>[] {
-  if (rows.length < 1) return [];
-  const headers = rows[0];
-  return rows.slice(1).map(r => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = r[idx] ?? ''; });
-    return obj;
-  });
-}
+/* ============= Coleta de dados ============= */
 
-/* ============= EXPORT ============= */
-
-export const TITULOS_HEADERS = [
-  'id','numero','tipo','cliente','clienteId','telefone','dataEmissao','vencimento',
-  'valor','proprietario','dataPagamento','valorPago','recebidoPor'
-];
-
-export function titulosToCSV(titulos: Titulo[]): string {
-  const rows = titulos.map(t => [
-    t.id, t.numero, t.tipo, t.cliente, t.clienteId || '', t.telefone,
-    t.dataEmissao, t.vencimento, t.valor, t.proprietario,
-    t.dataPagamento || '', t.valorPago ?? '', t.recebidoPor || '',
+async function coletarDadosBackup(): Promise<{ titulos: Titulo[]; contasPagar: ContaPagar[]; config: AppConfig }> {
+  const [titulos, contasPagar, config] = await Promise.all([
+    getTitulos(),
+    getContasPagar(),
+    getConfig(),
   ]);
-  return toCSV(TITULOS_HEADERS, rows);
+  return { titulos, contasPagar, config };
 }
 
-export const CLIENTES_HEADERS = [
-  'id','nome','telefone','cpfCnpj','cep','logradouro','numero','bairro','cidade','estado'
-];
-export function clientesToCSV(clientes: Cliente[]): string {
-  const rows = clientes.map(c => [
-    c.id, c.nome, c.telefone, c.cpfCnpj || '', c.cep, c.logradouro, c.numero, c.bairro, c.cidade, c.estado
-  ]);
-  return toCSV(CLIENTES_HEADERS, rows);
-}
+/* ============= Realizar backup ============= */
 
-export const PROPRIETARIOS_HEADERS = ['id','nome','cor','corFundo'];
-export function proprietariosToCSV(props: ProprietarioConfig[]): string {
-  const rows = props.map(p => [p.id, p.nome, p.cor, p.corFundo || '']);
-  return toCSV(PROPRIETARIOS_HEADERS, rows);
-}
+/** Coleta todos os dados (títulos, vendas/config, clientes, contas a pagar) e salva um arquivo JSON. */
+export async function realizarBackup(tipo: TipoBackup = 'manual'): Promise<BackupInfo> {
+  const dados = await coletarDadosBackup();
+  const agora = new Date();
+  const nomeArquivo = `backup_${tipo}_${formatTimestamp(agora)}.json`;
 
-export const FUNCIONARIOS_HEADERS = ['id','nome','pin'];
-export function funcionariosToCSV(fs: Funcionario[]): string {
-  return toCSV(FUNCIONARIOS_HEADERS, fs.map(f => [f.id, f.nome, f.pin]));
-}
-
-export const PIX_HEADERS = ['id','nome','chave'];
-export function pixToCSV(p: ChavePix[]): string {
-  return toCSV(PIX_HEADERS, p.map(x => [x.id, x.nome, x.chave]));
-}
-
-export const CONFIG_GERAL_HEADERS = ['chave','valor'];
-export function configGeralToCSV(config: AppConfig): string {
-  const rows: any[][] = [
-    ['taxa', config.taxa],
-    ['darkMode', config.darkMode ? '1' : '0'],
-    ['horarioAlerta', config.horarioAlerta],
-    ['credor.nome', config.credor?.nome || ''],
-    ['credor.cpfCnpj', config.credor?.cpfCnpj || ''],
-    ['credor.cidadeEstado', config.credor?.cidadeEstado || ''],
-    ['telefonesAlerta', JSON.stringify(config.telefonesAlerta)],
-  ];
-  return toCSV(CONFIG_GERAL_HEADERS, rows);
-}
-
-/* ============= IMPORT ============= */
-
-export function csvToTitulos(text: string): Titulo[] {
-  const objs = rowsToObjects(parseCSV(text));
-  return objs.map(o => ({
-    id: o.id || crypto.randomUUID(),
-    numero: parseInt(o.numero) || 0,
-    tipo: o.tipo,
-    cliente: o.cliente,
-    clienteId: o.clienteId || undefined,
-    telefone: o.telefone,
-    dataEmissao: o.dataEmissao,
-    vencimento: o.vencimento,
-    valor: parseFloat(o.valor) || 0,
-    proprietario: o.proprietario,
-    dataPagamento: o.dataPagamento || undefined,
-    valorPago: o.valorPago ? parseFloat(o.valorPago) : undefined,
-    recebidoPor: o.recebidoPor || undefined,
-  }));
-}
-
-export function csvToClientes(text: string): Cliente[] {
-  const objs = rowsToObjects(parseCSV(text));
-  return objs.map(o => ({
-    id: o.id || crypto.randomUUID(),
-    nome: o.nome,
-    telefone: o.telefone,
-    cpfCnpj: o.cpfCnpj || undefined,
-    cep: o.cep || '',
-    logradouro: o.logradouro || '',
-    numero: o.numero || '',
-    bairro: o.bairro || '',
-    cidade: o.cidade || '',
-    estado: o.estado || '',
-  }));
-}
-
-export function csvToProprietarios(text: string): ProprietarioConfig[] {
-  const objs = rowsToObjects(parseCSV(text));
-  return objs.map(o => ({
-    id: o.id || crypto.randomUUID(),
-    nome: o.nome,
-    cor: o.cor || '#cccccc',
-    corFundo: o.corFundo || undefined,
-  }));
-}
-
-export function csvToFuncionarios(text: string): Funcionario[] {
-  const objs = rowsToObjects(parseCSV(text));
-  return objs.map(o => ({ id: o.id || crypto.randomUUID(), nome: o.nome, pin: o.pin }));
-}
-
-export function csvToPix(text: string): ChavePix[] {
-  const objs = rowsToObjects(parseCSV(text));
-  return objs.map(o => ({ id: o.id || crypto.randomUUID(), nome: o.nome, chave: o.chave }));
-}
-
-export function csvToConfigPatch(text: string): Partial<AppConfig> {
-  const objs = rowsToObjects(parseCSV(text));
-  const map: Record<string, string> = {};
-  objs.forEach(o => { map[o.chave] = o.valor; });
-  const patch: Partial<AppConfig> = {};
-  if (map['taxa'] !== undefined) patch.taxa = parseFloat(map['taxa']) || 0;
-  if (map['darkMode'] !== undefined) patch.darkMode = map['darkMode'] === '1' || map['darkMode'] === 'true';
-  if (map['horarioAlerta']) patch.horarioAlerta = map['horarioAlerta'];
-  const credor = {
-    nome: map['credor.nome'] || '',
-    cpfCnpj: map['credor.cpfCnpj'] || '',
-    cidadeEstado: map['credor.cidadeEstado'] || '',
+  const payload: BackupPayload = {
+    versao: 1,
+    tipo,
+    exportadoEm: agora.toISOString(),
+    titulos: dados.titulos,
+    contasPagar: dados.contasPagar,
+    config: dados.config,
   };
-  patch.credor = credor;
-  if (map['telefonesAlerta']) {
-    try { patch.telefonesAlerta = JSON.parse(map['telefonesAlerta']) as TelefoneAlerta[]; } catch { /* ignore */ }
+  const conteudo = JSON.stringify(payload, null, 2);
+
+  let caminho: string | undefined;
+  if (isTauri()) {
+    const pastaPath = await criarPastaBackup();
+    if (pastaPath) {
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      const { join } = await import('@tauri-apps/api/path');
+      caminho = await join(pastaPath, nomeArquivo);
+      await writeTextFile(caminho, conteudo);
+    } else {
+      // Falha ao criar/acessar pasta: cai para fallback local
+      localStorage.setItem(`${LS_BACKUP_PREFIX}${nomeArquivo}`, conteudo);
+    }
+  } else {
+    localStorage.setItem(`${LS_BACKUP_PREFIX}${nomeArquivo}`, conteudo);
   }
-  return patch;
+
+  const info: BackupInfo = {
+    nome: nomeArquivo,
+    caminho,
+    data: agora.toISOString(),
+    tipo,
+    tamanho: conteudo.length,
+  };
+
+  await salvarHistoricoBackup(info);
+
+  if (tipo === 'automatico') {
+    await limparBackupsAntigos();
+  }
+
+  return info;
 }
 
-/* ============= Download / ZIP-less archive ============= */
+/* ============= Limpeza de backups antigos ============= */
 
-export function downloadFile(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
-  const blob = new Blob(['\uFEFF' + content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+/** Mantém apenas os últimos N backups automáticos, removendo os mais antigos (arquivo + histórico). */
+export async function limparBackupsAntigos(manterUltimos: number = MAX_BACKUPS_AUTOMATICOS): Promise<void> {
+  const historico = getHistoricoBackups();
+  const automaticos = historico
+    .filter(b => b.tipo === 'automatico')
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+  const paraRemover = automaticos.slice(manterUltimos);
+  if (paraRemover.length === 0) return;
+
+  for (const backup of paraRemover) {
+    try {
+      if (isTauri() && backup.caminho) {
+        const { remove } = await import('@tauri-apps/plugin-fs');
+        await remove(backup.caminho);
+      } else {
+        localStorage.removeItem(`${LS_BACKUP_PREFIX}${backup.nome}`);
+      }
+    } catch (e) {
+      console.warn('[backup] falha ao remover backup antigo:', backup.nome, e);
+    }
+  }
+
+  const nomesRemovidos = new Set(paraRemover.map(b => b.nome));
+  const restantes = historico.filter(b => !nomesRemovidos.has(b.nome));
+  localStorage.setItem(LS_HISTORICO_KEY, JSON.stringify(restantes));
+}
+
+/* ============= Restaurar backup ============= */
+
+/** Lê o arquivo de backup (disco ou localStorage) e restaura títulos, config e contas a pagar. */
+export async function restaurarBackup(backupInfo: BackupInfo): Promise<void> {
+  let conteudo: string;
+
+  if (isTauri() && backupInfo.caminho) {
+    const { readTextFile } = await import('@tauri-apps/plugin-fs');
+    conteudo = await readTextFile(backupInfo.caminho);
+  } else {
+    const raw = localStorage.getItem(`${LS_BACKUP_PREFIX}${backupInfo.nome}`);
+    if (!raw) throw new Error(`Backup "${backupInfo.nome}" não encontrado`);
+    conteudo = raw;
+  }
+
+  const dados = JSON.parse(conteudo) as Partial<BackupPayload>;
+  const titulos: Titulo[] = Array.isArray(dados.titulos) ? dados.titulos : [];
+  const contasPagar: ContaPagar[] = Array.isArray(dados.contasPagar) ? dados.contasPagar : [];
+  const config = (dados.config && typeof dados.config === 'object') ? dados.config as AppConfig : await getConfig();
+
+  // Restaura títulos + config (usuarios/logs) em transação atômica
+  await importBackup(titulos, config);
+  // Restaura contas a pagar separadamente
+  await saveContasPagar(contasPagar);
+}
+
+/* ============= Listagem de backups ============= */
+
+/** Lista os backups disponíveis (pasta real no Tauri, ou histórico local no fallback web). */
+export async function getListaBackups(): Promise<BackupInfo[]> {
+  if (isTauri()) {
+    try {
+      const pastaPath = await criarPastaBackup();
+      if (!pastaPath) return getHistoricoBackups();
+
+      const { readDir, stat } = await import('@tauri-apps/plugin-fs');
+      const { join } = await import('@tauri-apps/api/path');
+      const entries = await readDir(pastaPath);
+      const arquivos = entries.filter(e => e.isFile && e.name?.endsWith('.json'));
+
+      const lista: BackupInfo[] = [];
+      for (const entry of arquivos) {
+        const nome = entry.name as string;
+        const caminho = await join(pastaPath, nome);
+        const parsed = parseNomeBackup(nome);
+        let tamanho: number | undefined;
+        try {
+          const info = await stat(caminho);
+          tamanho = info.size;
+        } catch {
+          // ignora falha ao obter tamanho
+        }
+        lista.push({
+          nome,
+          caminho,
+          data: parsed?.data ?? new Date().toISOString(),
+          tipo: parsed?.tipo ?? 'manual',
+          tamanho,
+        });
+      }
+      return lista.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    } catch (e) {
+      console.warn('[backup] falha ao listar backups via Tauri, usando histórico local', e);
+      return getHistoricoBackups().sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    }
+  }
+
+  return getHistoricoBackups().sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
+/* ============= Agendamento automático ============= */
+
+let intervaloBackupAutomatico: ReturnType<typeof setInterval> | null = null;
+
+/** Agenda a execução de um backup automático a cada 24h. Idempotente (não duplica o agendamento). */
+export function agendarBackupAutomatico(): void {
+  if (intervaloBackupAutomatico) return;
+
+  intervaloBackupAutomatico = setInterval(() => {
+    realizarBackup('automatico').catch(e => {
+      console.error('[backup] falha ao executar backup automático agendado', e);
+    });
+  }, INTERVALO_BACKUP_MS);
 }

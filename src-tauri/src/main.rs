@@ -107,6 +107,7 @@ fn main() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_printer_v2::init())
+        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![write_bytes_to_file, open_folder, open_external_url, print_pdf_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

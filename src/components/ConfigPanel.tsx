@@ -22,6 +22,7 @@ import { LogoPanel } from '@/components/LogoPanel';
 import { LogPanel } from '@/components/LogPanel';
 import { hasPerm, SessionUser, defaultPermissoes } from '@/lib/auth';
 import { openExternalUrl } from '@/lib/openUrl';
+import { ConfiguracoesContasPagar } from '@/components/contas-pagar/ConfiguracoesContasPagar';
 
 interface ConfigPanelProps {
   config: AppConfig;
@@ -285,15 +286,28 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
         <TabsContent value="financeiro" className="space-y-4 mt-4">
           {can('config.taxa') && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Taxa de Juros Mensal (%)</CardTitle></CardHeader>
-              <CardContent>
-                <Input type="text" inputMode="decimal" value={config.taxa === 0 ? '' : String(config.taxa * 100)}
-                  placeholder="Ex: 1.5"
-                  onChange={e => {
-                    const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                    const num = parseFloat(raw);
-                    onUpdate({ taxa: isNaN(num) ? 0 : num / 100 });
-                  }} />
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Taxa de Juros e Multa</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <Label className="text-xs">Taxa de Juros Mensal (%)</Label>
+                  <Input type="text" inputMode="decimal" value={config.taxa === 0 ? '' : String(config.taxa * 100)}
+                    placeholder="Ex: 1.5"
+                    onChange={e => {
+                      const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                      const num = parseFloat(raw);
+                      onUpdate({ taxa: isNaN(num) ? 0 : num / 100 });
+                    }} />
+                </div>
+                <div>
+                  <Label className="text-xs">Multa (R$)</Label>
+                  <Input type="text" inputMode="decimal" value={contasPagarConfig.multa ? String(contasPagarConfig.multa) : ''}
+                    placeholder="Ex: 10.00"
+                    onChange={e => {
+                      const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                      const num = parseFloat(raw);
+                      handleUpdateContasPagar({ multa: isNaN(num) ? 0 : num });
+                    }} />
+                </div>
               </CardContent>
             </Card>
           )}
@@ -533,6 +547,11 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
               </div>
             </CardContent>
           </Card>
+
+          <div className="pt-2 border-t">
+            <h3 className="text-sm font-semibold mb-3">🗂️ Cadastros do Módulo (Título, Credor, Despesa, Grupo)</h3>
+            <ConfiguracoesContasPagar />
+          </div>
         </TabsContent>
 
         <TabsContent value="alertas" className="space-y-4 mt-4">

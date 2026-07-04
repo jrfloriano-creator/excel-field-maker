@@ -50,6 +50,7 @@ export const DEFAULT_CONTAS_PAGAR_CONFIG: ContasPagarConfig = {
     { id: 'grupo-gerais', nome: 'GERAIS', itens: ['Materiais Consumo', 'Fretes Entregas', 'Combustíveis Locomoção', 'Correios', 'Cópias'], createdAt: '', updatedAt: '' },
     { id: 'grupo-financeiros', nome: 'FINANCEIROS', itens: ['Juros Bancários', 'Juros Diversos', 'Tarifas Bancárias'], createdAt: '', updatedAt: '' },
   ],
+  multa: 0,
 };
 
 export const DEFAULT_CONFIG: AppConfig = {

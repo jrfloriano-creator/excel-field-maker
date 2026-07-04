@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { dbDriver } from "./lib/database";
 import { migrateFromLocalStorageIfNeeded } from "./lib/storage";
+import { agendarBackupAutomatico } from "./lib/backup";
 
 const rootEl = document.getElementById("root")!;
 
@@ -15,4 +16,5 @@ const rootEl = document.getElementById("root")!;
     alert("Erro ao inicializar o banco de dados: " + (e instanceof Error ? e.message : String(e)));
   }
   createRoot(rootEl).render(<App />);
+  agendarBackupAutomatico();
 })();

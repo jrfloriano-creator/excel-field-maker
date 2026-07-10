@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Cake } from 'lucide-react';
 import { openExternalUrl } from '@/lib/openUrl';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
 
 interface AniversariantesPageProps {
   config: AppConfig;
@@ -49,7 +50,7 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
   const handleWhatsApp = (cliente: Cliente) => {
     const phone = (cliente.telefone || '').replace(/\D/g, '');
     if (!phone) return;
-    const mensagem = mensagemBase.replace(/\{nome\}/g, cliente.nome);
+    const mensagem = mensagemBase.replace(/\{nome\}/g, obterNomeCliente(cliente));
     openExternalUrl(`https://wa.me/55${phone}?text=${encodeURIComponent(mensagem)}`);
   };
 

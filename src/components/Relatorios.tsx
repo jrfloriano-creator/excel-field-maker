@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
 import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel, getWhatsAppLink } from '@/lib/calculos';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -357,7 +358,7 @@ export function Relatorios({ titulos, config }: Props) {
           ) : (
             atrasados.map(t => {
               const cli = config.clientes.find(c => c.id === t.clienteId);
-              const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
+              const apelido = obterNomeCliente(cli || { nome: t.cliente });
               const pix = (config.chavesPix || [])[0];
               const waLink = t.telefone ? getWhatsAppLink(t.telefone, apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined) : '';
               return (

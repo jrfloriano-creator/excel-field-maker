@@ -11,6 +11,7 @@ import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/calculos';
 import { openExternalUrl } from '@/lib/openUrl';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
 
 const ESTADOS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
@@ -333,7 +334,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
               e.stopPropagation();
               if (!c.telefone) { toast.error('Cliente sem telefone'); return; }
               if (titulosDoCliente.length === 0) { toast.info('Nenhum título cadastrado para este cliente'); return; }
-              const apelido = (c.apelido && c.apelido.trim()) || c.nome;
+              const apelido = obterNomeCliente(c);
               const ordenados = [...titulosDoCliente].sort(
                 (a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime()
               );

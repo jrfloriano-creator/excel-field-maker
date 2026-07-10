@@ -13,6 +13,9 @@ import { gerarPromissoriaPDF, calcularNotas, PromissoriaData } from '@/lib/promi
 import { savePdf } from '@/lib/savePdf';
 import { toast } from 'sonner';
 import { getPrinters, printPdf } from 'tauri-plugin-printer-v2';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
+import { BotaoImprimirDireto } from '@/components/impressao/BotaoImprimirDireto';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface TituloCardProps {
   titulo: TituloComCalculo;
@@ -23,13 +26,17 @@ interface TituloCardProps {
   proprietarios: ProprietarioConfig[];
   clientes?: Cliente[];
   config?: AppConfig;
+  /** Seleção múltipla (opcional) */
+  selecionavel?: boolean;
+  selecionado?: boolean;
+  onToggleSelecionado?: (id: string) => void;
 }
 
-export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, proprietarios, clientes, config }: TituloCardProps) {
+export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, proprietarios, clientes, config, selecionavel, selecionado, onToggleSelecionado }: TituloCardProps) {
   const [selectedPixId, setSelectedPixId] = useState<string>('');
   const selectedPix = chavesPix.find(p => p.id === selectedPixId);
   const clienteRef = clientes?.find(c => c.id === titulo.clienteId);
-  const nomeWhats = (clienteRef?.apelido && clienteRef.apelido.trim()) || titulo.cliente;
+  const nomeWhats = obterNomeCliente(clienteRef || { nome: titulo.cliente });
 
   const propConfig = proprietarios.find(p => p.id === titulo.proprietario);
   const bgColor = propConfig?.cor || '#e5e7eb';
@@ -149,11 +156,21 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
     <Card className="overflow-hidden border-2" style={{ backgroundColor: bgColor, color: fgColor, borderColor }}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{titulo.cliente}</p>
-            <p className="text-xs opacity-70">
-              {titulo.tipo} • Nº {titulo.numero} • {propConfig?.nome || '—'}
-            </p>
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            {selecionavel && (
+              <Checkbox
+                className="mt-1 bg-card"
+                checked={!!selecionado}
+                onCheckedChange={() => onToggleSelecionado?.(titulo.id)}
+                aria-label="Selecionar título"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{titulo.cliente}</p>
+              <p className="text-xs opacity-70">
+                {titulo.tipo} • Nº {titulo.numero} • {propConfig?.nome || '—'}
+              </p>
+            </div>
           </div>
           <StatusBadge situacao={titulo.situacao} />
         </div>
@@ -251,6 +268,25 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
             <Printer className="h-4 w-4" />
             <span className="ml-1 text-xs">Reimprimir</span>
           </Button>
+          <BotaoImprimirDireto
+            variant="ghost"
+            size="sm"
+            className="bg-card/60 text-foreground hover:bg-card"
+            titulo={`${titulo.tipo} Nº ${titulo.numero}`}
+            tipo={isCaderno ? 'RECIBO' : 'PROMISSORIA'}
+            dados={{
+              cliente: titulo.cliente,
+              cpfCnpj: clienteRef?.cpfCnpj,
+              endereco: clienteRef
+                ? [clienteRef.logradouro, clienteRef.numero, clienteRef.bairro, clienteRef.cidade && clienteRef.estado ? `${clienteRef.cidade}/${clienteRef.estado}` : '', clienteRef.cep ? `CEP ${clienteRef.cep}` : ''].filter(Boolean).join(', ')
+                : undefined,
+              telefone: titulo.telefone,
+              credor: config?.credor,
+              valor: titulo.valor,
+              vencimento: titulo.vencimento,
+              dataEmissao: titulo.dataEmissao,
+            }}
+          />
           <Button variant="ghost" size="sm" className="bg-card/60 text-foreground hover:bg-card" onClick={() => onEdit(titulo.id)}>
             <Pencil className="h-4 w-4" />
           </Button>

@@ -12,6 +12,7 @@ import { Plus, Trash2, Send, FolderOpen, Shield, Clock, Percent, DollarSign } fr
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
 import { ProprietariosManager } from '@/components/ProprietariosManager';
 import { BackupPanel } from '@/components/BackupPanel';
 import { EmailPanel } from '@/components/EmailPanel';
@@ -97,7 +98,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
     ativos.forEach(tel => {
       titulosAmanha.forEach(t => {
         const cli = config.clientes.find(c => c.id === t.clienteId);
-        const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
+        const apelido = obterNomeCliente(cli || { nome: t.cliente });
         const msg = `⚠️ Alerta de Vencimento\n\nCliente: ${apelido}\nValor: ${formatCurrency(t.valor)}\nVencimento: ${formatDate(t.vencimento)} (amanhã)`;
         openExternalUrl(`https://wa.me/55${tel.numero.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`);
       });

@@ -3,6 +3,7 @@ import { Titulo, AppConfig, TituloComCalculo } from '@/types/titulo';
 import { SessionUser, appendLog, hasPerm } from '@/lib/auth';
 import { buildPagamentoWhatsMsg, whatsLink } from '@/lib/calculos';
 import { openExternalUrl } from '@/lib/openUrl';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
 import { toast } from 'sonner';
 
 interface UseTituloActionsProps {
@@ -111,7 +112,7 @@ export function useTituloActions({
       `Recebeu título #${t?.numero} ${t?.cliente} ${data.formaPagamento} ${data.valorPago} por ${data.recebidoPor}${data.enviarWhats ? ' [WhatsApp enviado]' : ''}`);
     if (data.enviarWhats && t?.telefone) {
       const cli = config.clientes.find(c => c.id === t.clienteId);
-      const apelido = (cli?.apelido && cli.apelido.trim()) || t.cliente;
+      const apelido = obterNomeCliente(cli || { nome: t.cliente });
       // Calcula posição no lote (mesmo cliente + tipo + dataEmissao)
       const lote = titulos
         .filter(x => x.clienteId === t.clienteId && x.tipo === t.tipo && x.dataEmissao === t.dataEmissao)

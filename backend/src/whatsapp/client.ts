@@ -1,5 +1,6 @@
 import makeWASocket, {
   DisconnectReason,
+  fetchLatestBaileysVersion,
   useMultiFileAuthState,
   WASocket,
 } from '@whiskeysockets/baileys';
@@ -25,9 +26,11 @@ export async function connectToWhatsApp(): Promise<WASocket> {
     const { state, saveCreds } = await useMultiFileAuthState(
       process.env.WHATSAPP_SESSION_DIR || './auth_info'
     );
+    const { version } = await fetchLatestBaileysVersion();
 
     socket = makeWASocket({
       auth: state,
+      version,
       syncFullHistory: false,
       markOnlineOnConnect: false,
       browser: ['Controle Financeiro ZOOM', 'Chrome', '120.0.0.0'],

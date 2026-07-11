@@ -1,6 +1,6 @@
 [package]
 name = "financeiro-app"
-version = "2.7.0"
+version = "2.7.1"
 description = "Controle Financeiro ZOOM"
 authors = ["you"]
 edition = "2021"

@@ -58,13 +58,16 @@ export function formatPhone(phone: string): string {
   return phone;
 }
 
-export function getWhatsAppLink(phone: string, cliente: string, valor: number, vencimento: string, chavePix?: { nome: string; chave: string }): string {
-  const digits = phone.replace(/\D/g, '');
+export function buildCobrancaMsg(cliente: string, valor: number, vencimento: string, chavePix?: { nome: string; chave: string }): string {
   let msg = `*Controle Financeiro ZOOM*\n\nOlá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
   if (chavePix) {
     msg += `\n\nou utilize a Chave PIX a seguir para o pagamento:\n${chavePix.nome}: ${chavePix.chave}`;
   }
-  return `https://api.whatsapp.com/send?phone=55${digits}&text=${encodeURIComponent(msg)}`;
+  return msg;
+}
+
+export function getWhatsAppLink(phone: string, cliente: string, valor: number, vencimento: string, chavePix?: { nome: string; chave: string }): string {
+  return whatsLink(phone, buildCobrancaMsg(cliente, valor, vencimento, chavePix));
 }
 
 export function buildPagamentoWhatsMsg(opts: {

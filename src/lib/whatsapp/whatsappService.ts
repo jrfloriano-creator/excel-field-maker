@@ -1,5 +1,8 @@
 import { Cliente } from '@/types/cliente';
 import { Titulo } from '@/types/titulo';
+import { toast } from 'sonner';
+import { openExternalUrl } from '@/lib/openUrl';
+import { whatsLink } from '@/lib/calculos';
 
 const BACKEND_URL = import.meta.env.VITE_WHATSAPP_BACKEND_URL || 'http://localhost:3001';
 
@@ -158,3 +161,40 @@ export class WhatsAppService {
 }
 
 export const whatsappService = WhatsAppService.getInstance();
+
+/**
+ * Envia uma mensagem única via backend Baileys, com feedback de toast.
+ * Se o backend estiver desconectado, mostra um toast de erro com uma ação
+ * de fallback para abrir o link wa.me manualmente.
+ */
+export async function enviarWhatsAppUnico(telefone: string, mensagem: string): Promise<boolean> {
+  if (!telefone) {
+    toast.error('Cliente sem telefone cadastrado.');
+    return false;
+  }
+
+  const status = await whatsappService.getStatus();
+  if (status.status !== 'connected') {
+    toast.error('WhatsApp não conectado. Conecte em Configurações › WhatsApp.', {
+      action: {
+        label: 'Abrir WhatsApp Web',
+        onClick: () => openExternalUrl(whatsLink(telefone, mensagem)),
+      },
+    });
+    return false;
+  }
+
+  const result = await whatsappService.enviarMensagem(telefone, mensagem);
+  if (result.success) {
+    toast.success('Mensagem enviada pelo WhatsApp!');
+    return true;
+  }
+
+  toast.error(result.error || 'Falha ao enviar mensagem pelo WhatsApp.', {
+    action: {
+      label: 'Abrir WhatsApp Web',
+      onClick: () => openExternalUrl(whatsLink(telefone, mensagem)),
+    },
+  });
+  return false;
+}

@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Titulo, AppConfig } from '@/types/titulo';
-import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel, getWhatsAppLink } from '@/lib/calculos';
+import { calcularTitulo, formatCurrency, formatDate, getMonthKey, formatMonthLabel, buildCobrancaMsg } from '@/lib/calculos';
 import { obterNomeCliente } from '@/lib/whatsapp/message';
+import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Download, X, MessageCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { openExternalUrl } from '@/lib/openUrl';
 import { savePdf } from '@/lib/savePdf';
 
 interface Props {
@@ -360,7 +360,7 @@ export function Relatorios({ titulos, config }: Props) {
               const cli = config.clientes.find(c => c.id === t.clienteId);
               const apelido = obterNomeCliente(cli || { nome: t.cliente });
               const pix = (config.chavesPix || [])[0];
-              const waLink = t.telefone ? getWhatsAppLink(t.telefone, apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined) : '';
+              const mensagemCobranca = t.telefone ? buildCobrancaMsg(apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined) : '';
               return (
                 <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">
                   <div className="flex justify-between items-start mb-1">
@@ -377,7 +377,7 @@ export function Relatorios({ titulos, config }: Props) {
                   </div>
                   {t.telefone && (
                     <Button size="sm" variant="outline" className="w-full mt-2 h-8 text-xs"
-                      onClick={() => openExternalUrl(waLink)}>
+                      onClick={() => enviarWhatsAppUnico(t.telefone, mensagemCobranca)}>
                       <MessageCircle className="h-3 w-3 mr-1" /> Cobrar via WhatsApp{pix ? ' + PIX' : ''}
                     </Button>
                   )}

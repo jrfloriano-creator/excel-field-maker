@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Titulo, AppConfig, TituloComCalculo } from '@/types/titulo';
 import { SessionUser, appendLog, hasPerm } from '@/lib/auth';
-import { buildPagamentoWhatsMsg, whatsLink } from '@/lib/calculos';
-import { openExternalUrl } from '@/lib/openUrl';
+import { buildPagamentoWhatsMsg } from '@/lib/calculos';
 import { obterNomeCliente } from '@/lib/whatsapp/message';
+import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
 import { toast } from 'sonner';
 
 interface UseTituloActionsProps {
@@ -131,7 +131,7 @@ export function useTituloActions({
         recebidoPor: data.recebidoPor,
         creditoGerado: data.creditoGerado,
       });
-      openExternalUrl(whatsLink(t.telefone, msg));
+      enviarWhatsAppUnico(t.telefone, msg);
       appendLog(config, updateConfig, user, 'whatsapp.pagamento', `WhatsApp pagamento p/ ${apelido}`);
     }
     setPagarId(null);

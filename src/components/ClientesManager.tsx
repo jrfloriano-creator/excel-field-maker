@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Cliente, Titulo } from '@/types/titulo';
+import { Cliente, Titulo, AppConfig } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, Pencil, X, Search, UserPlus, MessageCircle } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, Search, UserPlus, MessageCircle, CreditCard, Printer } from 'lucide-react';
 import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/calculos';
-import { openExternalUrl } from '@/lib/openUrl';
 import { obterNomeCliente } from '@/lib/whatsapp/message';
+import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
+import { SessionUser, hasPerm } from '@/lib/auth';
+import { RecebimentoTitulosDialog } from '@/components/clientes/RecebimentoTitulosDialog';
+import { ReimprimirTitulosDialog } from '@/components/clientes/ReimprimirTitulosDialog';
 
 const ESTADOS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
@@ -22,6 +25,10 @@ interface Props {
   onUpdate: (clientes: Cliente[]) => void;
   titulos?: Titulo[];
   requirePin?: (kind: 'edit' | 'delete', id: string) => void;
+  config?: AppConfig;
+  user?: SessionUser | null;
+  updateTitulo?: (id: string, data: Partial<Titulo>) => void | Promise<void>;
+  updateConfig?: (data: Partial<AppConfig>) => void | Promise<void>;
 }
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -43,7 +50,7 @@ const empty: Omit<Cliente, 'id'> = {
   nome: '', apelido: '', telefone: '', email: '', dataNascimento: '', cpfCnpj: '', cep: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', dataCadastro: '', indicacao: '',
 };
 
-export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }: Props) {
+export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, config, user, updateTitulo, updateConfig }: Props) {
   const [viewing, setViewing] = useState<Cliente | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
@@ -51,6 +58,8 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
   const [busca, setBusca] = useState('');
   const [loadingCep, setLoadingCep] = useState(false);
   const [cpfError, setCpfError] = useState('');
+  const [recebendoCliente, setRecebendoCliente] = useState<Cliente | null>(null);
+  const [reimprimindoCliente, setReimprimindoCliente] = useState<Cliente | null>(null);
 
   const doOpen = (c?: Cliente) => {
     if (c) {
@@ -343,9 +352,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
                 return `${i + 1}. ${t.tipo} | Emissão: ${formatDate(t.dataEmissao)} | Venc.: ${formatDate(t.vencimento)} | Valor: ${formatCurrency(t.valor)} | ${status}`;
               }).join('\n');
               const msg = `*Controle Financeiro ZOOM*\n\nConforme solicitado ${apelido}, segue a relação de suas parcelas:\n\n${linhas}`;
-              const digits = c.telefone.replace(/\D/g, '');
-              const link = `https://api.whatsapp.com/send?phone=55${digits}&text=${encodeURIComponent(msg)}`;
-              await openExternalUrl(link);
+              await enviarWhatsAppUnico(c.telefone, msg);
             };
             const camposFaltando: string[] = [];
             if (!c.telefone) camposFaltando.push('telefone');
@@ -390,6 +397,34 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
                       >
                         <MessageCircle className="h-3 w-3 mr-1" />
                         Enviar títulos
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-paid/10 hover:bg-paid/20 text-paid h-7 text-[10px] px-2"
+                        disabled={titulosDoCliente.length === 0}
+                        onClick={() => {
+                          if (config && !hasPerm(config, user ?? null, 'titulo.receber')) {
+                            toast.error('Sem permissão para receber títulos');
+                            return;
+                          }
+                          setRecebendoCliente(c);
+                        }}
+                        title="Receber títulos pendentes"
+                      >
+                        <CreditCard className="h-3 w-3 mr-1" />
+                        Receber Títulos
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[10px] px-2"
+                        disabled={titulosDoCliente.length === 0}
+                        onClick={() => setReimprimindoCliente(c)}
+                        title="Reimprimir títulos do cliente"
+                      >
+                        <Printer className="h-3 w-3 mr-1" />
+                        Reimprimir
                       </Button>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => open(c)}>
@@ -454,6 +489,27 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin }
           )}
         </DialogContent>
       </Dialog>
+
+      {config && updateTitulo && updateConfig && (
+        <RecebimentoTitulosDialog
+          cliente={recebendoCliente}
+          titulos={titulos}
+          config={config}
+          user={user ?? null}
+          updateTitulo={updateTitulo}
+          updateConfig={updateConfig}
+          onClose={() => setRecebendoCliente(null)}
+        />
+      )}
+
+      {config && (
+        <ReimprimirTitulosDialog
+          cliente={reimprimindoCliente}
+          titulos={titulos}
+          config={config}
+          onClose={() => setReimprimindoCliente(null)}
+        />
+      )}
     </div>
   );
 }

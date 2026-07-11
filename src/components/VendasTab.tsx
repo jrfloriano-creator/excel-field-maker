@@ -14,6 +14,7 @@ import { SessionUser } from '@/lib/auth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { savePdf } from '@/lib/savePdf';
+import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
 
 interface Props {
   config: AppConfig;
@@ -239,7 +240,7 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
     if (w) { w.document.write(html); w.document.close(); w.print(); }
   };
 
-  const enviarWhatsApp = () => {
+  const enviarWhatsApp = async () => {
     const ativos = (config.telefonesAlerta || []).filter(t => t.ativo && t.numero);
     if (ativos.length === 0) {
       toast.error('Nenhum telefone de alerta ativo em Configurações > Alertas');
@@ -250,10 +251,9 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       `${i + 1}. ${v.clienteNome} - ${formatCurrency(v.valor)} - ${v.formaPagamento}${v.parcelas ? ` ${v.parcelas}x` : ''} - ${v.hora || '—'}`
     ).join('\n');
     const msg = `📊 *Vendas do Dia — ${dataFormatada}*\n\n${linhas}\n\n*Total: ${formatCurrency(totalDia)}*`;
-    ativos.forEach(tel => {
-      window.open(`https://wa.me/55${tel.numero.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-    });
-    toast.success('WhatsApp aberto!');
+    for (const tel of ativos) {
+      await enviarWhatsAppUnico(tel.numero, msg);
+    }
     setWhatsConfirm(false);
   };
 

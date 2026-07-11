@@ -1,7 +1,8 @@
 import { TituloComCalculo, ChavePix, ProprietarioConfig, Cliente, AppConfig } from '@/types/titulo';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatCurrency, formatDate, formatPhone, getWhatsAppLink } from '@/lib/calculos';
+import { formatCurrency, formatDate, formatPhone, buildCobrancaMsg } from '@/lib/calculos';
+import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
 import { MessageCircle, Trash2, CreditCard, Pencil, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -246,8 +247,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
               variant="outline"
               size="sm"
               className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive"
-              onClick={() => openExternalUrl(getWhatsAppLink(
-                titulo.telefone,
+              onClick={() => enviarWhatsAppUnico(titulo.telefone, buildCobrancaMsg(
                 nomeWhats,
                 titulo.valorCorrigido,
                 titulo.vencimento,

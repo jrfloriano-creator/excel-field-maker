@@ -345,6 +345,10 @@ const Index = () => {
                 if (kind === 'delete') actions.setPendingDelete({ kind: 'cliente', id });
                 else window.dispatchEvent(new CustomEvent('cliente-edit-unlock', { detail: id }));
               }}
+              config={config}
+              user={user}
+              updateTitulo={updateTitulo}
+              updateConfig={updateConfig}
             />
           )}
 

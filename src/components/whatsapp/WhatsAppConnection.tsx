@@ -1,142 +1,182 @@
-/**
- * WhatsAppConnection — Card de conexão com o backend WhatsApp (Fase 1).
- *
- * Exibe o status atual da conexão (badges coloridos), renderiza o QR Code
- * para pareamento quando necessário e oferece botões para conectar,
- * desconectar e atualizar o status manualmente.
- */
-import { useEffect, useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { MessageCircle, RefreshCw, Smartphone, Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { whatsappService, ConnectionState } from '@/lib/whatsapp/whatsappService';
+import { Loader2, Wifi, WifiOff, QrCode, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { whatsappService } from '@/lib/whatsapp/whatsappService';
+import { QRCodeSVG } from 'qrcode.react';
 
-const STATUS_CONFIG: Record<ConnectionState['status'], { label: string; className: string; icon: React.ReactNode }> = {
-  connected: { label: 'Conectado', className: 'bg-green-500 text-white border-green-500', icon: <Wifi className="h-3 w-3" /> },
-  connecting: { label: 'Conectando...', className: 'bg-yellow-500 text-white border-yellow-500', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
-  qr: { label: 'Aguardando leitura do QR Code', className: 'bg-blue-500 text-white border-blue-500', icon: <Smartphone className="h-3 w-3" /> },
-  disconnected: { label: 'Desconectado', className: 'bg-red-500 text-white border-red-500', icon: <WifiOff className="h-3 w-3" /> },
-};
-
-export function WhatsAppConnection() {
-  const [state, setState] = useState<ConnectionState>({ status: 'disconnected' });
+export const WhatsAppConnection: React.FC = () => {
+  const { toast } = useToast();
+  const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'qr'>('disconnected');
+  const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    whatsappService
-      .getStatus()
-      .then(setState)
-      .catch(() => {
-        // backend pode estar offline; mantém estado padrão "disconnected"
-      });
-
+    carregarStatus();
     whatsappService.iniciarEventStream();
-    const unsubscribe = whatsappService.onStatusChange(setState);
+
+    const statusListener = (newStatus: any) => {
+      setStatus(newStatus.status);
+      setQrCode(newStatus.qrCode || null);
+      setErro(newStatus.error || null);
+    };
+
+    const qrListener = (qr: string) => {
+      setQrCode(qr);
+      setStatus('qr');
+    };
+
+    whatsappService.onStatusChange(statusListener);
+    whatsappService.onQRCode(qrListener);
 
     return () => {
-      unsubscribe();
+      whatsappService.fecharEventStream();
+      whatsappService.removeListener(statusListener);
     };
   }, []);
+
+  const carregarStatus = async () => {
+    try {
+      const result = await whatsappService.getStatus();
+      setStatus(result.status);
+      setQrCode(result.qrCode || null);
+      setErro(result.error || null);
+    } catch (error) {
+      console.error('Erro ao carregar status:', error);
+    }
+  };
 
   const handleConectar = async () => {
     setLoading(true);
     try {
-      const novoEstado = await whatsappService.conectar();
-      setState(novoEstado);
-      toast.success('Iniciando conexão com o WhatsApp...');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao conectar com o backend WhatsApp');
+      const result = await whatsappService.conectar();
+      if (!result.success) {
+        toast({
+          title: '❌ Erro ao conectar',
+          description: result.error || 'Falha na conexão',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: '🔄 Conectando...',
+          description: 'Aguardando QR Code para autenticação'
+        });
+        setStatus('connecting');
+      }
+    } catch (error: any) {
+      toast({
+        title: '❌ Erro',
+        description: error.message,
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDesconectar = async () => {
-    setLoading(true);
     try {
-      const novoEstado = await whatsappService.desconectar();
-      setState(novoEstado);
-      toast.success('WhatsApp desconectado');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao desconectar');
-    } finally {
-      setLoading(false);
+      await whatsappService.desconectar();
+      setStatus('disconnected');
+      setQrCode(null);
+      toast({
+        title: '🔌 Desconectado',
+        description: 'WhatsApp desconectado com sucesso'
+      });
+    } catch (error: any) {
+      toast({
+        title: '❌ Erro',
+        description: error.message,
+        variant: 'destructive'
+      });
     }
   };
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    try {
-      const novoEstado = await whatsappService.getStatus();
-      setState(novoEstado);
-    } catch (e) {
-      toast.error('Backend WhatsApp indisponível. Verifique se o servidor está rodando.');
-    } finally {
-      setLoading(false);
+  const getStatusBadge = () => {
+    switch (status) {
+      case 'connected':
+        return <Badge className="bg-green-500">🟢 Conectado</Badge>;
+      case 'connecting':
+        return <Badge className="bg-yellow-500">🔄 Conectando...</Badge>;
+      case 'qr':
+        return <Badge className="bg-blue-500">📱 Escaneie o QR Code</Badge>;
+      default:
+        return <Badge variant="destructive">⛔ Desconectado</Badge>;
     }
   };
-
-  const cfg = STATUS_CONFIG[state.status];
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-green-600" /> Conexão WhatsApp
-          </CardTitle>
-          <Badge className={`gap-1 ${cfg.className}`}>
-            {cfg.icon}
-            {cfg.label}
-          </Badge>
-        </div>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>📱 WhatsApp</span>
+          {getStatusBadge()}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {state.status === 'connected' && (
-          <p className="text-xs text-muted-foreground">
-            Conectado {state.phoneNumber ? `como +${state.phoneNumber}` : ''}
-            {state.connectedAt ? ` desde ${new Date(state.connectedAt).toLocaleString('pt-BR')}` : ''}
-          </p>
-        )}
+        <div className="flex items-center gap-2 text-sm">
+          {status === 'connected' ? (
+            <Wifi className="w-4 h-4 text-green-500" />
+          ) : (
+            <WifiOff className="w-4 h-4 text-red-500" />
+          )}
+          <span>
+            {status === 'connected' && 'Conectado ao WhatsApp!'}
+            {status === 'connecting' && 'Conectando...'}
+            {status === 'qr' && 'Escaneie o QR Code com seu WhatsApp'}
+            {status === 'disconnected' && 'Desconectado'}
+          </span>
+        </div>
 
-        {state.status === 'qr' && state.qrCode && (
-          <div className="flex flex-col items-center gap-2 py-2">
-            <div className="p-3 bg-white rounded-lg border border-border">
-              <QRCodeSVG value={state.qrCode} size={200} level="M" />
+        {status === 'qr' && qrCode && (
+          <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="bg-white p-4 rounded-lg shadow-md">
+              <QRCodeSVG value={qrCode} size={200} level="H" />
             </div>
-            <p className="text-xs text-muted-foreground text-center max-w-xs">
-              Abra o WhatsApp no celular → Configurações → Aparelhos conectados → Conectar um aparelho e escaneie o código acima.
+            <p className="text-sm text-gray-500 text-center">
+              1. Abra o WhatsApp no seu celular<br />
+              2. Toque em Menu (⋮) ou Configurações<br />
+              3. Selecione "WhatsApp Web"<br />
+              4. Escaneie o QR Code
             </p>
           </div>
         )}
 
-        {state.status === 'disconnected' && state.lastError && (
-          <p className="text-xs text-destructive">Último erro: {state.lastError}</p>
+        {erro && (
+          <div className="bg-red-50 p-3 rounded-lg text-red-600 text-sm">
+            ⚠️ {erro}
+          </div>
         )}
 
         <div className="flex gap-2">
-          {state.status === 'connected' ? (
-            <Button variant="destructive" size="sm" className="flex-1" onClick={handleDesconectar} disabled={loading}>
+          {status === 'disconnected' || status === 'qr' ? (
+            <Button onClick={handleConectar} disabled={loading} className="flex-1">
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <QrCode className="w-4 h-4" />
+              )}
+              {loading ? 'Conectando...' : 'Conectar WhatsApp'}
+            </Button>
+          ) : status === 'connected' ? (
+            <Button onClick={handleDesconectar} variant="destructive" className="flex-1">
+              <WifiOff className="w-4 h-4" />
               Desconectar
             </Button>
           ) : (
-            <Button
-              size="sm"
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleConectar}
-              disabled={loading || state.status === 'connecting'}
-            >
-              Conectar
+            <Button onClick={handleConectar} disabled className="flex-1">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Aguardando...
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} title="Atualizar status">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <Button variant="outline" onClick={carregarStatus} disabled={loading}>
+            <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
       </CardContent>
     </Card>
   );
-}
+};

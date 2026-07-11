@@ -1,6 +1,6 @@
 [package]
 name = "financeiro-app"
-version = "1.0.0"
+version = "2.7.0"
 description = "Controle Financeiro ZOOM"
 authors = ["you"]
 edition = "2021"
@@ -14,8 +14,13 @@ tauri-plugin-sql = { version = "~2.0", features = ["sqlite"] }
 tauri-plugin-opener = "2"
 tauri-plugin-printer-v2 = "0.2"
 tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+win32job = "2"
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

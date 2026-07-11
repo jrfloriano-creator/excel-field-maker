@@ -1,175 +1,160 @@
-/**
- * whatsappService.ts — Cliente HTTP/SSE singleton para o backend WhatsApp (Fase 1).
- *
- * Encapsula toda a comunicação com o backend Express+Baileys (porta 3001 por
- * padrão), expondo métodos de alto nível para conectar, desconectar, enviar
- * mensagens (unitárias e em lote), verificar números e acompanhar o status
- * de conexão/QR Code via Server-Sent Events (SSE).
- */
+import { Cliente } from '@/types/cliente';
+import { Titulo } from '@/types/titulo';
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'qr';
+const BACKEND_URL = import.meta.env.VITE_WHATSAPP_BACKEND_URL || 'http://localhost:3001';
 
-export interface ConnectionState {
-  status: ConnectionStatus;
+interface SendMessageResponse {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+interface ConnectionStatus {
+  status: 'disconnected' | 'connecting' | 'connected' | 'qr';
   qrCode?: string;
-  phoneNumber?: string;
-  connectedAt?: string;
-  lastError?: string;
-}
-
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
   error?: string;
 }
 
-export interface SendResult {
-  success: boolean;
-  messageId?: string;
-  error?: string;
-}
-
-export interface BatchMessageItem {
-  phone: string;
-  message: string;
-  variables?: Record<string, string>;
-}
-
-export interface BatchMessageResult {
-  phone: string;
-  success: boolean;
-  error?: string;
-  messageId?: string;
-}
-
-export interface VerifyNumberResult {
-  phone: string;
-  exists: boolean;
-  jid?: string;
-}
-
-type StatusListener = (state: ConnectionState) => void;
-type QRCodeListener = (qrCode: string) => void;
-
-const BACKEND_URL: string =
-  (import.meta.env.VITE_WHATSAPP_BACKEND_URL as string | undefined) || 'http://localhost:3001';
-
-/**
- * Serviço singleton de integração com o backend WhatsApp.
- * Use a instância exportada `whatsappService` — não instancie diretamente.
- */
-class WhatsAppService {
+export class WhatsAppService {
+  private static instance: WhatsAppService;
   private eventSource: EventSource | null = null;
-  private statusListeners: Set<StatusListener> = new Set();
-  private qrListeners: Set<QRCodeListener> = new Set();
-  private lastState: ConnectionState | null = null;
+  private statusListeners: ((status: ConnectionStatus) => void)[] = [];
+  private qrListeners: ((qrCode: string) => void)[] = [];
 
-  private get baseUrl(): string {
-    return BACKEND_URL;
-  }
-
-  private async request<T>(path: string, options?: RequestInit): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
-    });
-    const body: ApiResponse<T> = await res.json();
-    if (!res.ok || !body.success) {
-      throw new Error(body.error || `Erro na requisição ao backend WhatsApp (${res.status})`);
+  static getInstance(): WhatsAppService {
+    if (!this.instance) {
+      this.instance = new WhatsAppService();
     }
-    return body.data as T;
+    return this.instance;
   }
 
-  /** Inicia a conexão com o WhatsApp (irá gerar QR Code se necessário). */
-  async conectar(): Promise<ConnectionState> {
-    return this.request<ConnectionState>('/connect', { method: 'POST' });
+  async conectar(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${BACKEND_URL}/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao conectar' };
+    }
   }
 
-  /** Desconecta a sessão atual do WhatsApp. */
-  async desconectar(): Promise<ConnectionState> {
-    return this.request<ConnectionState>('/disconnect', { method: 'POST' });
+  async desconectar(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${BACKEND_URL}/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao desconectar' };
+    }
   }
 
-  /** Retorna o estado atual da conexão (status, qrCode, telefone, etc.). */
-  async getStatus(): Promise<ConnectionState> {
-    return this.request<ConnectionState>('/status', { method: 'GET' });
+  async getStatus(): Promise<ConnectionStatus> {
+    try {
+      const response = await fetch(`${BACKEND_URL}/status`);
+      return await response.json();
+    } catch (error) {
+      return { status: 'disconnected', error: String(error) };
+    }
   }
 
-  /** Envia uma mensagem de texto para um único número. */
-  async enviarMensagem(phone: string, message: string): Promise<SendResult> {
-    return this.request<SendResult>('/send', {
-      method: 'POST',
-      body: JSON.stringify({ phone, message }),
-    });
+  async enviarMensagem(phoneNumber: string, message: string): Promise<SendMessageResponse> {
+    try {
+      const cleaned = phoneNumber.replace(/\D/g, '');
+      const response = await fetch(`${BACKEND_URL}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: cleaned, message })
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao enviar mensagem' };
+    }
   }
 
-  /** Envia mensagens em lote (um item por cliente/telefone). */
-  async enviarEmLote(messages: BatchMessageItem[]): Promise<BatchMessageResult[]> {
-    return this.request<BatchMessageResult[]>('/send-batch', {
-      method: 'POST',
-      body: JSON.stringify({ items: messages }),
-    });
+  async enviarEmLote(messages: Array<{ phoneNumber: string; message: string }>): Promise<any> {
+    try {
+      const formatted = messages.map(m => ({
+        phoneNumber: m.phoneNumber.replace(/\D/g, ''),
+        message: m.message
+      }));
+      
+      const response = await fetch(`${BACKEND_URL}/send-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: formatted })
+      });
+      
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao enviar mensagens em lote' };
+    }
   }
 
-  /** Verifica se um número possui WhatsApp ativo. */
-  async verificarNumero(phone: string): Promise<VerifyNumberResult> {
-    return this.request<VerifyNumberResult>('/verify', {
-      method: 'POST',
-      body: JSON.stringify({ phone }),
-    });
+  async verificarNumero(phoneNumber: string): Promise<{ exists: boolean; formattedNumber: string; jid: string | null }> {
+    try {
+      const cleaned = phoneNumber.replace(/\D/g, '');
+      const response = await fetch(`${BACKEND_URL}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: cleaned })
+      });
+      return await response.json();
+    } catch (error) {
+      return { exists: false, formattedNumber: phoneNumber, jid: null };
+    }
   }
 
-  /**
-   * Abre o stream SSE (/events) para acompanhar mudanças de status/QR Code
-   * em tempo real. Chame `onStatusChange`/`onQRCode` para escutar eventos e
-   * `fecharEventStream()` para encerrar quando não for mais necessário.
-   */
   iniciarEventStream(): void {
-    if (this.eventSource) return;
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
 
-    this.eventSource = new EventSource(`${this.baseUrl}/events`);
+    this.eventSource = new EventSource(`${BACKEND_URL}/events`);
 
-    this.eventSource.onmessage = (event: MessageEvent) => {
+    this.eventSource.onmessage = (event) => {
       try {
-        const state: ConnectionState = JSON.parse(event.data);
-        this.lastState = state;
-        this.statusListeners.forEach((listener) => listener(state));
-        if (state.status === 'qr' && state.qrCode) {
-          this.qrListeners.forEach((listener) => listener(state.qrCode as string));
+        const data = JSON.parse(event.data);
+        if (data.type === 'status') {
+          this.statusListeners.forEach(listener => listener(data.data));
         }
-      } catch (e) {
-        console.warn('[whatsappService] Falha ao processar evento SSE', e);
+        if (data.type === 'qr') {
+          this.qrListeners.forEach(listener => listener(data.data));
+        }
+      } catch (error) {
+        console.error('Erro ao processar evento:', error);
       }
     };
 
     this.eventSource.onerror = () => {
-      // EventSource tenta reconectar automaticamente; nada a fazer aqui.
+      setTimeout(() => this.iniciarEventStream(), 5000);
     };
   }
 
-  /** Encerra o stream SSE ativo, se houver. */
+  onStatusChange(listener: (status: ConnectionStatus) => void): void {
+    this.statusListeners.push(listener);
+  }
+
+  onQRCode(listener: (qrCode: string) => void): void {
+    this.qrListeners.push(listener);
+  }
+
+  removeListener(listener: (status: ConnectionStatus) => void): void {
+    const index = this.statusListeners.indexOf(listener);
+    if (index > -1) {
+      this.statusListeners.splice(index, 1);
+    }
+  }
+
   fecharEventStream(): void {
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
     }
   }
-
-  /** Registra um listener para mudanças de status de conexão. Retorna função de cleanup. */
-  onStatusChange(listener: StatusListener): () => void {
-    this.statusListeners.add(listener);
-    if (this.lastState) listener(this.lastState);
-    return () => this.statusListeners.delete(listener);
-  }
-
-  /** Registra um listener para quando um novo QR Code for emitido. Retorna função de cleanup. */
-  onQRCode(listener: QRCodeListener): () => void {
-    this.qrListeners.add(listener);
-    if (this.lastState?.status === 'qr' && this.lastState.qrCode) {
-      listener(this.lastState.qrCode);
-    }
-    return () => this.qrListeners.delete(listener);
-  }
 }
 
-export const whatsappService = new WhatsAppService();
+export const whatsappService = WhatsAppService.getInstance();

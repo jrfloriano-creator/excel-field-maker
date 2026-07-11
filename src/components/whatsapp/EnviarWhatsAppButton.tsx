@@ -1,239 +1,196 @@
-/**
- * EnviarWhatsAppButton — Envio de mensagens via backend WhatsApp (Baileys).
- *
- * Diferente do EnviarWhatsApp.tsx (que abre links wa.me), este componente
- * verifica se o backend está conectado, agrupa os títulos selecionados por
- * cliente, mostra a prévia da mensagem (usando obterNomeCliente/apelido) e
- * envia tudo em lote via whatsappService.enviarEmLote, exibindo o status de
- * envio (pendente/enviado/erro) por cliente.
- */
-import { useEffect, useMemo, useState } from 'react';
-import { Cliente, Titulo, TituloComCalculo } from '@/types/titulo';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Send, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
-import { obterNomeCliente, gerarMensagemWhatsApp, TituloResumoMensagem } from '@/lib/whatsapp/message';
-import { whatsappService, ConnectionState, BatchMessageItem } from '@/lib/whatsapp/whatsappService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MessageCircle, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { whatsappService } from '@/lib/whatsapp/whatsappService';
+import { gerarMensagemWhatsApp, obterNomeCliente } from '@/lib/whatsapp/message';
 
-type TituloBase = Titulo | TituloComCalculo;
-
-interface GrupoCliente {
-  clienteId: string;
-  clienteNome: string;
-  telefone: string;
-  cliente?: Cliente;
-  titulos: TituloBase[];
-  total: number;
-}
-
-type EnvioStatus = 'pending' | 'sending' | 'sent' | 'error';
-
-interface Props {
-  titulosSelecionados: TituloBase[];
-  clientes: Cliente[];
-  empresa?: string;
-  pix?: { nome: string; chave: string };
+interface EnviarWhatsAppButtonProps {
+  titulos: any[];
+  clientes: any[];
   onSuccess?: () => void;
-  trigger?: React.ReactNode;
+  disabled?: boolean;
 }
 
-export function EnviarWhatsAppButton({ titulosSelecionados, clientes, empresa, pix, onSuccess, trigger }: Props) {
-  const [open, setOpen] = useState(false);
+export const EnviarWhatsAppButton: React.FC<EnviarWhatsAppButtonProps> = ({
+  titulos,
+  clientes,
+  onSuccess,
+  disabled = false
+}) => {
+  const { toast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [connState, setConnState] = useState<ConnectionState>({ status: 'disconnected' });
-  const [status, setStatus] = useState<Record<string, EnvioStatus>>({});
+  const [statusConexao, setStatusConexao] = useState<'disconnected' | 'connected' | 'checking'>('checking');
 
-  useEffect(() => {
-    if (!open) return;
-    whatsappService.getStatus().then(setConnState).catch(() => setConnState({ status: 'disconnected' }));
-  }, [open]);
-
-  const grupos = useMemo((): GrupoCliente[] => {
-    const map = new Map<string, GrupoCliente>();
-    for (const t of titulosSelecionados) {
-      const key = t.clienteId || t.cliente;
-      if (!key) continue;
-      const clienteRef = clientes.find(c => c.id === t.clienteId);
-      if (!map.has(key)) {
-        map.set(key, {
-          clienteId: key,
-          clienteNome: t.cliente,
-          telefone: t.telefone || clienteRef?.telefone || '',
-          cliente: clienteRef,
-          titulos: [t],
-          total: t.valor,
-        });
-      } else {
-        const grupo = map.get(key)!;
-        grupo.titulos.push(t);
-        grupo.total += t.valor;
-      }
+  const verificarConexao = async () => {
+    try {
+      const status = await whatsappService.getStatus();
+      setStatusConexao(status.status === 'connected' ? 'connected' : 'disconnected');
+    } catch {
+      setStatusConexao('disconnected');
     }
-    return [...map.values()];
-  }, [titulosSelecionados, clientes]);
-
-  const preview = (grupo: GrupoCliente): string => {
-    const listaTitulos: TituloResumoMensagem[] = grupo.titulos.map(t => ({
-      tipo: t.tipo,
-      numero: t.numero,
-      vencimento: t.vencimento,
-      valor: t.valor,
-      pago: !!t.dataPagamento,
-    }));
-    return gerarMensagemWhatsApp({
-      tipo: 'COBRANCA',
-      cliente: grupo.cliente || { nome: grupo.clienteNome },
-      listaTitulos,
-      empresa,
-      pix,
-    });
   };
 
-  const conectado = connState.status === 'connected';
-
-  const handleEnviarTodos = async () => {
-    if (!conectado) {
-      toast.error('WhatsApp não está conectado. Conecte-se em Configurações → Sistema.');
-      return;
+  const titulosPorCliente = titulos.reduce((acc, titulo) => {
+    const cliente = clientes.find(c => c.id === titulo.clienteId);
+    if (cliente) {
+      if (!acc[cliente.id]) {
+        acc[cliente.id] = { cliente, titulos: [] };
+      }
+      acc[cliente.id].titulos.push(titulo);
     }
+    return acc;
+  }, {} as Record<string, { cliente: any; titulos: any[] }>);
 
-    const semTelefone = grupos.filter(g => !g.telefone);
-    if (semTelefone.length > 0) {
-      toast.error(`${semTelefone.length} cliente(s) sem telefone cadastrado.`);
-    }
-    const comTelefone = grupos.filter(g => !!g.telefone);
-    if (comTelefone.length === 0) {
-      toast.error('Nenhum título com telefone disponível para envio.');
+  const handleOpen = () => {
+    setIsOpen(true);
+    verificarConexao();
+  };
+
+  const handleEnviar = async () => {
+    if (statusConexao !== 'connected') {
+      toast({
+        title: '⚠️ WhatsApp não conectado',
+        description: 'Conecte o WhatsApp antes de enviar mensagens.',
+        variant: 'warning'
+      });
       return;
     }
 
     setEnviando(true);
-    const initialStatus: Record<string, EnvioStatus> = {};
-    comTelefone.forEach(g => { initialStatus[g.clienteId] = 'pending'; });
-    setStatus(initialStatus);
+    const empresa = JSON.parse(localStorage.getItem('empresa_config') || '{}');
 
     try {
-      const items: BatchMessageItem[] = comTelefone.map(grupo => ({
-        phone: grupo.telefone,
-        message: preview(grupo),
+      const mensagens = Object.values(titulosPorCliente).map(grupo => ({
+        phoneNumber: grupo.cliente.whatsapp || grupo.cliente.telefone,
+        message: gerarMensagemWhatsApp({
+          cliente: grupo.cliente,
+          titulos: grupo.titulos,
+          empresa,
+          incluirPix: true,
+          tipo: 'COBRANCA'
+        })
       }));
 
-      setStatus(prev => {
-        const next = { ...prev };
-        comTelefone.forEach(g => { next[g.clienteId] = 'sending'; });
-        return next;
-      });
+      const result = await whatsappService.enviarEmLote(mensagens);
 
-      const results = await whatsappService.enviarEmLote(items);
-
-      const newStatus: Record<string, EnvioStatus> = {};
-      let sucessos = 0;
-      comTelefone.forEach((grupo, idx) => {
-        const resultado = results[idx];
-        const ok = resultado?.success ?? false;
-        newStatus[grupo.clienteId] = ok ? 'sent' : 'error';
-        if (ok) sucessos += 1;
-      });
-      setStatus(newStatus);
-
+      const sucessos = result.results?.filter((r: any) => r.success)?.length || 0;
+      
       if (sucessos > 0) {
-        toast.success(`${sucessos} mensagem(ns) enviada(s) com sucesso.`);
-        onSuccess?.();
+        toast({
+          title: `✅ ${sucessos} mensagens enviadas!`,
+          description: sucessos < mensagens.length ? `${mensagens.length - sucessos} falhas.` : 'Todas as mensagens foram enviadas!'
+        });
+        if (onSuccess) onSuccess();
+      } else {
+        toast({
+          title: '❌ Falha no envio',
+          description: 'Nenhuma mensagem foi enviada.',
+          variant: 'destructive'
+        });
       }
-      if (sucessos < comTelefone.length) {
-        toast.error(`${comTelefone.length - sucessos} mensagem(ns) falharam ao enviar.`);
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao enviar mensagens em lote');
-      setStatus(prev => {
-        const next = { ...prev };
-        comTelefone.forEach(g => { if (next[g.clienteId] !== 'sent') next[g.clienteId] = 'error'; });
-        return next;
+    } catch (error: any) {
+      toast({
+        title: '❌ Erro ao enviar',
+        description: error.message || 'Falha no envio',
+        variant: 'destructive'
       });
     } finally {
       setEnviando(false);
     }
   };
 
-  const statusIcon = (clienteId: string) => {
-    const s = status[clienteId];
-    if (s === 'sent') return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-    if (s === 'error') return <XCircle className="h-4 w-4 text-destructive" />;
-    if (s === 'sending') return <Clock className="h-4 w-4 text-yellow-500 animate-pulse" />;
-    return null;
-  };
+  if (titulos.length === 0) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {trigger ? (
-        <div onClick={() => setOpen(true)}>{trigger}</div>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1 text-xs bg-green-600 hover:bg-green-700 text-white border-green-600"
-          onClick={() => setOpen(true)}
-          disabled={titulosSelecionados.length === 0}
-        >
-          <MessageCircle className="h-3.5 w-3.5" />
-          Enviar WhatsApp
-        </Button>
-      )}
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-green-600" />
-            Enviar via WhatsApp
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Button
+        onClick={handleOpen}
+        disabled={disabled || titulos.length === 0}
+        className="gap-2 bg-green-600 hover:bg-green-700"
+      >
+        <MessageCircle className="w-4 h-4" />
+        WhatsApp ({titulos.length})
+      </Button>
 
-        {!conectado && (
-          <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              WhatsApp não está conectado. Vá em Configurações → Sistema para conectar antes de enviar.
-            </p>
-          </div>
-        )}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>💬 Enviar Mensagens WhatsApp</DialogTitle>
+          </DialogHeader>
 
-        {grupos.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Nenhum título selecionado.
-          </p>
-        ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-            {grupos.map(grupo => (
-              <div key={grupo.clienteId} className="border border-border rounded-lg p-3 bg-muted/20 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold truncate flex items-center gap-1.5">
-                    {obterNomeCliente(grupo.cliente || { nome: grupo.clienteNome })}
-                    {statusIcon(grupo.clienteId)}
-                  </p>
-                  <span className="text-xs text-muted-foreground">
-                    {grupo.titulos.length} título{grupo.titulos.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {!grupo.telefone && (
-                  <p className="text-xs text-destructive">⚠ Sem telefone cadastrado — não será enviado.</p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50">
+              {statusConexao === 'connected' && (
+                <CheckCircle className="w-5 h-5 text-green-500" />
+              )}
+              {statusConexao === 'disconnected' && (
+                <XCircle className="w-5 h-5 text-red-500" />
+              )}
+              {statusConexao === 'checking' && (
+                <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+              )}
+              <span className="text-sm">
+                {statusConexao === 'connected' && '✅ WhatsApp conectado'}
+                {statusConexao === 'disconnected' && '⚠️ WhatsApp desconectado'}
+                {statusConexao === 'checking' && '🔄 Verificando conexão...'}
+              </span>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="font-medium">📋 Resumo:</p>
+              <p>{Object.keys(titulosPorCliente).length} clientes • {titulos.length} títulos</p>
+            </div>
+
+            <div className="space-y-3">
+              {Object.values(titulosPorCliente).map((grupo) => {
+                const nome = obterNomeCliente(grupo.cliente);
+                return (
+                  <div key={grupo.cliente.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">⭐ {nome}</span>
+                        <span className="text-sm text-gray-500">
+                          ({grupo.titulos.length} títulos - R$ {grupo.titulos.reduce((s, t) => s + t.valor, 0).toFixed(2)})
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2 bg-white rounded p-2 text-sm whitespace-pre-wrap border max-h-32 overflow-y-auto">
+                      {gerarMensagemWhatsApp({
+                        cliente: grupo.cliente,
+                        titulos: grupo.titulos,
+                        empresa: JSON.parse(localStorage.getItem('empresa_config') || '{}'),
+                        incluirPix: true,
+                        tipo: 'COBRANCA'
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setIsOpen(false)}>
+                Fechar
+              </Button>
+              <Button
+                onClick={handleEnviar}
+                disabled={enviando || statusConexao !== 'connected'}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {enviando ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="w-4 h-4" />
                 )}
-                <pre className="text-[11px] whitespace-pre-wrap font-sans text-muted-foreground bg-background/60 rounded p-2 border border-border/50">
-                  {preview(grupo)}
-                </pre>
-              </div>
-            ))}
+                {enviando ? 'Enviando...' : '💬 Enviar Agora'}
+              </Button>
+            </div>
           </div>
-        )}
-
-        <Button
-          onClick={handleEnviarTodos}
-          disabled={enviando || grupos.length === 0 || !conectado}
-          className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
-        >
-          <Send className="h-4 w-4" />
-          {enviando ? 'Enviando...' : `Enviar (${grupos.length} cliente${grupos.length !== 1 ? 's' : ''})`}
-        </Button>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
-}
+};

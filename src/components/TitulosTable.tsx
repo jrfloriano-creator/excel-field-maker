@@ -97,10 +97,8 @@ export function TitulosTable({ titulosFiltrados, config, onEdit, onDelete, onPag
             </Button>
             <ImprimirSelecionadosButton titulos={titulosSelecionados} config={config} />
             <EnviarWhatsAppButton
-              titulosSelecionados={titulosSelecionados}
+              titulos={titulosSelecionados}
               clientes={config.clientes}
-              empresa={config.nomeEmpresa || config.empresa}
-              pix={config.chavesPix?.[0] ? { nome: config.chavesPix[0].nome, chave: config.chavesPix[0].chave } : undefined}
               onSuccess={desmarcarTodos}
             />
             <EnviarWhatsApp

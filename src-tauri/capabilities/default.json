@@ -35,6 +35,16 @@
     {
       "identifier": "fs:allow-remove",
       "allow": [{ "path": "$DOCUMENT/**" }]
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/backend-node",
+          "sidecar": true,
+          "args": true
+        }
+      ]
     }
   ]
 }

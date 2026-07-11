@@ -1,174 +1,155 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import {
-  connectToWhatsApp,
-  disconnectWhatsApp,
-  getConnectionState,
-  isConnected,
+import * as dotenv from 'dotenv';
+import { 
+  connectToWhatsApp, 
+  getConnectionState, 
+  disconnectWhatsApp, 
   whatsappEvents,
+  isConnected
 } from './whatsapp/client';
-import {
-  sendTextMessage,
-  sendBatchMessages,
+import { 
+  sendTextMessage, 
+  sendBatchMessages, 
   verifyNumber,
+  formatPhoneNumber
 } from './whatsapp/message';
-import { ApiResponse, BatchMessageItem } from './types';
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
+dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-function ok<T>(res: Response, data?: T) {
-  const body: ApiResponse<T> = { success: true, data };
-  res.json(body);
-}
-
-function fail(res: Response, error: string, statusCode = 400) {
-  const body: ApiResponse = { success: false, error };
-  res.status(statusCode).json(body);
-}
-
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/status', (req: Request, res: Response) => {
+  const state = getConnectionState();
+  res.json({ success: true, ...state });
 });
 
-app.get('/status', (_req: Request, res: Response) => {
-  ok(res, getConnectionState());
-});
-
-app.get('/qr', (_req: Request, res: Response) => {
+app.get('/qr', (req: Request, res: Response) => {
   const state = getConnectionState();
   if (state.status === 'qr' && state.qrCode) {
-    ok(res, { qrCode: state.qrCode });
+    res.json({ success: true, qrCode: state.qrCode });
   } else {
-    fail(res, 'QR code nao disponivel no momento', 404);
+    res.json({ success: false, message: 'QR Code não disponível' });
   }
 });
 
-app.post('/connect', async (_req: Request, res: Response) => {
+app.post('/connect', async (req: Request, res: Response) => {
   try {
     await connectToWhatsApp();
-    ok(res, getConnectionState());
-  } catch (error) {
-    fail(res, error instanceof Error ? error.message : 'Erro ao conectar', 500);
+    res.json({ success: true, message: 'Conectando ao WhatsApp...' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.post('/disconnect', async (_req: Request, res: Response) => {
+app.post('/disconnect', async (req: Request, res: Response) => {
   try {
     await disconnectWhatsApp();
-    ok(res, getConnectionState());
-  } catch (error) {
-    fail(res, error instanceof Error ? error.message : 'Erro ao desconectar', 500);
+    res.json({ success: true, message: 'Desconectado com sucesso' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 app.post('/send', async (req: Request, res: Response) => {
-  const { phone, message } = req.body ?? {};
-
-  if (!phone || !message) {
-    fail(res, 'Campos "phone" e "message" sao obrigatorios');
-    return;
-  }
-
-  if (!isConnected()) {
-    fail(res, 'WhatsApp nao esta conectado', 409);
-    return;
-  }
-
-  const result = await sendTextMessage(phone, message);
-  if (result.success) {
-    ok(res, result);
-  } else {
-    fail(res, result.error ?? 'Erro ao enviar mensagem', 500);
+  try {
+    const { phoneNumber, message } = req.body;
+    if (!phoneNumber || !message) {
+      return res.status(400).json({ success: false, error: 'Número e mensagem são obrigatórios' });
+    }
+    const result = await sendTextMessage(phoneNumber, message);
+    if (result.success) {
+      res.json({ success: true, messageId: result.messageId, message: 'Mensagem enviada com sucesso!' });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 app.post('/send-batch', async (req: Request, res: Response) => {
-  const { items, template } = req.body ?? {};
-
-  if (!Array.isArray(items) || items.length === 0) {
-    fail(res, 'Campo "items" deve ser um array nao vazio');
-    return;
+  try {
+    const { messages } = req.body;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ success: false, error: 'Lista de mensagens é obrigatória' });
+    }
+    const results = await sendBatchMessages(messages);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+    res.json({ success: true, total: results.length, successCount, failCount, results });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
-
-  if (!isConnected()) {
-    fail(res, 'WhatsApp nao esta conectado', 409);
-    return;
-  }
-
-  const results = await sendBatchMessages(items as BatchMessageItem[], template);
-  ok(res, results);
 });
 
 app.post('/verify', async (req: Request, res: Response) => {
-  const { phone } = req.body ?? {};
-
-  if (!phone) {
-    fail(res, 'Campo "phone" e obrigatorio');
-    return;
-  }
-
-  if (!isConnected()) {
-    fail(res, 'WhatsApp nao esta conectado', 409);
-    return;
-  }
-
   try {
-    const result = await verifyNumber(phone);
-    ok(res, result);
-  } catch (error) {
-    fail(res, error instanceof Error ? error.message : 'Erro ao verificar numero', 500);
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, error: 'Número é obrigatório' });
+    }
+    const result = await verifyNumber(phoneNumber);
+    res.json({ success: true, phoneNumber, exists: result.exists, jid: result.jid, formattedNumber: formatPhoneNumber(phoneNumber) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 app.get('/events', (req: Request, res: Response) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-  });
-  res.flushHeaders?.();
-
-  const sendEvent = (data: unknown) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  const state = getConnectionState();
+  res.write(`data: ${JSON.stringify({ type: 'status', data: state })}\n\n`);
+  const statusListener = (data: any) => {
+    res.write(`data: ${JSON.stringify({ type: 'status', data })}\n\n`);
   };
-
-  sendEvent(getConnectionState());
-
-  const listener = (state: unknown) => sendEvent(state);
-  whatsappEvents.on('state', listener);
-
-  const heartbeat = setInterval(() => {
-    res.write(': heartbeat\n\n');
-  }, 25000);
-
+  const qrListener = (qrCode: string) => {
+    res.write(`data: ${JSON.stringify({ type: 'qr', data: qrCode })}\n\n`);
+  };
+  whatsappEvents.on('status', statusListener);
+  whatsappEvents.on('qr', qrListener);
   req.on('close', () => {
-    clearInterval(heartbeat);
-    whatsappEvents.off('state', listener);
+    whatsappEvents.off('status', statusListener);
+    whatsappEvents.off('qr', qrListener);
     res.end();
   });
 });
 
-const server = app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`WhatsApp backend rodando na porta ${PORT}`);
-  connectToWhatsApp().catch((error) => {
-    // eslint-disable-next-line no-console
-    console.error('Falha ao conectar automaticamente ao WhatsApp:', error);
+app.get('/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    whatsapp: getConnectionState().status,
+    connected: isConnected()
   });
 });
 
-function gracefulShutdown() {
-  // eslint-disable-next-line no-console
-  console.log('\nEncerrando servidor...');
-  server.close(() => {
-    process.exit(0);
-  });
-}
+connectToWhatsApp().catch(console.error);
 
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
+app.listen(PORT, () => {
+  console.log(`\n🚀 Servidor WhatsApp rodando na porta ${PORT}`);
+  console.log(`📱 Status: ${getConnectionState().status}`);
+  console.log(`📡 http://localhost:${PORT}`);
+  console.log(`\n📋 Endpoints disponíveis:`);
+  console.log(`   GET  /status     - Status da conexão`);
+  console.log(`   GET  /qr         - QR Code (se disponível)`);
+  console.log(`   POST /connect    - Conectar ao WhatsApp`);
+  console.log(`   POST /disconnect - Desconectar`);
+  console.log(`   POST /send       - Enviar mensagem`);
+  console.log(`   POST /send-batch - Enviar em lote`);
+  console.log(`   POST /verify     - Verificar número`);
+  console.log(`   GET  /events     - Eventos em tempo real`);
+  console.log(`   GET  /health     - Health check\n`);
+});
+
+process.on('SIGINT', async () => {
+  console.log('🔌 Encerrando servidor...');
+  await disconnectWhatsApp();
+  process.exit(0);
+});

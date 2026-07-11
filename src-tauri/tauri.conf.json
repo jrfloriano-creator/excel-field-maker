@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Controle Financeiro ZOOM",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "identifier": "com.financeiro.zoom",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build:sidecar && npm run build",
     "devUrl": "http://localhost:8080",
     "frontendDist": "../dist"
   },
@@ -31,6 +31,10 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
+    "externalBin": ["binaries/backend-node"],
+    "resources": {
+      "resources/backend/": "backend/"
+    },
     "windows": {
       "webviewInstallMode": {
         "type": "downloadBootstrapper",

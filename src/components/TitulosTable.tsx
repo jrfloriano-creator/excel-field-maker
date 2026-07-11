@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { TituloCard } from '@/components/TituloCard';
 import { Button } from '@/components/ui/button';
-import { Plus, CreditCard, Printer, CheckSquare, Square, X } from 'lucide-react';
+import { Plus, CreditCard, Printer, CheckSquare, Square, X, MessageCircle } from 'lucide-react';
 import { TituloComCalculo, AppConfig } from '@/types/titulo';
 import { formatCurrency } from '@/lib/calculos';
 import { EnviarWhatsApp } from '@/components/whatsapp/EnviarWhatsApp';
+import { EnviarWhatsAppButton } from '@/components/whatsapp/EnviarWhatsAppButton';
 import { toast } from 'sonner';
 
 interface TitulosTableProps {
@@ -95,12 +96,24 @@ export function TitulosTable({ titulosFiltrados, config, onEdit, onDelete, onPag
               Receber
             </Button>
             <ImprimirSelecionadosButton titulos={titulosSelecionados} config={config} />
+            <EnviarWhatsAppButton
+              titulosSelecionados={titulosSelecionados}
+              clientes={config.clientes}
+              empresa={config.nomeEmpresa || config.empresa}
+              pix={config.chavesPix?.[0] ? { nome: config.chavesPix[0].nome, chave: config.chavesPix[0].chave } : undefined}
+              onSuccess={desmarcarTodos}
+            />
             <EnviarWhatsApp
               titulosSelecionados={titulosSelecionados}
               clientes={config.clientes}
               empresa={config.nomeEmpresa || config.empresa}
               pix={config.chavesPix?.[0] ? { nome: config.chavesPix[0].nome, chave: config.chavesPix[0].chave } : undefined}
               onSuccess={desmarcarTodos}
+              trigger={
+                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" title="Enviar via link wa.me (sem backend)">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                </Button>
+              }
             />
             <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={desmarcarTodos}>
               <X className="h-3.5 w-3.5" />

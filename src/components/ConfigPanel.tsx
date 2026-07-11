@@ -24,6 +24,7 @@ import { LogPanel } from '@/components/LogPanel';
 import { hasPerm, SessionUser, defaultPermissoes } from '@/lib/auth';
 import { openExternalUrl } from '@/lib/openUrl';
 import { ConfiguracoesContasPagar } from '@/components/contas-pagar/ConfiguracoesContasPagar';
+import { WhatsAppConnection } from '@/components/whatsapp/WhatsAppConnection';
 
 interface ConfigPanelProps {
   config: AppConfig;
@@ -628,6 +629,8 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
         </TabsContent>
 
         <TabsContent value="sistema" className="space-y-4 mt-4">
+          <WhatsAppConnection />
+
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">📁 Pasta para Salvar Dados (Promissórias/PDF)</CardTitle></CardHeader>
             <CardContent className="space-y-2">

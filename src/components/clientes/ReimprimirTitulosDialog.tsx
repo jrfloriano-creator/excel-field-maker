@@ -108,7 +108,7 @@ export function ReimprimirTitulosDialog({ cliente, titulos, config, onClose }: P
         ) : (
           <div className="space-y-3">
             <Button
-              variant="outline"
+              variant={todosSelecionados ? 'default' : 'outline'}
               size="sm"
               className="gap-1 text-xs"
               onClick={todosSelecionados ? desmarcarTodos : selecionarTodos}

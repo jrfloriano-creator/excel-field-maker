@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Cliente, Titulo, AppConfig } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +60,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
   const [cpfError, setCpfError] = useState('');
   const [recebendoCliente, setRecebendoCliente] = useState<Cliente | null>(null);
   const [reimprimindoCliente, setReimprimindoCliente] = useState<Cliente | null>(null);
+  const formRef = useRef<HTMLDivElement | null>(null);
 
   const doOpen = (c?: Cliente) => {
     if (c) {
@@ -70,6 +71,9 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
       setData({ ...empty, dataCadastro: today() });
     }
     setShowForm(true);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
   };
 
   const open = (c?: Cliente) => {
@@ -166,10 +170,15 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
     toast.success('Cliente removido');
   };
 
-  const filtrados = clientes.filter(c =>
-    c.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    c.telefone.includes(busca)
-  ).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+  const filtrados = clientes.filter(c => {
+    const buscaLower = busca.toLowerCase();
+    const buscaDigits = busca.replace(/\D/g, '');
+    return (
+      c.nome.toLowerCase().includes(buscaLower) ||
+      c.telefone.includes(busca) ||
+      (buscaDigits && (c.cpfCnpj || '').replace(/\D/g, '').includes(buscaDigits))
+    );
+  }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
 
   const incompletos = clientes.filter(c =>
     !c.nome || !c.telefone || !c.dataNascimento || !c.cpfCnpj
@@ -192,7 +201,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
       </div>
 
       {showForm && (
-        <Card className="border-primary/20 shadow-lg">
+        <Card ref={formRef} className="border-primary/20 shadow-lg">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base">{editing ? 'Editar Cliente' : 'Novo Cliente'}</CardTitle>
             <Button variant="ghost" size="icon" onClick={close}><X className="h-4 w-4" /></Button>
@@ -318,11 +327,15 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
         </Card>
       )}
 
-      <Input
-        placeholder="🔍 Buscar por nome ou telefone..."
-        value={busca}
-        onChange={e => setBusca(e.target.value)}
-      />
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome ou CPF..."
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          className="pl-8"
+        />
+      </div>
 
       {filtrados.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground text-sm">
@@ -400,8 +413,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="bg-paid/10 hover:bg-paid/20 text-paid h-7 text-[10px] px-2"
+                        className="bg-green-600 text-white hover:bg-green-700 h-7 text-[10px] px-2"
                         disabled={titulosDoCliente.length === 0}
                         onClick={() => {
                           if (config && !hasPerm(config, user ?? null, 'titulo.receber')) {
@@ -417,8 +429,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 text-[10px] px-2"
+                        className="bg-yellow-400 text-black hover:bg-yellow-500 h-7 text-[10px] px-2"
                         disabled={titulosDoCliente.length === 0}
                         onClick={() => setReimprimindoCliente(c)}
                         title="Reimprimir títulos do cliente"

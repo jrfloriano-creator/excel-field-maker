@@ -5,7 +5,7 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(year, month - 1, day);
 }
 
-export function calcularTitulo(titulo: Titulo, taxaMensal: number): TituloComCalculo {
+export function calcularTitulo(titulo: Titulo, taxaMensal: number, multa: number = 0): TituloComCalculo {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const vencimento = parseLocalDate(titulo.vencimento);
@@ -23,20 +23,23 @@ export function calcularTitulo(titulo: Titulo, taxaMensal: number): TituloComCal
   }
 
   let valorJuros = 0;
+  let valorMulta = 0;
   if (situacao === 'VENCIDO') {
     const diasAtraso = Math.abs(diasAVencer);
     const taxaDiaria = taxaMensal / 30;
     valorJuros = titulo.valor * taxaDiaria * diasAtraso;
     valorJuros = Math.round(valorJuros * 100) / 100;
+    valorMulta = Math.round((multa || 0) * 100) / 100;
   }
 
-  const valorCorrigido = Math.round((titulo.valor + valorJuros) * 100) / 100;
+  const valorCorrigido = Math.round((titulo.valor + valorJuros + valorMulta) * 100) / 100;
 
   return {
     ...titulo,
     diasAVencer,
     situacao,
     valorJuros,
+    valorMulta,
     valorCorrigido,
   };
 }
@@ -80,11 +83,12 @@ export function buildPagamentoWhatsMsg(opts: {
   recebidoPor: string;
   creditoGerado?: number;
 }): string {
-  const { apelido, formaPagamento, valorPago, tipoTitulo, recebidoPor, creditoGerado } = opts;
+  const { apelido, dataPagamento, formaPagamento, valorPago, tipoTitulo, recebidoPor, creditoGerado } = opts;
   const creditoMsg = (creditoGerado && creditoGerado > 0)
     ? `\n\nObs. O valor pago a mais de ${formatCurrency(creditoGerado)} será abatido no valor do próximo mês.`
     : '';
-  return `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}, referente a/ao ${tipoTitulo}, recebido por ${recebidoPor}.${creditoMsg}\n\nAgradecemos a preferência!`;
+  const dataMsg = dataPagamento ? `, em ${formatDate(dataPagamento)}` : '';
+  return `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}${dataMsg}, referente a/ao ${tipoTitulo}, recebido por ${recebidoPor}.${creditoMsg}\n\nAgradecemos a preferência!`;
 }
 
 export function whatsLink(phone: string, msg: string): string {

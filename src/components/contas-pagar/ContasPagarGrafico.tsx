@@ -22,6 +22,7 @@ interface ContasPagarGraficoProps {
   titulos: Titulo[];
   vendas: VendaVista[];
   taxa: number;
+  multa?: number;
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   onOpenVencidos: () => void;
@@ -80,13 +81,14 @@ export function ContasPagarGrafico({
   titulos,
   vendas,
   taxa,
+  multa = 0,
   selectedMonth,
   onSelectMonth,
   onOpenVencidos,
 }: ContasPagarGraficoProps) {
   const titulosCalculados = useMemo<TituloComCalculo[]>(
-    () => titulos.map(titulo => calcularTitulo(titulo, taxa)),
-    [titulos, taxa]
+    () => titulos.map(titulo => calcularTitulo(titulo, taxa, multa)),
+    [titulos, taxa, multa]
   );
 
   const availableMonths = useMemo(() => {

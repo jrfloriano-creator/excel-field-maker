@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Download, X, MessageCircle } from 'lucide-react';
+import { Download, X, MessageCircle, Search } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { savePdf } from '@/lib/savePdf';
@@ -22,7 +22,7 @@ const TODOS = '__TODOS__';
 
 export function Relatorios({ titulos, config }: Props) {
   const calculados = useMemo(
-    () => titulos.map(t => calcularTitulo(t, config.taxa)),
+    () => titulos.map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0)),
     [titulos, config.taxa]
   );
 
@@ -47,6 +47,9 @@ export function Relatorios({ titulos, config }: Props) {
   const [fCliente, setFCliente] = useState<string>(TODOS);
   const [fDataInicio, setFDataInicio] = useState<string>('');
   const [fDataFim, setFDataFim] = useState<string>('');
+
+  // Resultados só aparecem após o usuário buscar/gerar
+  const [resultadosVisiveis, setResultadosVisiveis] = useState(false);
 
   // Default: mês atual se houver dados
   useEffect(() => {
@@ -92,6 +95,7 @@ export function Relatorios({ titulos, config }: Props) {
   const totalRecebido = recebidos.reduce((s, t) => s + (t.valorPago || 0), 0);
   const totalAtrasadoOrig = atrasados.reduce((s, t) => s + t.valor, 0);
   const totalAtrasadoJuros = atrasados.reduce((s, t) => s + t.valorJuros, 0);
+  const totalAtrasadoMulta = atrasados.reduce((s, t) => s + t.valorMulta, 0);
   const totalAtrasadoCorrigido = atrasados.reduce((s, t) => s + t.valorCorrigido, 0);
   const totalNoPrazo = noPrazo.reduce((s, t) => s + t.valor, 0);
 
@@ -104,6 +108,11 @@ export function Relatorios({ titulos, config }: Props) {
     setFCliente(TODOS);
     setFDataInicio('');
     setFDataFim('');
+    setResultadosVisiveis(false);
+  };
+
+  const buscarRelatorio = () => {
+    setResultadosVisiveis(true);
   };
 
   const exportarPDF = async () => {
@@ -164,11 +173,11 @@ export function Relatorios({ titulos, config }: Props) {
     doc.text(`Títulos Atrasados (${atrasados.length})`, 14, cursorY);
     cursorY += 5;
     doc.setFontSize(9);
-    doc.text(`Original: ${formatCurrency(totalAtrasadoOrig)}  |  Juros: ${formatCurrency(totalAtrasadoJuros)}  |  Total: ${formatCurrency(totalAtrasadoCorrigido)}`, 14, cursorY);
+    doc.text(`Original: ${formatCurrency(totalAtrasadoOrig)}  |  Juros: ${formatCurrency(totalAtrasadoJuros)}  |  Multa: ${formatCurrency(totalAtrasadoMulta)}  |  Total: ${formatCurrency(totalAtrasadoCorrigido)}`, 14, cursorY);
     cursorY += 3;
     autoTable(doc, {
       startY: cursorY + 2,
-      head: [['Nº', 'Cliente', 'Tipo', 'Proprietário', 'Vencimento', 'Dias', 'Valor', 'Juros', 'Total']],
+      head: [['Nº', 'Cliente', 'Tipo', 'Proprietário', 'Vencimento', 'Dias', 'Valor', 'Juros', 'Multa', 'Total']],
       body: atrasados.map(t => [
         String(t.numero),
         t.cliente,
@@ -178,6 +187,7 @@ export function Relatorios({ titulos, config }: Props) {
         `${Math.abs(t.diasAVencer)}d`,
         formatCurrency(t.valor),
         formatCurrency(t.valorJuros),
+        formatCurrency(t.valorMulta),
         formatCurrency(t.valorCorrigido),
       ]),
       styles: { fontSize: 8 },
@@ -314,9 +324,17 @@ export function Relatorios({ titulos, config }: Props) {
               Filtrando por intervalo de datas: {fDataInicio ? formatDate(fDataInicio) : '...'} até {fDataFim ? formatDate(fDataFim) : '...'}
             </p>
           )}
+
+          <div className="col-span-2">
+            <Button onClick={buscarRelatorio} className="w-full gap-1">
+              <Search className="h-4 w-4" /> Buscar
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
+      {resultadosVisiveis && (
+      <>
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">✅ Títulos Recebidos ({recebidos.length})</CardTitle>
@@ -349,7 +367,8 @@ export function Relatorios({ titulos, config }: Props) {
           <div className="text-xs text-muted-foreground space-y-0.5">
             <p>Valor original: <strong>{formatCurrency(totalAtrasadoOrig)}</strong></p>
             <p>Juros acumulados: <strong className="text-overdue">{formatCurrency(totalAtrasadoJuros)}</strong></p>
-            <p>Total com juros: <strong className="text-overdue">{formatCurrency(totalAtrasadoCorrigido)}</strong></p>
+            <p>Multa acumulada: <strong className="text-overdue">{formatCurrency(totalAtrasadoMulta)}</strong></p>
+            <p>Total com juros e multa: <strong className="text-overdue">{formatCurrency(totalAtrasadoCorrigido)}</strong></p>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -372,7 +391,8 @@ export function Relatorios({ titulos, config }: Props) {
                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-2">
                     <div><p className="text-muted-foreground">Valor</p><p className="font-medium">{formatCurrency(t.valor)}</p></div>
                     <div><p className="text-muted-foreground">Juros</p><p className="font-medium text-overdue">{formatCurrency(t.valorJuros)}</p></div>
-                    <div className="col-span-2"><p className="text-muted-foreground">Total com juros</p><p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p></div>
+                    <div><p className="text-muted-foreground">Multa</p><p className="font-medium text-overdue">{formatCurrency(t.valorMulta)}</p></div>
+                    <div><p className="text-muted-foreground">Total com juros e multa</p><p className="font-semibold text-overdue">{formatCurrency(t.valorCorrigido)}</p></div>
                     <p className="col-span-2 text-muted-foreground">{ownerName(t.proprietario)} • {t.tipo} • Venc: {formatDate(t.vencimento)}</p>
                   </div>
                   {t.telefone && (
@@ -463,6 +483,8 @@ export function Relatorios({ titulos, config }: Props) {
           </Card>
         );
       })()}
+      </>
+      )}
     </div>
   );
 }

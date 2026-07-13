@@ -39,7 +39,7 @@ export function EmailPanel({ config, titulos, onUpdate }: Props) {
 
   const atrasados = useMemo(() => {
     return titulos
-      .map(t => calcularTitulo(t, config.taxa))
+      .map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0))
       .filter(t => t.situacao === 'VENCIDO');
   }, [titulos, config.taxa]);
 

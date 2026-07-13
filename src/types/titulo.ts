@@ -182,6 +182,7 @@ export interface TituloComCalculo extends Titulo {
   diasAVencer: number;
   situacao: Situacao;
   valorJuros: number;
+  valorMulta: number;
   valorCorrigido: number;
 }
 

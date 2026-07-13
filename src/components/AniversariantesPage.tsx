@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { AppConfig, Cliente } from '@/types/titulo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Cake } from 'lucide-react';
 import { obterNomeCliente } from '@/lib/whatsapp/message';
 import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
+import { cn } from '@/lib/utils';
+import { dbDriver } from '@/lib/database';
 
 interface AniversariantesPageProps {
   config: AppConfig;
@@ -39,7 +42,23 @@ function formatBirthday(dataNascimento: string): string {
 
 export function AniversariantesPage({ config }: AniversariantesPageProps) {
   const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
   const mesNome = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+  const enviadosStorageKey = `aniversario_enviados_${currentYear}`;
+  const [enviados, setEnviados] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = await dbDriver.kvGet(enviadosStorageKey);
+      if (!cancelled && Array.isArray(stored)) {
+        setEnviados(new Set(stored));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enviadosStorageKey]);
 
   const aniversariantes = config.clientes.filter(c =>
     c.dataNascimento && getBirthdayMonth(c.dataNascimento) === currentMonth
@@ -50,8 +69,16 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
   const handleWhatsApp = (cliente: Cliente) => {
     const phone = (cliente.telefone || '').replace(/\D/g, '');
     if (!phone) return;
-    const mensagem = mensagemBase.replace(/\{nome\}/g, obterNomeCliente(cliente));
+    const nomeCliente = obterNomeCliente(cliente);
+    const mensagem = mensagemBase
+      .replace(/\{nome\}/g, nomeCliente)
+      .replace(/\{apelido\}/g, nomeCliente);
     enviarWhatsAppUnico(phone, mensagem);
+    setEnviados(prev => {
+      const next = new Set(prev).add(cliente.id);
+      dbDriver.kvSet(enviadosStorageKey, Array.from(next));
+      return next;
+    });
   };
 
   return (
@@ -90,13 +117,19 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
                 })
                 .map(cliente => {
                   const hasPhone = !!(cliente.telefone || '').replace(/\D/g, '');
+                  const jaEnviado = enviados.has(cliente.id);
                   return (
                     <div
                       key={cliente.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                        jaEnviado ? 'bg-green-100 hover:bg-green-200' : 'bg-card hover:bg-accent/30'
+                      )}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{cliente.nome}</p>
+                        <p className={cn('font-semibold text-sm truncate', jaEnviado && 'text-black')}>
+                          {cliente.nome}
+                        </p>
                         <div className="flex items-center gap-3 mt-0.5">
                           <span className="text-xs text-muted-foreground">
                             🎂 {formatBirthday(cliente.dataNascimento!)}

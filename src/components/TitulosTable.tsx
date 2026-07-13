@@ -65,7 +65,7 @@ export function TitulosTable({ titulosFiltrados, config, onEdit, onDelete, onPag
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <Button
-          variant="outline"
+          variant={todosSelecionados ? 'default' : 'outline'}
           size="sm"
           className="gap-1 text-xs"
           onClick={todosSelecionados ? desmarcarTodos : selecionarTodos}

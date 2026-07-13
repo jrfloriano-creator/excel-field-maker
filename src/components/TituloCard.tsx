@@ -195,6 +195,10 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
                 <p className="opacity-70 text-xs">Juros ({Math.abs(titulo.diasAVencer)}d)</p>
                 <p className="font-medium">{formatCurrency(titulo.valorJuros)}</p>
               </div>
+              <div>
+                <p className="opacity-70 text-xs">Multa</p>
+                <p className="font-medium">{formatCurrency(titulo.valorMulta)}</p>
+              </div>
               <div className="col-span-2">
                 <p className="opacity-70 text-xs">Valor Corrigido</p>
                 <p className="font-semibold">{formatCurrency(titulo.valorCorrigido)}</p>

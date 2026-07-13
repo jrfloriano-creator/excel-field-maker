@@ -73,14 +73,21 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
   const permissoes = config.permissoes || defaultPermissoes();
 
   const can = (p: Permissao) => hasPerm(config, user, p);
+  const isMaster = user?.nivel === 'MASTER';
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: 'cadastros' } }));
   }, []);
 
   useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    setActiveTab(initialTab === 'contas-pagar' && !isMaster ? 'cadastros' : initialTab);
+  }, [initialTab, isMaster]);
+
+  useEffect(() => {
+    if (activeTab === 'contas-pagar' && !isMaster) {
+      setActiveTab('cadastros');
+    }
+  }, [activeTab, isMaster]);
 
   // Keep mensagemAniv in sync if config changes externally
   useEffect(() => {
@@ -89,7 +96,7 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
 
   const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
   const amanhaStr = amanha.toISOString().split('T')[0];
-  const titulosAmanha = titulos.map(t => calcularTitulo(t, config.taxa))
+  const titulosAmanha = titulos.map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0))
     .filter(t => t.vencimento === amanhaStr && t.situacao !== 'PAGO');
 
   const handleSendAlerts = () => {
@@ -207,10 +214,12 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
           window.dispatchEvent(new CustomEvent('avatar-subtab', { detail: { tab: 'config', sub: v } }));
         }}
       >
-        <TabsList className="grid w-full grid-cols-6 h-auto">
+        <TabsList className={`grid w-full h-auto ${isMaster ? 'grid-cols-6' : 'grid-cols-5'}`}>
           <TabsTrigger value="cadastros" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">👥 Cadastros</TabsTrigger>
           <TabsTrigger value="financeiro" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">💰 Financeiro</TabsTrigger>
-          <TabsTrigger value="contas-pagar" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🧾 Contas a Pagar</TabsTrigger>
+          {isMaster && (
+            <TabsTrigger value="contas-pagar" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🧾 Contas a Pagar</TabsTrigger>
+          )}
           <TabsTrigger value="alertas" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🔔 Alertas</TabsTrigger>
           <TabsTrigger value="aparencia" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">🎨 Aparência</TabsTrigger>
           <TabsTrigger value="sistema" className="text-xs px-1 py-2 data-[state=active]:ring-2 data-[state=active]:ring-primary">⚙️ Sistema</TabsTrigger>
@@ -425,6 +434,8 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
         </TabsContent>
 
         <TabsContent value="contas-pagar" className="space-y-4 mt-4">
+          {isMaster && (
+          <>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">🧾 Fase 1 — Configuração do Módulo</CardTitle>
@@ -554,6 +565,8 @@ export function ConfigPanel({ config, onUpdate, titulos = [], onImportTitulos, u
             <h3 className="text-sm font-semibold mb-3">🗂️ Cadastros do Módulo (Título, Credor, Despesa, Grupo)</h3>
             <ConfiguracoesContasPagar />
           </div>
+          </>
+          )}
         </TabsContent>
 
         <TabsContent value="alertas" className="space-y-4 mt-4">

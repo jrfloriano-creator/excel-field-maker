@@ -102,7 +102,7 @@ const Index = () => {
   }, [config.darkMode]);
 
   const titulosCalculados = useMemo(
-    () => titulos.map(t => calcularTitulo(t, config.taxa)).sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime()),
+    () => titulos.map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0)).sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime()),
     [titulos, config.taxa]
   );
 

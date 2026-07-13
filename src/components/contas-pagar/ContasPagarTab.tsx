@@ -13,6 +13,7 @@ import { ContaPagarPaymentModal } from './ContaPagarPaymentModal';
 import { ContasPagarGrafico } from './ContasPagarGrafico';
 import { ContasPagarDespesas } from './ContasPagarDespesas';
 import { LancamentoTitulo, LancamentoTituloPayload } from './LancamentoTitulo';
+import { ManualContasPagar } from './ManualContasPagar';
 import { DeleteMotivoModal } from '@/components/modals/DeleteMotivoModal';
 import { MotivoDialog } from '@/components/MotivoDialog';
 import { Button } from '@/components/ui/button';
@@ -80,22 +81,25 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 flex-wrap">
-        <Button type="button" variant={activeTab === 'lancamento' ? 'default' : 'outline'} onClick={() => setActiveTab('lancamento')}>
-          Lançamento Título
-        </Button>
-        <Button type="button" variant={activeTab === 'despesas' ? 'default' : 'outline'} onClick={() => setActiveTab('despesas')}>
-          Despesas
-        </Button>
-        <Button type="button" variant={activeTab === 'grafico' ? 'default' : 'outline'} onClick={() => setActiveTab('grafico')}>
-          Gráfico
-        </Button>
-        <Button type="button" variant={activeTab === 'listagem' ? 'default' : 'outline'} onClick={() => setActiveTab('listagem')}>
-          Listagem
-        </Button>
-        <Button type="button" variant={activeTab === 'credores' ? 'default' : 'outline'} onClick={() => setActiveTab('credores')}>
-          Credores
-        </Button>
+      <div className="flex gap-2 flex-wrap items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          <Button type="button" variant={activeTab === 'lancamento' ? 'default' : 'outline'} onClick={() => setActiveTab('lancamento')}>
+            Lançamento Título
+          </Button>
+          <Button type="button" variant={activeTab === 'despesas' ? 'default' : 'outline'} onClick={() => setActiveTab('despesas')}>
+            Despesas
+          </Button>
+          <Button type="button" variant={activeTab === 'grafico' ? 'default' : 'outline'} onClick={() => setActiveTab('grafico')}>
+            Gráfico
+          </Button>
+          <Button type="button" variant={activeTab === 'listagem' ? 'default' : 'outline'} onClick={() => setActiveTab('listagem')}>
+            Listagem
+          </Button>
+          <Button type="button" variant={activeTab === 'credores' ? 'default' : 'outline'} onClick={() => setActiveTab('credores')}>
+            Credores
+          </Button>
+        </div>
+        <ManualContasPagar />
       </div>
 
       {activeTab === 'lancamento' ? (
@@ -110,6 +114,7 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
           titulos={titulos}
           vendas={config.vendas || []}
           taxa={config.taxa}
+          multa={config.contasPagar?.multa || 0}
           selectedMonth={filters.selectedMonth}
           onSelectMonth={filters.setSelectedMonth}
           onOpenVencidos={() => {

@@ -27,3 +27,10 @@ src-tauri/resources/
 *.njsproj
 *.sln
 *.sw?
+
+*.log
+*.txt
+node_modules
+dist
+src-tauri/target
+.env

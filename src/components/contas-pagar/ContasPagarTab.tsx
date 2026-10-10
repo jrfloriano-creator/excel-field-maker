@@ -1,3 +1,6 @@
+import { Edit, Trash2 } from 'lucide-react';
+import { exportarParaExcel } from '@/lib/exportacao';
+import { FileSpreadsheet, FileText, Plus, Printer, X } from 'lucide-react';
 import { useMemo, useState, useRef } from 'react';
 import { AppConfig, ContaPagar } from '@/types/titulo';
 import { SessionUser } from '@/lib/auth';
@@ -24,7 +27,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Printer, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ContasPagarTabProps {
@@ -39,11 +41,8 @@ const normalizar = (texto: string) =>
 // Extrai o número da parcela do id ou descrição — ex: "1/3"
 const obterNumeroParcela = (conta: ContaPagar): string => {
   if (conta.numeroParcelas && conta.numeroParcelas > 1) {
-    // Tenta extrair da descrição ou id
     const match = conta.descricao.match(/(\d+)\s*\/\s*(\d+)/);
     if (match) return `${match[1]}/${match[2]}`;
-    
-    // Fallback: se não tem na descrição, calcula posição por data
     return `?/${conta.numeroParcelas}`;
   }
   return '';
@@ -188,14 +187,9 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
     setActiveTab('lancamento');
   };
 
-  // =========== IMPRESSÃO — SEM TRAVAMENTO ===========
   const confirmarImpressao = () => {
-    // Fecha o diálogo ANTES de chamar impressão
     setImpressaoDialogAberto(false);
-    
-    // Garante que o diálogo fechou completamente
     setTimeout(() => {
-      // Abre a impressão em nova aba/janela para não travar
       window.print();
     }, 150);
   };
@@ -211,7 +205,7 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
 
   return (
     <>
-      {/* =========== ÁREA DE IMPRESSÃO — COM Nº DE PARCELA =========== */}
+      {/* =========== ÁREA DE IMPRESSÃO =========== */}
       <div className="print-only">
         <div className="max-w-3xl mx-auto p-8 bg-white text-black">
           <div className="border-b-2 border-gray-800 pb-4 mb-6">
@@ -229,7 +223,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
               Emitido em: {new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}
             </p>
           </div>
-
           {dadosImpressao.totaisPorMes.map(mes => (
             <div key={mes.mes} className="mb-6">
               <h2 className="text-lg font-bold bg-gray-100 px-3 py-2 rounded mb-3">
@@ -288,7 +281,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
               </table>
             </div>
           ))}
-
           <div className="border-t-2 border-gray-800 pt-4 mt-6">
             <p className="text-xl font-bold text-right">
               TOTAL GERAL: {formatCurrency(dadosImpressao.totalGeral)}
@@ -324,10 +316,16 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
           </div>
           <div className="flex items-center gap-2">
             {activeTab === 'listagem' && (
-              <Button variant="outline" onClick={abrirDialogoImpressao} className="gap-2">
-                <Printer className="h-4 w-4" />
-                Imprimir
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => exportarParaExcel(dadosImpressao.itens)} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Excel
+                </Button>
+                <Button variant="outline" onClick={abrirDialogoImpressao} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  PDF
+                </Button>
+              </>
             )}
             <ManualContasPagar />
           </div>
@@ -367,17 +365,49 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
             <h3 className="text-lg font-semibold">📊 Projeção Semanal — Quanto Preciso Vender</h3>
             <ProjecaoSemanal contas={contasCalculadas} />
           </div>
-        ) : activeTab === 'credores' ? (
+                ) : activeTab === 'credores' ? (
           <div className="space-y-3">
             {catalog.credores.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-8 text-center text-muted-foreground">
                 Nenhum credor cadastrado. Cadastre em Configurações → Contas a Pagar.
               </div>
-            ) : catalog.credores.map(credor => (
+            ) : catalog.credores.map((credor: any) => (
               <Card key={credor.id}>
-                <CardHeader>
-                  <CardTitle>{credor.nomeEmpresa}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{credor.nomeFantasia || 'Sem nome fantasia'}</p>
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                  <div>
+                    <CardTitle>{credor.nomeEmpresa}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{credor.nomeFantasia || 'Sem nome fantasia'}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        toast.info('Edição em Configurações → Contas a Pagar');
+                      }}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        if (confirm(`Excluir "${credor.nomeEmpresa}"?`)) {
+                          const novosCredores = catalog.credores.filter((c: any) => c.id !== credor.id);
+                          updateConfig({
+                            contasPagar: { ...config.contasPagar, credores: novosCredores },
+                          });
+                          toast.success('Credor excluído!');
+                        }
+                      }}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Excluir
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="grid gap-2 md:grid-cols-2 text-sm">
                   <div>Rua: {credor.rua || '—'}</div>
@@ -386,7 +416,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                   <div>Número: {credor.numero || '—'}</div>
                   <div>Telefone: {credor.telefone || '—'}</div>
                   <div>WhatsApp: {credor.whatsapp || '—'}</div>
-                  <div className="md:col-span-2">Contatos: {credor.contatos.map((c: any) => c.nome).join(', ') || '—'}</div>
                 </CardContent>
               </Card>
             ))}
@@ -615,17 +644,11 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
         </DialogContent>
       </Dialog>
 
-      {/* =========== ESTILOS — SEM TRAVAMENTO =========== */}
+      {/* =========== ESTILOS =========== */}
       <style>{`
-        .print-only {
-          display: none;
-        }
-        
+        .print-only { display: none; }
         @media print {
-          .print\\:hidden {
-            display: none !important;
-          }
-          
+          .print\\:hidden { display: none !important; }
           .print-only {
             display: block !important;
             position: static;
@@ -634,26 +657,11 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
             background: white;
             padding: 20px;
           }
-          
-          body {
-            visibility: hidden;
-          }
-          
-          table {
-            border-collapse: collapse;
-            width: 100%;
-          }
-          td, th {
-            border: 1px solid #ddd;
-            padding: 8px;
-          }
-          tr:nth-child(even) {
-            background-color: #f9f9f9;
-          }
-          @page {
-            margin: 1cm;
-            size: A4;
-          }
+          body { visibility: hidden; }
+          table { border-collapse: collapse; width: 100%; }
+          td, th { border: 1px solid #ddd; padding: 8px; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          @page { margin: 1cm; size: A4; }
         }
       `}</style>
     </>

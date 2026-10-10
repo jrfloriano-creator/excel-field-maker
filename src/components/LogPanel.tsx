@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 interface Props {
-  logs: LogEntry[];
+  logs?: LogEntry[]; // ✅ Tornei opcional
 }
 
 function fmt(d: string) {
@@ -40,7 +40,7 @@ function renderVendaDetail(l: LogEntry) {
   return linhas;
 }
 
-export function LogPanel({ logs }: Props) {
+export function LogPanel({ logs = [] }: Props) { // ✅ Valor padrão = lista vazia
   const today = new Date().toISOString().split('T')[0];
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState(today);
@@ -65,7 +65,6 @@ export function LogPanel({ logs }: Props) {
     pdf.setFontSize(9);
     pdf.text(`Período: ${ini || '—'} a ${fim || '—'} | Registros: ${filtrados.length}`, 14, 26);
 
-    // Separate venda.vista logs from the rest
     const vendasLogs = filtrados.filter(l => l.tipo === 'venda.vista');
     const outrosLogs = filtrados.filter(l => l.tipo !== 'venda.vista');
 
@@ -111,7 +110,6 @@ export function LogPanel({ logs }: Props) {
         margin: { left: 10, right: 10 },
       });
     }
-
     pdf.save(`log-${today}.pdf`);
   };
 

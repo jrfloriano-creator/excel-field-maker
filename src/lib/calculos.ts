@@ -106,3 +106,8 @@ export function formatMonthLabel(monthKey: string): string {
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   return `${meses[parseInt(month) - 1]}/${year}`;
 }
+
+// Alias para manter compatibilidade — "2026-11" → "Nov/2026"
+export function formatarMesAno(mesAno: string): string {
+  return formatMonthLabel(mesAno);
+}

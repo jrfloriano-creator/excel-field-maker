@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { contasPagarDbDriver } from '@/lib/contasPagarDb';
 import { Credor, DespesaFixa, GrupoDespesa, TituloConfig } from '@/types/contasPagar';
 
@@ -12,30 +12,41 @@ export function useContasPagarCatalog() {
   const [credores, setCredores] = useState<Credor[]>([]);
   const [gruposDespesa, setGruposDespesa] = useState<GrupoDespesa[]>([]);
   const [despesasFixas, setDespesasFixas] = useState<DespesaFixa[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const inicializado = useRef(false); // ✅ Evita recarregar várias vezes
 
   const reload = useCallback(async () => {
-    const [t, c, g, d] = await Promise.all([
-      contasPagarDbDriver.getTituloConfigs(),
-      contasPagarDbDriver.getCredores(),
-      contasPagarDbDriver.getGruposDespesa(),
-      contasPagarDbDriver.getDespesasFixas(),
-    ]);
-    setTituloConfigs(t);
-    setCredores(c);
-    setGruposDespesa(g);
-    setDespesasFixas(d);
+    if (inicializado.current) return; // ✅ Já carregou? Pula
+    inicializado.current = true;
+    setLoading(true);
+    try {
+      await contasPagarDbDriver.init();
+      const [t, c, g, d] = await Promise.all([
+        contasPagarDbDriver.getTituloConfigs(),
+        contasPagarDbDriver.getCredores(),
+        contasPagarDbDriver.getGruposDespesa(),
+        contasPagarDbDriver.getDespesasFixas(),
+      ]);
+      setTituloConfigs(t);
+      setCredores(c);
+      setGruposDespesa(g);
+      setDespesasFixas(d);
+    } catch (err) {
+      console.warn('Catálogo: erro ao carregar', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      await contasPagarDbDriver.init();
-      await reload();
-      if (mounted) setLoading(false);
-    })();
-    return () => { mounted = false; };
-  }, [reload]);
+  // ✅ Remove o carregamento automático do useEffect
+  // Agora só carrega quando alguém chamar reload() explicitamente
 
-  return { tituloConfigs, credores, gruposDespesa, despesasFixas, loading, reload };
+  return { 
+    tituloConfigs, 
+    credores, 
+    gruposDespesa, 
+    despesasFixas, 
+    loading,
+    reload, // Chamar ao entrar na tela de Contas a Pagar
+  };
 }

@@ -1,68 +1,69 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { MotivoAlteracao } from '@/types/titulo';
-import { X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { useState } from 'react';
 
-interface Props {
-  acao: string; // descrição da ação
-  motivos: MotivoAlteracao[];
+interface MotivoDialogProps {
+  acao: string;
+  motivos?: string[]; // ← opcional, pode não vir
   onConfirm: (motivo: string) => void;
   onClose: () => void;
 }
 
-export function MotivoDialog({ acao, motivos, onConfirm, onClose }: Props) {
-  const [sel, setSel] = useState<string>('');
-  const [outro, setOutro] = useState('');
-
-  const handleOk = () => {
-    let texto = '';
-    if (sel === '__outro__') texto = outro.trim();
-    else texto = motivos.find(m => m.id === sel)?.texto || '';
-    if (!texto) return;
-    onConfirm(texto);
-  };
+export function MotivoDialog({ acao, motivos = [], onConfirm, onClose }: MotivoDialogProps) {
+  const [motivo, setMotivo] = useState('');
+  
+  // Garante que motivos é sempre um array ✅
+  const listaMotivos = Array.isArray(motivos) ? motivos : [];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Motivo da alteração</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">{acao}</p>
-          <div>
-            <Label className="text-xs">Selecione o motivo</Label>
-            <Select value={sel} onValueChange={setSel}>
-              <SelectTrigger><SelectValue placeholder="Escolha..." /></SelectTrigger>
-              <SelectContent>
-                {motivos.length === 0 && (
-                  <div className="p-2 text-xs text-muted-foreground">Cadastre motivos em Config › Cadastros</div>
-                )}
-                {motivos.map(m => (
-                  <SelectItem key={m.id} value={m.id}>{m.texto}</SelectItem>
-                ))}
-                <SelectItem value="__outro__">Outro (digitar)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {sel === '__outro__' && (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmação</DialogTitle>
+          <DialogDescription>{acao}</DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Informe o motivo</Label>
             <Textarea
-              rows={3}
-              placeholder="Descreva o motivo"
-              value={outro}
-              onChange={e => setOutro(e.target.value)}
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Descreva o motivo..."
             />
+          </div>
+          
+          {/* Lista de motivos salvos — com proteção ✅ */}
+          {listaMotivos.length > 0 && (
+            <div className="space-y-2">
+              <Label>Motivos frequentes</Label>
+              <div className="flex flex-wrap gap-2">
+                {listaMotivos.map((m, i) => (
+                  <Button
+                    key={i}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setMotivo(m)}
+                  >
+                    {m}
+                  </Button>
+                ))}
+              </div>
+            </div>
           )}
-          <Button className="w-full" onClick={handleOk} disabled={!sel || (sel === '__outro__' && !outro.trim())}>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onConfirm(motivo)}>
             Confirmar
           </Button>
-        </CardContent>
-      </Card>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

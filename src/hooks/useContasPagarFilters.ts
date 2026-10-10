@@ -13,10 +13,14 @@ export function useContasPagarFilters(contasCalculadas: ContaPagarComCalculo[]) 
   const [favorecidoFilter, setFavorecidoFilter] = useState<string>('TODOS');
   const [search, setSearch] = useState('');
 
-  const monthKeys = useMemo(
-    () => Array.from(new Set(contasCalculadas.map(conta => getMonthKey(conta.vencimento)))).sort(),
-    [contasCalculadas]
-  );
+  const monthKeys = useMemo(() => {
+    const mesesUnicos = new Set<string>();
+    contasCalculadas.forEach(conta => {
+      const chave = conta.competencia || getMonthKey(conta.vencimento);
+      if (chave) mesesUnicos.add(chave);
+    });
+    return Array.from(mesesUnicos).sort();
+  }, [contasCalculadas]);
 
   useEffect(() => {
     if (monthKeys.length === 0 || selectedMonth) return;
@@ -30,10 +34,13 @@ export function useContasPagarFilters(contasCalculadas: ContaPagarComCalculo[]) 
     [contasCalculadas]
   );
 
-  const contasByMonth = useMemo(
-    () => selectedMonth ? contasCalculadas.filter(conta => getMonthKey(conta.vencimento) === selectedMonth) : contasCalculadas,
-    [contasCalculadas, selectedMonth]
-  );
+  const contasByMonth = useMemo(() => {
+    if (!selectedMonth) return contasCalculadas;
+    return contasCalculadas.filter(conta => {
+      const mesReferencia = conta.competencia || getMonthKey(conta.vencimento);
+      return mesReferencia === selectedMonth;
+    });
+  }, [contasCalculadas, selectedMonth]);
 
   const contasByFavorecido = useMemo(
     () => favorecidoFilter === 'TODOS' ? contasByMonth : contasByMonth.filter(conta => conta.favorecido === favorecidoFilter),

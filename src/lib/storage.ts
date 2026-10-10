@@ -282,3 +282,44 @@ export async function migrateFromLocalStorageIfNeeded(): Promise<boolean> {
 
   return migrated;
 }
+
+// =========== DUPLICAR DESPESA RECORRENTE ===========
+export async function duplicarDespesaRecorrente(contaId: string, novoMes?: string): Promise<string | null> {
+  const contas = await getContasPagar();
+  const contaOriginal = contas.find(c => c.id === contaId);
+  
+  if (!contaOriginal) {
+    console.warn('Conta não encontrada para duplicação:', contaId);
+    return null;
+  }
+
+  let dataVencimento = new Date(contaOriginal.vencimento);
+  if (novoMes) {
+    dataVencimento = new Date(`${novoMes}-01`);
+    const dia = new Date(contaOriginal.vencimento).getDate();
+    dataVencimento.setDate(Math.min(dia, new Date(dataVencimento.getFullYear(), dataVencimento.getMonth() + 1, 0).getDate()));
+  } else {
+    dataVencimento.setMonth(dataVencimento.getMonth() + 1);
+  }
+
+  const proximoMes = dataVencimento.toISOString().slice(0, 7);
+  const proximoVencimento = dataVencimento.toISOString().split('T')[0];
+  const novoNumero = await getNextNumeroContaPagar(contas);
+
+  const novaConta: ContaPagar = {
+    ...contaOriginal,
+    id: generateId(),
+    numero: String(novoNumero),
+    vencimento: proximoVencimento,
+    competencia: proximoMes,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: 'PENDENTE',
+    recorrente: true,
+    origemRecorrencia: contaOriginal.id,
+  };
+
+  await saveContasPagar([...contas, novaConta]);
+  console.log('✅ Despesa duplicada:', novaConta.id, novaConta.vencimento);
+  return novaConta.id;
+}

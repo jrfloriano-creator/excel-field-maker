@@ -112,6 +112,39 @@ refletir no app desktop. No modo web, rode `cd backend && npm run dev`.
 Cada um tem seu `node_modules` e seu lock. `npm install` na raiz não instala
 o backend.
 
+### 4.4 Abertura de links externos
+
+`src/lib/openUrl.ts` é o **único** caminho para abrir URL externa. Não chame
+`window.open` nem `invoke` direto em outros arquivos.
+
+```ts
+openExternalUrl(url)
+// Tauri: invoke('open_external_url') → opener do sistema
+// web:   cai no fallback
+
+openExternalUrl(url, { forcarBrowser: true })
+// ignora o invoke e força window.open → usado nos envios de WhatsApp Web
+```
+
+Dois comportamentos que existem por bug real e **não devem ser removidos**:
+
+- **Guarda anti-loop:** a mesma URL não reabre em menos de 3 s (`podeAbrir`).
+  Sem ela, o app abria abas infinitas.
+- **Fallback em cascata:** se `window.open` retorna `null` (bloqueador de popup),
+  cria um `<a target="_blank">` temporário e clica.
+
+Histórico — este trecho já foi invertido duas vezes, com conclusões opostas:
+
+| Sintoma observado | Conclusão aplicada |
+|---|---|
+| `window.open` não abria no WebView do Tauri | passou a usar `invoke` |
+| `invoke` falhava no envio de WhatsApp Web | passou a usar `forcarBrowser: true` |
+
+Por isso os envios de WhatsApp passam `forcarBrowser: true`. **Não simplifique
+essa lógica** para "usar sempre o mesmo caminho": valide em `npm run dev`
+(navegador) **e** `npm run tauri dev` (desktop) antes de mexer. Uma conclusão
+tirada testando só um dos alvos já quebrou o outro.
+
 ---
 
 ## 5. Mapa de pastas

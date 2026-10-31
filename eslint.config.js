@@ -5,7 +5,16 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  {
+    ignores: [
+      "dist",
+      "dev-dist", // saida do vite-plugin-pwa em modo dev, gerada a cada run
+      "src-tauri", // alvos Rust e copias empacotadas do backend
+      "backend", // pacote Node separado, com globals proprios
+      "prototype", // prototipo HTML/JS anterior ao React
+      ".opencode", // configuracao do assistente, nao faz parte do app
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

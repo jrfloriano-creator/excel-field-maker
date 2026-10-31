@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "tauri": "tauri",
     "build:sidecar": "node scripts/build-backend-sidecar.mjs"
   },

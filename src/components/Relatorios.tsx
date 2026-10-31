@@ -23,7 +23,7 @@ const TODOS = '__TODOS__';
 export function Relatorios({ titulos, config }: Props) {
   const calculados = useMemo(
     () => titulos.map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0)),
-    [titulos, config.taxa]
+    [titulos, config.taxa, config.contasPagar?.multa]
   );
 
   // Coletar opções
@@ -379,7 +379,16 @@ export function Relatorios({ titulos, config }: Props) {
               const cli = config.clientes.find(c => c.id === t.clienteId);
               const apelido = obterNomeCliente(cli || { nome: t.cliente });
               const pix = (config.chavesPix || [])[0];
-              const mensagemCobranca = t.telefone ? buildCobrancaMsg(apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined) : '';
+              const mensagemCobranca = t.telefone ? buildCobrancaMsg(apelido, t.valorCorrigido, t.vencimento, pix ? { nome: pix.nome, chave: pix.chave } : undefined, {
+                apelido,
+                valorOriginal: t.valor,
+                dataEmissao: t.dataEmissao,
+                dataVencimento: t.vencimento,
+                diasAtraso: Math.abs(t.diasAVencer || 0),
+                multa: t.valorMulta || 0,
+                juros: t.valorJuros || 0,
+                valorCorrigido: t.valorCorrigido,
+              }) : '';
               return (
                 <div key={t.id} className="border border-overdue/30 rounded-md p-3 text-sm">
                   <div className="flex justify-between items-start mb-1">

@@ -1,16 +1,16 @@
+// src/components/contas-pagar/ContasPagarTab.tsx
 import { Edit, Trash2 } from 'lucide-react';
 import { exportarParaExcel } from '@/lib/exportacao';
 import { FileSpreadsheet, FileText, Plus, Printer, X } from 'lucide-react';
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { AppConfig, ContaPagar } from '@/types/titulo';
 import { SessionUser } from '@/lib/auth';
-import { formatCurrency, formatarMesAno } from '@/lib/calculos';
+import { formatCurrency, formatarMesAno, formatarData } from '@/lib/calculos';
 import { useContasPagar } from '@/hooks/useContasPagar';
 import { useContaPagarActions } from '@/hooks/useContaPagarActions';
 import { useContasPagarFilters } from '@/hooks/useContasPagarFilters';
 import { useContasPagarCatalog } from '@/hooks/useContasPagarCatalog';
 import { agruparContasPorFavorecido, formatarResumoGrupo, somarValorContas } from '@/lib/contas-pagar';
-import { calcularProjecaoSemanal } from '@/lib/projecaoSemanal';
 import { ContaPagarForm } from './ContaPagarForm';
 import { ContaPagarCard } from './ContaPagarCard';
 import { ContaPagarPaymentModal } from './ContaPagarPaymentModal';
@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { contasPagarDbDriver } from '@/lib/contasPagarDb';
 
 interface ContasPagarTabProps {
   config: AppConfig;
@@ -35,65 +36,48 @@ interface ContasPagarTabProps {
   user: SessionUser | null;
 }
 
-const normalizar = (texto: string) =>
-  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[\s_]+/g, "");
-
-// Extrai o número da parcela do id ou descrição — ex: "1/3"
-const obterNumeroParcela = (conta: ContaPagar): string => {
-  if (conta.numeroParcelas && conta.numeroParcelas > 1) {
-    const match = conta.descricao.match(/(\d+)\s*\/\s*(\d+)/);
-    if (match) return `${match[1]}/${match[2]}`;
-    return `?/${conta.numeroParcelas}`;
-  }
-  return '';
-};
-
 export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabProps) {
   const { contas, contasCalculadas, titulos, loading, addConta, updateConta, deleteConta } = useContasPagar();
   const actions = useContaPagarActions({ contas, contasCalculadas, config, updateConfig, addConta, updateConta, deleteConta, user });
   const filters = useContasPagarFilters(contasCalculadas);
   const catalog = useContasPagarCatalog();
-  
   const [activeTab, setActiveTab] = useState<'lancamento' | 'despesas' | 'grafico' | 'projecao' | 'listagem' | 'credores'>('lancamento');
   const [editingLancamento, setEditingLancamento] = useState<ContaPagar | null>(null);
-  
   const [impressaoDialogAberto, setImpressaoDialogAberto] = useState(false);
   const [somenteTitulos, setSomenteTitulos] = useState(false);
-  
+
   const grupos = useMemo(() => agruparContasPorFavorecido(filters.contasFiltradas), [filters.contasFiltradas]);
   const totalFiltrado = useMemo(() => somarValorContas(filters.contasFiltradas), [filters.contasFiltradas]);
   const agruparPorFavorecido = filters.selectedMonth === '';
-  const contasConfig = config.contasPagar;
-  
-  // =========== DADOS PARA IMPRESSÃO COM Nº PARCELA ===========
+
+  // CORREÇÃO CRÍTICA: 'Somente Títulos' agora filtra por tipo !== 'DESPESA'
+  // Antes: usava categoria === 'FORNECEDOR', que pegava despesas manuais
   const dadosImpressao = useMemo(() => {
     let lista = filters.contasFiltradas;
-    
     if (somenteTitulos) {
-      lista = lista.filter(c => c.categoria === 'FORNECEDOR' || !!c.tipoTitulo);
+      lista = lista.filter(c => c.tipo !== 'DESPESA' || !!c.tipoTitulo);
     }
-    
     const agrupadoPorMes = new Map<string, (ContaPagar & { numeroParcela: string })[]>();
     lista.forEach(conta => {
       const mes = conta.competencia || conta.vencimento.slice(0, 7);
       if (!agrupadoPorMes.has(mes)) agrupadoPorMes.set(mes, []);
+      // CORREÇÃO CRÍTICA: lê numeroParcelaAtual do campo real (não regex na descrição)
+      const numeroParcela = conta.numeroParcelaAtual && conta.numeroParcelas
+        ? `${conta.numeroParcelaAtual}/${conta.numeroParcelas}`
+        : '';
       agrupadoPorMes.get(mes)!.push({
         ...conta,
-        numeroParcela: obterNumeroParcela(conta)
+        numeroParcela,
       });
     });
-    
     const mesesOrdenados = Array.from(agrupadoPorMes.keys()).sort();
-    
     const totaisPorMes = mesesOrdenados.map(mes => ({
       mes,
       nomeMes: formatarMesAno(mes),
       contas: agrupadoPorMes.get(mes)!,
       total: somarValorContas(agrupadoPorMes.get(mes)!),
     }));
-    
     const totalGeral = somarValorContas(lista);
-    
     return {
       itens: lista,
       totaisPorMes,
@@ -104,81 +88,69 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
       somenteTitulos,
     };
   }, [filters.contasFiltradas, filters.selectedMonth, filters.statusFilter, filters.favorecidoFilter, somenteTitulos]);
-  
-  const salvarContasPagarConfig = (patch: Partial<NonNullable<AppConfig['contasPagar']>>) => {
-    updateConfig({
-      contasPagar: {
-        ...contasConfig,
-        ...patch,
-      },
-    });
-  };
 
   const handleSalvarLancamento = async (payload: LancamentoTituloPayload | LancamentoTituloPayload[]) => {
-    if (Array.isArray(payload)) {
-      console.log('📦 Recebido array de parcelas, quantidade:', payload.length);
-      
-      for (let i = 0; i < payload.length; i++) {
-        const item = payload[i];
-        const numeroParcelaTexto = `${i+1}/${payload.length}`;
-        const nomeTipo = normalizar(item.tipoTituloNome);
-        const ehCheque = nomeTipo.includes("CHEQUE");
-        const ehCartaoCred = nomeTipo.includes("CARTAOCRED");
-        const ehCartaoDeb = nomeTipo.includes("CARTAODEB");
-        
-        const contaPayload: Partial<ContaPagar> = {
-          descricao: `[${numeroParcelaTexto}] ${item.descricao || `${item.tipoTituloNome} - ${item.credorNome}`}`,
-          categoria: 'FORNECEDOR',
-          tipoTitulo: item.tipoTituloNome,
-          favorecido: item.credorNome,
-          credorId: item.credorId,
-          valor: item.valor,
-          valorTotal: item.valorTotal,
-          numeroParcelas: item.numeroParcelas,
-          vencimento: item.vencimento,
-          competencia: item.competencia,
-          ...(ehCheque && { numeroCheque: item.numeroCheque, banco: item.banco }),
-          ...(ehCartaoCred && { bandeiraCartao: item.bandeiraCartao, emissorCartao: item.emissorCartao }),
-          ...(ehCartaoDeb && { bandeiraCartao: item.bandeiraCartao, emissorCartao: item.emissorCartao }),
-        };
-        
-        console.log(`💾 Salvando parcela ${numeroParcelaTexto}:`, contaPayload.vencimento, contaPayload.competencia);
-        await addConta(contaPayload as Omit<ContaPagar, 'id' | 'numero' | 'createdAt' | 'updatedAt' | 'status'>);
-        console.log(`✅ Parcela ${numeroParcelaTexto} salva!`);
-        
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      
-      toast.success(`${payload.length} parcelas salvas com sucesso!`);
-      return;
-    }
+    try {
+      if (Array.isArray(payload)) {
+        // CORREÇÃO CRÍTICA: Usa tipoTituloId.startsWith('CARTAO') em vez de normalizar nome
+        // Antes: normalizar('Cartão de Crédito') virava CARTAODECREDITO, que não continha CARTAOCRED
+        for (let i = 0; i < payload.length; i++) {
+          const item = payload[i];
+          const numeroParcelaTexto = `${i + 1}/${payload.length}`;
+          const ehCheque = item.tipoTituloId === 'CHEQUE';
+          const ehCartao = item.tipoTituloId.startsWith('CARTAO'); // CORREÇÃO: cobre CARTAO_CRED e CARTAO_DEB
 
-    const nomeTipo = normalizar(payload.tipoTituloNome);
-    const ehCheque = nomeTipo.includes("CHEQUE");
-    const ehCartaoCred = nomeTipo.includes("CARTAOCRED");
-    const ehCartaoDeb = nomeTipo.includes("CARTAODEB");
-    
-    const contaPayload: Partial<ContaPagar> = {
-      descricao: payload.descricao || `${payload.tipoTituloNome} - ${payload.credorNome}`,
-      categoria: 'FORNECEDOR',
-      tipoTitulo: payload.tipoTituloNome,
-      favorecido: payload.credorNome,
-      credorId: payload.credorId,
-      valor: payload.valor,
-      vencimento: payload.vencimento,
-      competencia: payload.vencimento.slice(0, 7),
-      ...(ehCheque && { numeroCheque: payload.numeroCheque, banco: payload.banco }),
-      ...(ehCartaoCred && { bandeiraCartao: payload.bandeiraCartao, emissorCartao: payload.emissorCartao }),
-      ...(ehCartaoDeb && { bandeiraCartao: payload.bandeiraCartao, emissorCartao: payload.emissorCartao }),
-    };
-    
-    if (editingLancamento) {
-      await updateConta(editingLancamento.id, contaPayload);
-      setEditingLancamento(null);
-      toast.success('Lançamento atualizado!');
-    } else {
-      await addConta(contaPayload as Omit<ContaPagar, 'id' | 'numero' | 'createdAt' | 'updatedAt' | 'status'>);
-      toast.success('Lançamento salvo!');
+          const contaPayload: Partial<ContaPagar> = {
+            descricao: `[${numeroParcelaTexto}] ${item.descricao || `${item.tipoTituloNome} - ${item.credorNome}`}`,
+            categoria: 'FORNECEDOR',
+            tipo: 'TITULO',
+            tipoTitulo: item.tipoTituloNome,
+            tipoTituloId: item.tipoTituloId,
+            favorecido: item.credorNome,
+            credorId: item.credorId,
+            valor: item.valor,
+            valorTotal: item.valorTotal,
+            numeroParcelas: item.numeroParcelas,
+            numeroParcelaAtual: i + 1,
+            vencimento: item.vencimento,
+            competencia: item.competencia,
+            ...(ehCheque && { numeroCheque: item.numeroCheque, banco: item.banco }),
+            ...(ehCartao && { bandeiraCartao: item.bandeiraCartao, emissorCartao: item.emissorCartao }),
+          };
+          await addConta(contaPayload as Omit<ContaPagar, 'id' | 'numero' | 'createdAt' | 'updatedAt' | 'status'>);
+        }
+        toast.success(`${payload.length} parcelas salvas com sucesso!`);
+        return;
+      }
+
+      const ehCheque = payload.tipoTituloId === 'CHEQUE';
+      const ehCartao = payload.tipoTituloId.startsWith('CARTAO');
+      const contaPayload: Partial<ContaPagar> = {
+        descricao: payload.descricao || `${payload.tipoTituloNome} - ${payload.credorNome}`,
+        categoria: 'FORNECEDOR',
+        tipo: 'TITULO',
+        tipoTitulo: payload.tipoTituloNome,
+        tipoTituloId: payload.tipoTituloId,
+        favorecido: payload.credorNome,
+        credorId: payload.credorId,
+        valor: payload.valor,
+        vencimento: payload.vencimento,
+        competencia: payload.competencia,
+        ...(ehCheque && { numeroCheque: payload.numeroCheque, banco: payload.banco }),
+        ...(ehCartao && { bandeiraCartao: payload.bandeiraCartao, emissorCartao: payload.emissorCartao }),
+      };
+
+      if (editingLancamento) {
+        await updateConta(editingLancamento.id, contaPayload);
+        setEditingLancamento(null);
+        toast.success('Lançamento atualizado!');
+      } else {
+        await addConta(contaPayload as Omit<ContaPagar, 'id' | 'numero' | 'createdAt' | 'updatedAt' | 'status'>);
+        toast.success('Lançamento salvo!');
+      }
+    } catch (e) {
+      console.error('[ContasPagarTab] erro ao salvar', e);
+      toast.error('Erro ao salvar lançamento');
     }
   };
 
@@ -199,6 +171,22 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
     setImpressaoDialogAberto(true);
   };
 
+  // CORREÇÃO CRÍTICA: Exclusão de credor agora chama contasPagarDbDriver.deleteCredor
+  // Antes: gravava em updateConfig (que não persistia no SQLite)
+  const handleExcluirCredor = async (credorId: string, nomeEmpresa: string) => {
+    if (!confirm(`Excluir "${nomeEmpresa}"?\n\n⚠️ Contas vinculadas ficarão sem credor associado.`)) {
+      return;
+    }
+    try {
+      await contasPagarDbDriver.deleteCredor(credorId);
+      toast.success('Credor excluído!');
+      await catalog.reload();
+    } catch (e) {
+      console.error('[ContasPagarTab] erro ao excluir credor', e);
+      toast.error('Erro ao excluir credor');
+    }
+  };
+
   if (loading) {
     return <div className="py-10 text-center text-muted-foreground">Carregando contas a pagar...</div>;
   }
@@ -214,8 +202,8 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
               {config.empresa?.nome || 'Zoom Financeiro'}
             </p>
             <p className="text-center text-xs text-gray-500 mt-2">
-              Filtro: {dadosImpressao.filtradoPor} • 
-              Status: {dadosImpressao.statusFiltro === 'TODOS' ? 'Todos' : dadosImpressao.statusFiltro} • 
+              Filtro: {dadosImpressao.filtradoPor} •
+              Status: {dadosImpressao.statusFiltro === 'TODOS' ? 'Todos' : dadosImpressao.statusFiltro} •
               Favorecido: {dadosImpressao.favorecidoFiltro}
               {dadosImpressao.somenteTitulos && ' • SOMENTE TÍTULOS'}
             </p>
@@ -250,21 +238,13 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                       <td className="py-2 px-2 text-xs">{conta.numero}</td>
                       <td className="py-2 px-2 text-xs">{conta.descricao}</td>
                       <td className="py-2 px-2 text-xs">{conta.favorecido || '—'}</td>
-                      <td className="py-2 px-2 text-xs">
-                        {conta.vencimento.split('-').reverse().join('/')}
-                      </td>
-                      <td className="py-2 px-2 text-xs">
-                        {conta.tipoTitulo || conta.categoria}
-                      </td>
+                      <td className="py-2 px-2 text-xs">{formatarData(conta.vencimento)}</td>
+                      <td className="py-2 px-2 text-xs">{conta.tipoTitulo || conta.categoria}</td>
                       <td className="py-2 px-2 text-xs text-right font-medium">
                         {formatCurrency(conta.valor)}
                       </td>
                       <td className="py-2 px-2 text-xs text-center">
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${
-                          conta.status === 'PAGO' ? 'bg-green-100 text-green-800' :
-                          conta.status === 'VENCIDO' ? 'bg-red-100 text-red-800' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${conta.status === 'PAGO' ? 'bg-green-100 text-green-800' : conta.status === 'VENCIDO' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
                           {conta.status}
                         </span>
                       </td>
@@ -344,7 +324,7 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
             addConta={addConta}
             onUpdateConta={updateConta}
             onDeleteConta={deleteConta}
-            onUpdateConfig={salvarContasPagarConfig}
+            onUpdateConfig={(patch) => updateConfig({ contasPagar: { ...config.contasPagar, ...patch } })}
           />
         ) : activeTab === 'grafico' ? (
           <ContasPagarGrafico
@@ -365,7 +345,7 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
             <h3 className="text-lg font-semibold">📊 Projeção Semanal — Quanto Preciso Vender</h3>
             <ProjecaoSemanal contas={contasCalculadas} />
           </div>
-                ) : activeTab === 'credores' ? (
+        ) : activeTab === 'credores' ? (
           <div className="space-y-3">
             {catalog.credores.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-8 text-center text-muted-foreground">
@@ -379,29 +359,19 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                     <p className="text-sm text-muted-foreground">{credor.nomeFantasia || 'Sem nome fantasia'}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => {
-                        toast.info('Edição em Configurações → Contas a Pagar');
-                      }}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toast.info('Edição em Configurações → Contas a Pagar')}
                       className="text-blue-600 hover:text-blue-700"
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => {
-                        if (confirm(`Excluir "${credor.nomeEmpresa}"?`)) {
-                          const novosCredores = catalog.credores.filter((c: any) => c.id !== credor.id);
-                          updateConfig({
-                            contasPagar: { ...config.contasPagar, credores: novosCredores },
-                          });
-                          toast.success('Credor excluído!');
-                        }
-                      }}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleExcluirCredor(credor.id, credor.nomeEmpresa)}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
@@ -441,8 +411,8 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                     <SelectItem value="PAGO">Pagos</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select 
-                  value={filters.selectedMonth || 'TODOS'} 
+                <Select
+                  value={filters.selectedMonth || 'TODOS'}
                   onValueChange={value => filters.setSelectedMonth(value === 'TODOS' ? '' : value)}
                 >
                   <SelectTrigger className="sm:w-52">
@@ -478,7 +448,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                 </Button>
               )}
             </div>
-
             <div className="flex flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="text-muted-foreground">
                 {agruparPorFavorecido ? 'Modo Todos: agrupado por favorecido' : 'Modo mensal: listagem linear por vencimento'}
@@ -487,7 +456,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                 {filters.contasFiltradas.length} lançamento(s) • {formatCurrency(totalFiltrado)}
               </div>
             </div>
-
             {actions.showForm && (
               <ContaPagarForm
                 config={config}
@@ -496,7 +464,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                 onClose={() => { actions.setEditingConta(null); actions.setShowForm(false); }}
               />
             )}
-
             {actions.payingConta && (
               <ContaPagarPaymentModal
                 conta={actions.payingConta}
@@ -505,7 +472,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                 onClose={() => actions.setPayingContaId(null)}
               />
             )}
-
             {actions.reversingConta && (
               <MotivoDialog
                 acao={`Revertendo baixa da conta #${actions.reversingConta.numero} ${actions.reversingConta.favorecido}`}
@@ -514,16 +480,15 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
                 onClose={() => actions.setReversingContaId(null)}
               />
             )}
-
             {actions.pendingDeleteId && (
               <DeleteMotivoModal
                 pendingDelete={{ kind: 'conta-pagar', id: actions.pendingDeleteId }}
-                motivos={config.motivosAlteracao || []}
+                // CORREÇÃO CRÍTICA: prop correta é motivosAlteracao (não motivos)
+                motivosAlteracao={config.motivosAlteracao || []}
                 onConfirm={actions.handleConfirmDelete}
                 onClose={() => actions.setPendingDeleteId(null)}
               />
             )}
-
             {filters.contasFiltradas.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <p className="mb-2 text-4xl">🧾</p>
@@ -598,7 +563,11 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
       </div>
 
       {/* =========== DIÁLOGO DE IMPRESSÃO =========== */}
-      <Dialog open={impressaoDialogAberto} onOpenChange={setImpressaoDialogAberto}>
+      <Dialog open={impressaoDialogAberto} onOpenChange={(open) => {
+        setImpressaoDialogAberto(open);
+        // CORREÇÃO CRÍTICA: reseta somenteTitulos ao fechar o diálogo
+        if (!open) setSomenteTitulos(false);
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -609,7 +578,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
               Confira as opções abaixo antes de imprimir
             </DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-4 py-2">
             <div className="bg-muted/50 p-3 rounded-lg text-sm space-y-1">
               <p><strong>Período:</strong> {dadosImpressao.filtradoPor}</p>
@@ -618,7 +586,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
               <p><strong>Registros:</strong> {dadosImpressao.itens.length}</p>
               <p><strong>Valor Total:</strong> {formatCurrency(dadosImpressao.totalGeral)}</p>
             </div>
-            
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="somenteTitulos"
@@ -630,7 +597,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
               </label>
             </div>
           </div>
-          
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setImpressaoDialogAberto(false)}>
               <X className="h-4 w-4 mr-1" />
@@ -644,7 +610,6 @@ export function ContasPagarTab({ config, updateConfig, user }: ContasPagarTabPro
         </DialogContent>
       </Dialog>
 
-      {/* =========== ESTILOS =========== */}
       <style>{`
         .print-only { display: none; }
         @media print {

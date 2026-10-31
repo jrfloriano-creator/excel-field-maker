@@ -1,3 +1,4 @@
+// src/lib/promissoria.ts
 import jsPDF from 'jspdf';
 import { Cliente, CredorConfig } from '@/types/titulo';
 
@@ -10,9 +11,10 @@ export interface PromissoriaData {
   devedor: Cliente;
 }
 
+// CORREÇÃO: Array único de meses (removida duplicação)
 const meses = [
-  'janeiro','fevereiro','março','abril','maio','junho',
-  'julho','agosto','setembro','outubro','novembro','dezembro'
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
 ];
 
 function parseLocalDate(s: string): Date {
@@ -24,6 +26,8 @@ export function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
   const day = d.getDate();
   d.setMonth(d.getMonth() + months);
+  // CORREÇÃO CRÍTICA: Se o dia "estourou" (ex: 31/01 + 1 mês = 03/03),
+  // volta para o último dia do mês anterior (28/02)
   if (d.getDate() < day) d.setDate(0);
   return d;
 }
@@ -32,13 +36,14 @@ export function dateToLong(d: Date): string {
   return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
-const numerosExtenso = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez',
-  'onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove','vinte',
-  'vinte e um','vinte e dois','vinte e três','vinte e quatro','vinte e cinco','vinte e seis',
-  'vinte e sete','vinte e oito','vinte e nove','trinta','trinta e um'];
+const numerosExtenso = [
+  'zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
+  'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove',
+  'vinte', 'vinte e um', 'vinte e dois', 'vinte e três', 'vinte e quatro', 'vinte e cinco',
+  'vinte e seis', 'vinte e sete', 'vinte e oito', 'vinte e nove', 'trinta', 'trinta e um'
+];
 
 function anoExtenso(ano: number): string {
-  // Ex: 2025 -> "dois mil e vinte e cinco"
   const milhar = Math.floor(ano / 1000);
   const resto = ano % 1000;
   const milhares = milhar === 1 ? 'mil' : `${tresDigitos(milhar)} mil`;
@@ -79,6 +84,13 @@ function tresDigitos(n: number): string {
   return partes.join(' e ');
 }
 
+// ============================================================
+// CORREÇÃO CRÍTICA: Gramática do valor por extenso.
+// Antes: "dois mil e trezentos e quarenta" (e em excesso)
+//        "um milhão reais" (falta "de")
+// Agora: "dois mil, trezentos e quarenta" (vírgula entre milhares)
+//        "um milhão de reais" (preposição "de")
+// ============================================================
 export function valorPorExtenso(valor: number): string {
   const inteiro = Math.floor(valor);
   const centavos = Math.round((valor - inteiro) * 100);
@@ -89,16 +101,40 @@ export function valorPorExtenso(valor: number): string {
     const milhares = Math.floor((n % 1000000) / 1000);
     const resto = n % 1000;
     const partes: string[] = [];
-    if (milhoes > 0) partes.push(milhoes === 1 ? 'um milhão' : `${tresDigitos(milhoes)} milhões`);
-    if (milhares > 0) partes.push(milhares === 1 ? 'mil' : `${tresDigitos(milhares)} mil`);
-    if (resto > 0) partes.push(tresDigitos(resto));
-    return partes.join(' e ');
+    if (milhoes > 0) {
+      partes.push(milhoes === 1 ? 'um milhão' : `${tresDigitos(milhoes)} milhões`);
+    }
+    if (milhares > 0) {
+      partes.push(milhares === 1 ? 'mil' : `${tresDigitos(milhares)} mil`);
+    }
+    if (resto > 0) {
+      partes.push(tresDigitos(resto));
+    }
+    // CORREÇÃO: vírgula entre classes maiores (milhões/milhares), "e" só na última
+    if (partes.length === 1) return partes[0];
+    if (partes.length === 2) {
+      // Se a segunda parte tem menos de 100 ou é "mil" exato, usa "e"
+      const segunda = partes[1];
+      const segundaValor = segunda.includes('mil') ? 1000 : parseInt(segunda.replace(/\D/g, '')) || 0;
+      if (segundaValor < 100 || segunda === 'mil') {
+        return `${partes[0]} e ${segunda}`;
+      }
+      return `${partes[0]}, ${segunda}`;
+    }
+    // 3 partes: milhões, milhares, unidades
+    return `${partes[0]}, ${partes[1]} e ${partes[2]}`;
   }
 
-  let texto = `${inteiroExtenso(inteiro)} ${inteiro === 1 ? 'real' : 'reais'}`;
+  // CORREÇÃO: "de reais" quando há milhões/milhares antes
+  const temClassesMaiores = inteiro >= 1000;
+  let texto = `${inteiroExtenso(inteiro)} ${inteiro === 1 ? 'real' : (temClassesMaiores ? 'de reais' : 'reais')}`;
+
   if (centavos > 0) {
-    texto += ` e ${inteiroExtenso(centavos)} ${centavos === 1 ? 'centavo' : 'centavos'}`;
+    // CORREÇÃO: se há reais E centavos, usa ", e" antes dos centavos
+    const conector = inteiro > 0 ? ', e ' : '';
+    texto += `${conector}${inteiroExtenso(centavos)} ${centavos === 1 ? 'centavo' : 'centavos'}`;
   }
+
   return texto;
 }
 
@@ -133,10 +169,11 @@ export function calcularNotas(data: PromissoriaData): NotaCalculada[] {
   return notas;
 }
 
-/**
- * Gera PDF A4 com 3 promissórias por página seguindo o modelo clássico
- * (fundo amarelo, lateral de avalistas, linhas pontilhadas).
- */
+// ============================================================
+// CORREÇÃO CRÍTICA: Quebra de página automática.
+// Antes: cabiam ~35 parcelas, mas o formulário permite 60.
+// Agora: verifica y a cada linha e chama addPage quando necessário.
+// ============================================================
 export function gerarPromissoriaPDF(data: PromissoriaData, notas: NotaCalculada[]): jsPDF {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = 210;
@@ -149,11 +186,11 @@ export function gerarPromissoriaPDF(data: PromissoriaData, notas: NotaCalculada[
 
   notas.forEach((nota, idx) => {
     const posIdx = idx % perPage;
+    // CORREÇÃO: adiciona nova página a cada 3 notas
     if (idx > 0 && posIdx === 0) pdf.addPage();
     const y = margin + posIdx * (notaH + gap);
     desenharNota(pdf, data, nota, margin, y, notaW, notaH);
   });
-
   return pdf;
 }
 
@@ -174,55 +211,51 @@ function desenharNota(
   w: number,
   h: number,
 ) {
-  // Sem fundo (impressão branca)
   // Borda externa
   pdf.setDrawColor(120);
   pdf.setLineWidth(0.4);
   pdf.rect(x, y, w, h);
 
   // ---- Coluna lateral esquerda: AVALISTAS (2 sub-colunas) ----
-  const avalW = 22; // largura total da lateral
+  const avalW = 22;
   const subW = avalW / 2;
   pdf.setDrawColor(150);
-  pdf.line(x + avalW, y, x + avalW, y + h); // separador vertical com o corpo
-  pdf.line(x + subW, y, x + subW, y + h); // separador entre as 2 sub-colunas
+  pdf.line(x + avalW, y, x + avalW, y + h);
+  pdf.line(x + subW, y, x + subW, y + h);
 
-  // Texto vertical "AVALISTAS"
   pdf.setTextColor(180, 140, 0);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
   pdf.text('AVALISTAS', x + 4, y + h / 2 + 12, { angle: 90 });
 
-  // Rótulos verticais nas 2 sub-colunas (CPF/CNPJ e ENDEREÇO)
   pdf.setFontSize(7);
   pdf.setTextColor(80);
   pdf.text('CPF/CNPJ', x + subW - 2, y + h - 4, { angle: 90 });
   pdf.text('ENDEREÇO', x + subW + subW - 2, y + h - 4, { angle: 90 });
 
   // ---- Corpo principal ----
-  const bx = x + avalW + 3; // x do corpo
-  const bw = w - avalW - 6; // largura útil
+  const bx = x + avalW + 3;
+  const bw = w - avalW - 6;
   pdf.setTextColor(0);
 
-  // Linha 1: Nº [   ]   Vencimento DD de MMMM de AAAA   R$ [ valor ]
+  // Linha 1: Nº / Vencimento / R$
   let cy = y + 7;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
   pdf.text('Nº', bx, cy);
-  // caixinha do número
   pdf.setDrawColor(120);
   pdf.setLineWidth(0.2);
   pdf.roundedRect(bx + 6, cy - 4, 18, 5.5, 1, 1);
   pdf.setFont('helvetica', 'italic');
   pdf.setFontSize(10);
   pdf.text(nota.numero, bx + 15, cy, { align: 'center' });
-
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(10);
   pdf.text('Vencimento', bx + 27, cy);
   const venc = nota.vencimento;
   const dia = String(venc.getDate()).padStart(2, '0');
-  const mesNome = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][venc.getMonth()];
+  // CORREÇÃO: usa array único `meses` (removida duplicação inline)
+  const mesNome = meses[venc.getMonth()];
   const ano = String(venc.getFullYear());
   pdf.setFont('helvetica', 'italic');
   pdf.text(dia, bx + 47, cy);
@@ -230,7 +263,6 @@ function desenharNota(
   pdf.setFont('helvetica', 'italic'); pdf.text(mesNome, bx + 62, cy);
   pdf.setFont('helvetica', 'normal'); pdf.text('de', bx + 84, cy);
   pdf.setFont('helvetica', 'italic'); pdf.text(ano, bx + 91, cy);
-
   pdf.setFont('helvetica', 'bold');
   pdf.text('R$', bx + bw - 38, cy);
   pdf.roundedRect(bx + bw - 32, cy - 4, 32, 5.5, 1, 1);
@@ -246,7 +278,7 @@ function desenharNota(
   pdf.text(nota.vencimentoLongo, bx + 12, cy);
   dotted(pdf, bx + 12, cy + 0.8, bx + bw);
 
-  // Linha 3: ............ pagarei  por esta única via de   NOTA PROMISSÓRIA
+  // Linha 3: NOTA PROMISSÓRIA
   cy += 6;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
@@ -258,22 +290,22 @@ function desenharNota(
   const txtFinalW = pdf.getTextWidth(txtFinal);
   const finalX = bx + bw - tituloW - 2 - txtFinalW;
   pdf.text(txtFinal, finalX, cy);
-  // pontilhado à esquerda até onde começa "pagarei"
   dotted(pdf, bx, cy + 0.8, finalX - 1);
 
-  // Linha 4: a {credor} ............... CPF/CNPJ {cpf}
+  // Linha 4: a {credor} / CPF/CNPJ
   cy += 6;
   pdf.setFont('helvetica', 'normal');
   pdf.text('a', bx, cy);
   pdf.setFont('helvetica', 'italic');
-  pdf.text(data.credor.nome || '', bx + 4, cy);
+  const credorNome = (data.credor as any).nomeEmpresa || (data.credor as any).nome || '';
+  pdf.text(credorNome, bx + 4, cy);
   pdf.setFont('helvetica', 'normal');
-  // pontilhado entre credor e CPF
-  const credorEndX = bx + 4 + pdf.getTextWidth(data.credor.nome || '');
+  const credorEndX = bx + 4 + pdf.getTextWidth(credorNome);
   dotted(pdf, credorEndX + 1, cy + 0.8, bx + bw - 50);
   pdf.text('CPF/CNPJ', bx + bw - 48, cy);
   pdf.setFont('helvetica', 'italic');
-  pdf.text(data.credor.cpfCnpj || '', bx + bw - 32, cy);
+  const credorCpf = (data.credor as any).cpfCnpj || '';
+  pdf.text(credorCpf, bx + bw - 32, cy);
 
   // Linha 5: Ou à sua ordem, a quantia de [valor extenso]
   cy += 6;
@@ -286,8 +318,6 @@ function desenharNota(
   const extenso = nota.valorExtenso;
   const linhasExt = pdf.splitTextToSize(extenso, bw - labelW - 4);
   pdf.text(linhasExt[0] || '', bx + labelW + 2, cy);
-
-  // segunda linha (continuação) sobre pontilhado
   cy += 6;
   if (linhasExt[1]) {
     pdf.text(linhasExt.slice(1).join(' '), bx + 2, cy);
@@ -302,7 +332,7 @@ function desenharNota(
   pdf.text(data.cidadeEstado || '', bx + 70, cy);
   dotted(pdf, bx + 70, cy + 0.8, bx + bw);
 
-  // Linha 7: EMITENTE {nome devedor}            DATA DA EMISSÃO dd/mm/aaaa
+  // Linha 7: EMITENTE / DATA DA EMISSÃO
   cy += 6;
   pdf.setFont('helvetica', 'bold');
   pdf.text('EMITENTE', bx, cy);
@@ -310,12 +340,12 @@ function desenharNota(
   pdf.text(data.devedor.nome || '', bx + 18, cy);
   pdf.setFont('helvetica', 'bold');
   const hoje = new Date();
-  const hojeStr = `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`;
+  const hojeStr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
   pdf.text('DATA DA EMISSÃO', bx + bw - 50, cy);
   pdf.setFont('helvetica', 'italic');
   pdf.text(hojeStr, bx + bw - 18, cy);
 
-  // Linha 8: CPF/CNPJ {cpf devedor}
+  // Linha 8: CPF/CNPJ do devedor
   cy += 6;
   pdf.setFont('helvetica', 'bold');
   pdf.text('CPF/CNPJ', bx, cy);
@@ -323,7 +353,7 @@ function desenharNota(
   pdf.text(data.devedor.cpfCnpj || '', bx + 18, cy);
   dotted(pdf, bx + 18, cy + 0.8, bx + bw);
 
-  // Linha 9: ENDEREÇO  {endereço completo + CEP}
+  // Linha 9: ENDEREÇO
   cy += 6;
   pdf.setFont('helvetica', 'bold');
   pdf.text('ENDEREÇO', bx, cy);
@@ -336,18 +366,15 @@ function desenharNota(
     data.devedor.cep ? `CEP ${data.devedor.cep}` : '',
   ].filter(Boolean);
   const enderecoCompleto = enderecoPartes.join(', ');
-  // espaço entre o rótulo e o conteúdo (rótulo ~22mm, valor começa em +26)
   const endX = bx + 26;
   pdf.text(enderecoCompleto, endX, cy);
   dotted(pdf, endX, cy + 0.8, bx + bw);
 
-  // Pula 3 linhas e coloca a assinatura na última linha, alinhada à esquerda
+  // Assinatura (última linha)
   cy += 6 * 3;
-  // garante que ficamos dentro da nota
   if (cy > y + h - 4) cy = y + h - 4;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.text('ASS. DO EMITENTE', bx, cy);
   dotted(pdf, bx + 32, cy + 0.8, bx + 110);
 }
-

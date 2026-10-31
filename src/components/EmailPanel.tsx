@@ -41,7 +41,7 @@ export function EmailPanel({ config, titulos, onUpdate }: Props) {
     return titulos
       .map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0))
       .filter(t => t.situacao === 'VENCIDO');
-  }, [titulos, config.taxa]);
+  }, [titulos, config.taxa, config.contasPagar?.multa]);
 
   const comEmail = useMemo(
     () => atrasados.filter(t => {
@@ -103,6 +103,7 @@ export function EmailPanel({ config, titulos, onUpdate }: Props) {
             onChange={e => onUpdate({ textoCobrancaEmail: e.target.value })}
           />
           <Button
+            type="button"
             className="w-full"
             variant="outline"
             onClick={handleEnviarCobrancas}
@@ -173,7 +174,7 @@ export function EmailPanel({ config, titulos, onUpdate }: Props) {
               onChange={e => setEmailLivreTexto(e.target.value)}
             />
           </div>
-          <Button className="w-full" onClick={handleEnviarLivre}>
+          <Button type="button" className="w-full" onClick={handleEnviarLivre}>
             <Mail className="h-4 w-4 mr-1" /> Abrir no Gmail
           </Button>
         </CardContent>

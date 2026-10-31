@@ -37,7 +37,7 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
   const [selectedPixId, setSelectedPixId] = useState<string>('');
   const selectedPix = chavesPix.find(p => p.id === selectedPixId);
   const clienteRef = clientes?.find(c => c.id === titulo.clienteId);
-  const nomeWhats = obterNomeCliente(clienteRef || { nome: titulo.cliente });
+  const nomeWhats = (clienteRef as any)?.apelido || clienteRef?.nome || titulo.cliente;
 
   const propConfig = proprietarios.find(p => p.id === titulo.proprietario);
   const bgColor = propConfig?.cor || '#e5e7eb';
@@ -255,7 +255,17 @@ export function TituloCard({ titulo, onDelete, onPagar, onEdit, chavesPix, propr
                 nomeWhats,
                 titulo.valorCorrigido,
                 titulo.vencimento,
-                selectedPix && selectedPixId !== 'none' ? selectedPix : undefined
+                selectedPix && selectedPixId !== 'none' ? selectedPix : undefined,
+                {
+                  apelido: nomeWhats,
+                  valorOriginal: titulo.valor,
+                  dataEmissao: titulo.dataEmissao,
+                  dataVencimento: titulo.vencimento,
+                  diasAtraso: Math.abs(titulo.diasAVencer || 0),
+                  multa: titulo.valorMulta || 0,
+                  juros: titulo.valorJuros || 0,
+                  valorCorrigido: titulo.valorCorrigido,
+                }
               ))}
             >
               <MessageCircle className="h-4 w-4" />

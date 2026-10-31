@@ -13,6 +13,6 @@ export function buildGmailComposeUrl(opts: { to?: string; subject?: string; body
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
-export function openGmailCompose(opts: { to?: string; subject?: string; body?: string; cc?: string; bcc?: string }) {
-  openExternalUrl(buildGmailComposeUrl(opts));
+export async function openGmailCompose(opts: { to?: string; subject?: string; body?: string; cc?: string; bcc?: string }) {
+  await openExternalUrl(buildGmailComposeUrl(opts));
 }

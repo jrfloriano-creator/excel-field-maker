@@ -1,12 +1,14 @@
+// src/components/AniversariantesPage.tsx
 import { useEffect, useState } from 'react';
 import { AppConfig, Cliente } from '@/types/titulo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Cake } from 'lucide-react';
-import { obterNomeCliente } from '@/lib/whatsapp/message';
-import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
 import { cn } from '@/lib/utils';
 import { dbDriver } from '@/lib/database';
+import { toast } from 'sonner';
+import { criarMensagemAniversario } from '@/lib/comunicacao';
+import { WhatsAppPreviewModal } from '@/components/modals/WhatsAppPreviewModal';
 
 interface AniversariantesPageProps {
   config: AppConfig;
@@ -14,25 +16,17 @@ interface AniversariantesPageProps {
 
 function getBirthdayMonth(dataNascimento: string): number {
   const trimmed = dataNascimento.trim();
-  // Format: YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return parseInt(trimmed.split('-')[1], 10);
-  }
-  // Format: DD/MM/YYYY
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-    return parseInt(trimmed.split('/')[1], 10);
-  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return parseInt(trimmed.split('-')[1], 10);
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) return parseInt(trimmed.split('/')[1], 10);
   return -1;
 }
 
 function formatBirthday(dataNascimento: string): string {
   const trimmed = dataNascimento.trim();
-  // Format: YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     const parts = trimmed.split('-');
     return `${parts[2]}/${parts[1]}`;
   }
-  // Format: DD/MM/YYYY
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
     const parts = trimmed.split('/');
     return `${parts[0]}/${parts[1]}`;
@@ -46,18 +40,17 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
   const mesNome = new Date().toLocaleDateString('pt-BR', { month: 'long' });
   const enviadosStorageKey = `aniversario_enviados_${currentYear}`;
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
+  
+  // ✅ Estado para o Modal de Pré-visualização
+  const [previewData, setPreviewData] = useState<{ open: boolean; telefone: string; nome: string; mensagem: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const stored = await dbDriver.kvGet(enviadosStorageKey);
-      if (!cancelled && Array.isArray(stored)) {
-        setEnviados(new Set(stored));
-      }
+      if (!cancelled && Array.isArray(stored)) setEnviados(new Set(stored));
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [enviadosStorageKey]);
 
   const aniversariantes = config.clientes.filter(c =>
@@ -68,12 +61,22 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
 
   const handleWhatsApp = (cliente: Cliente) => {
     const phone = (cliente.telefone || '').replace(/\D/g, '');
-    if (!phone) return;
-    const nomeCliente = obterNomeCliente(cliente);
-    const mensagem = mensagemBase
-      .replace(/\{nome\}/g, nomeCliente)
-      .replace(/\{apelido\}/g, nomeCliente);
-    enviarWhatsAppUnico(phone, mensagem);
+    if (!phone) {
+      toast.error(`O cliente ${cliente.nome} não possui telefone cadastrado.`);
+      return;
+    }
+    
+    const mensagem = criarMensagemAniversario(cliente, mensagemBase);
+
+    // ✅ Abre o modal para revisão em vez de enviar direto
+    setPreviewData({
+      open: true,
+      telefone: cliente.telefone,
+      nome: cliente.apelido || cliente.nome.split(' ')[0],
+      mensagem: mensagem
+    });
+
+    // Marca como enviado no histórico
     setEnviados(prev => {
       const next = new Set(prev).add(cliente.id);
       dbDriver.kvSet(enviadosStorageKey, Array.from(next));
@@ -98,9 +101,6 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
             <div className="text-center py-10 text-muted-foreground">
               <Cake className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">Nenhum aniversariante neste mês.</p>
-              <p className="text-[11px] mt-1 opacity-70">
-                Os aniversariantes são buscados pelo campo Data de Nascimento no cadastro de clientes.
-              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -131,14 +131,8 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
                           {cliente.nome}
                         </p>
                         <div className="flex items-center gap-3 mt-0.5">
-                          <span className="text-xs text-muted-foreground">
-                            🎂 {formatBirthday(cliente.dataNascimento!)}
-                          </span>
-                          {cliente.telefone && (
-                            <span className="text-xs text-muted-foreground">
-                              📱 {cliente.telefone}
-                            </span>
-                          )}
+                          <span className="text-xs text-muted-foreground">🎂 {formatBirthday(cliente.dataNascimento!)}</span>
+                          {cliente.telefone && <span className="text-xs text-muted-foreground">📱 {cliente.telefone}</span>}
                         </div>
                       </div>
                       <Button
@@ -163,14 +157,21 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
       <Card className="bg-muted/30">
         <CardContent className="p-3">
           <p className="text-[11px] text-muted-foreground">
-            <strong>Mensagem configurada:</strong>{' '}
-            <span className="italic">{mensagemBase}</span>
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
-            Para editar a mensagem, acesse Configurações → Alertas → Mensagem de Aniversário.
+            <strong>Mensagem configurada:</strong> <span className="italic">{mensagemBase}</span>
           </p>
         </CardContent>
       </Card>
+
+      {/* ✅ Renderização do Modal de Pré-visualização */}
+      {previewData && (
+        <WhatsAppPreviewModal
+          open={previewData.open}
+          onOpenChange={(open) => !open && setPreviewData(null)}
+          telefone={previewData.telefone}
+          nomeDestinatario={previewData.nome}
+          mensagemInicial={previewData.mensagem}
+        />
+      )}
     </div>
   );
 }

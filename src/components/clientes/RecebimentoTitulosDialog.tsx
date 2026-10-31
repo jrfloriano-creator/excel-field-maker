@@ -50,7 +50,7 @@ export function RecebimentoTitulosDialog({ cliente, titulos, config, user, updat
       .map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0))
       .filter(t => t.situacao !== 'PAGO')
       .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
-  }, [cliente, titulos, config.taxa]);
+  }, [cliente, titulos, config.taxa, config.contasPagar?.multa]);
 
   const titulosSelecionados = useMemo(
     () => titulosPendentes.filter(t => selecionados.has(t.id)),

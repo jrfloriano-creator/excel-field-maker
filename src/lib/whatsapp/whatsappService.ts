@@ -1,16 +1,7 @@
-import { Cliente } from '@/types/cliente';
-import { Titulo } from '@/types/titulo';
-import { toast } from 'sonner';
-import { openExternalUrl } from '@/lib/openUrl';
-import { whatsLink } from '@/lib/calculos';
+﻿import { toast } from 'sonner';
+import { abrirWhatsApp } from '@/lib/whatsapp/whatsappLink';
 
-const BACKEND_URL = import.meta.env.VITE_WHATSAPP_BACKEND_URL || 'http://localhost:3001';
-
-interface SendMessageResponse {
-  success: boolean;
-  messageId?: string;
-  error?: string;
-}
+export { linkWhatsApp, normalizarTelefoneBR, telefoneValido } from '@/lib/whatsapp/whatsappLink';
 
 interface ConnectionStatus {
   status: 'disconnected' | 'connecting' | 'connected' | 'qr';
@@ -18,183 +9,38 @@ interface ConnectionStatus {
   error?: string;
 }
 
-export class WhatsAppService {
-  private static instance: WhatsAppService;
-  private eventSource: EventSource | null = null;
-  private statusListeners: ((status: ConnectionStatus) => void)[] = [];
-  private qrListeners: ((qrCode: string) => void)[] = [];
+// Modo link direto (wa.me) - nao requer backend/QR
+export const whatsappService = {
+  async conectar() { return { success: false, error: 'Envio por link direto (wa.me). Nao e necessario conectar.' }; },
+  async desconectar() { return { success: true }; },
+  async resetarSessao() { return { success: true }; },
+  async getStatus(): Promise<ConnectionStatus> { return { status: 'disconnected' }; },
+  async enviarMensagem(_telefone: string, _mensagem: string) { return { success: false, error: 'Use o envio por link do WhatsApp.' }; },
+  async enviarEmLote(_mensagens: Array<{ phoneNumber: string; message: string }>) {
+    return { success: false, error: 'Use o envio por link do WhatsApp.' };
+  },
+  async verificarNumero(telefone: string) { return { exists: true, formattedNumber: telefone, jid: null as string | null }; },
+  async iniciarEventStream() {},
+  fecharEventStream() {},
+  onStatusChange(_listener: (s: ConnectionStatus) => void): () => void { return () => {}; },
+  onQRCode(_listener: (qr: string) => void): () => void { return () => {}; },
+  removeListener(_listener: (s: ConnectionStatus) => void) {},
+};
 
-  static getInstance(): WhatsAppService {
-    if (!this.instance) {
-      this.instance = new WhatsAppService();
-    }
-    return this.instance;
-  }
-
-  async conectar(): Promise<{ success: boolean; error?: string }> {
-    try {
-      const response = await fetch(`${BACKEND_URL}/connect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return await response.json();
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao conectar' };
-    }
-  }
-
-  async desconectar(): Promise<{ success: boolean; error?: string }> {
-    try {
-      const response = await fetch(`${BACKEND_URL}/disconnect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return await response.json();
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao desconectar' };
-    }
-  }
-
-  async getStatus(): Promise<ConnectionStatus> {
-    try {
-      const response = await fetch(`${BACKEND_URL}/status`);
-      return await response.json();
-    } catch (error) {
-      return { status: 'disconnected', error: String(error) };
-    }
-  }
-
-  async enviarMensagem(phoneNumber: string, message: string): Promise<SendMessageResponse> {
-    try {
-      const cleaned = phoneNumber.replace(/\D/g, '');
-      const response = await fetch(`${BACKEND_URL}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: cleaned, message })
-      });
-      return await response.json();
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao enviar mensagem' };
-    }
-  }
-
-  async enviarEmLote(messages: Array<{ phoneNumber: string; message: string }>): Promise<any> {
-    try {
-      const formatted = messages.map(m => ({
-        phoneNumber: m.phoneNumber.replace(/\D/g, ''),
-        message: m.message
-      }));
-      
-      const response = await fetch(`${BACKEND_URL}/send-batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: formatted })
-      });
-      
-      return await response.json();
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao enviar mensagens em lote' };
-    }
-  }
-
-  async verificarNumero(phoneNumber: string): Promise<{ exists: boolean; formattedNumber: string; jid: string | null }> {
-    try {
-      const cleaned = phoneNumber.replace(/\D/g, '');
-      const response = await fetch(`${BACKEND_URL}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: cleaned })
-      });
-      return await response.json();
-    } catch (error) {
-      return { exists: false, formattedNumber: phoneNumber, jid: null };
-    }
-  }
-
-  iniciarEventStream(): void {
-    if (this.eventSource) {
-      this.eventSource.close();
-    }
-
-    this.eventSource = new EventSource(`${BACKEND_URL}/events`);
-
-    this.eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'status') {
-          this.statusListeners.forEach(listener => listener(data.data));
-        }
-        if (data.type === 'qr') {
-          this.qrListeners.forEach(listener => listener(data.data));
-        }
-      } catch (error) {
-        console.error('Erro ao processar evento:', error);
-      }
-    };
-
-    this.eventSource.onerror = () => {
-      setTimeout(() => this.iniciarEventStream(), 5000);
-    };
-  }
-
-  onStatusChange(listener: (status: ConnectionStatus) => void): void {
-    this.statusListeners.push(listener);
-  }
-
-  onQRCode(listener: (qrCode: string) => void): void {
-    this.qrListeners.push(listener);
-  }
-
-  removeListener(listener: (status: ConnectionStatus) => void): void {
-    const index = this.statusListeners.indexOf(listener);
-    if (index > -1) {
-      this.statusListeners.splice(index, 1);
-    }
-  }
-
-  fecharEventStream(): void {
-    if (this.eventSource) {
-      this.eventSource.close();
-      this.eventSource = null;
-    }
-  }
-}
-
-export const whatsappService = WhatsAppService.getInstance();
-
-/**
- * Envia uma mensagem única via backend Baileys, com feedback de toast.
- * Se o backend estiver desconectado, mostra um toast de erro com uma ação
- * de fallback para abrir o link wa.me manualmente.
- */
 export async function enviarWhatsAppUnico(telefone: string, mensagem: string): Promise<boolean> {
   if (!telefone) {
     toast.error('Cliente sem telefone cadastrado.');
     return false;
   }
-
-  const status = await whatsappService.getStatus();
-  if (status.status !== 'connected') {
-    toast.error('WhatsApp não conectado. Conecte em Configurações › WhatsApp.', {
-      action: {
-        label: 'Abrir WhatsApp Web',
-        onClick: () => openExternalUrl(whatsLink(telefone, mensagem)),
-      },
-    });
+  try {
+    const aberto = await abrirWhatsApp(telefone, mensagem);
+    if (aberto) {
+      toast.success('Conversa aberta no WhatsApp. Confira a mensagem e clique em Enviar.');
+    }
+    return aberto;
+  } catch (error) {
+    console.error('[whatsapp] Erro ao abrir WhatsApp:', error);
+    toast.error('Nao foi possivel abrir o WhatsApp. Verifique o numero.');
     return false;
   }
-
-  const result = await whatsappService.enviarMensagem(telefone, mensagem);
-  if (result.success) {
-    toast.success('Mensagem enviada pelo WhatsApp!');
-    return true;
-  }
-
-  toast.error(result.error || 'Falha ao enviar mensagem pelo WhatsApp.', {
-    action: {
-      label: 'Abrir WhatsApp Web',
-      onClick: () => openExternalUrl(whatsLink(telefone, mensagem)),
-    },
-  });
-  return false;
 }

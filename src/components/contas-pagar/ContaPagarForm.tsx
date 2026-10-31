@@ -1,5 +1,6 @@
+// src/components/contas-pagar/ContaPagarForm.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { AppConfig, ContaPagar, ContaPagarCategoria } from '@/types/titulo';
+import { AppConfig, ContaPagar } from '@/types/titulo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
+import { hojeLocal, competenciaLocal } from '@/lib/calculos';
 
 interface ContaPagarFormProps {
   config: AppConfig;
@@ -16,7 +18,7 @@ interface ContaPagarFormProps {
   onClose: () => void;
 }
 
-const CATEGORIAS: { value: ContaPagarCategoria; label: string }[] = [
+const CATEGORIAS = [
   { value: 'FORNECEDOR', label: 'Fornecedor' },
   { value: 'FUNCIONARIO', label: 'Funcionário' },
   { value: 'IMPOSTO', label: 'Imposto' },
@@ -27,9 +29,10 @@ const CATEGORIAS: { value: ContaPagarCategoria; label: string }[] = [
 ];
 
 export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPagarFormProps) {
-  const today = new Date().toISOString().split('T')[0];
+  // CORREÇÃO CRÍTICA: usa hojeLocal() em vez de new Date().toISOString().split('T')[0]
+  const today = hojeLocal();
   const [descricao, setDescricao] = useState('');
-  const [categoria, setCategoria] = useState<ContaPagarCategoria>('FORNECEDOR');
+  const [categoria, setCategoria] = useState('FORNECEDOR');
   const [favorecido, setFavorecido] = useState('');
   const [valor, setValor] = useState('');
   const [vencimento, setVencimento] = useState(today);
@@ -37,14 +40,15 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
   const [centroCustoId, setCentroCustoId] = useState('');
   const [formaPagamentoId, setFormaPagamentoId] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [competenciaManual, setCompetenciaManual] = useState(false);
 
   const centrosAtivos = useMemo(
-    () => (config.contasPagar?.centrosCusto || []).filter(item => item.ativo),
-    [config.contasPagar?.centrosCusto]
+    () => ((config.contasPagar as any)?.centrosCusto || []).filter((item: any) => item.ativo),
+    [config.contasPagar]
   );
   const formasAtivas = useMemo(
-    () => (config.contasPagar?.formasPagamento || []).filter(item => item.ativo),
-    [config.contasPagar?.formasPagamento]
+    () => ((config.contasPagar as any)?.formasPagamento || []).filter((item: any) => item.ativo),
+    [config.contasPagar]
   );
 
   useEffect(() => {
@@ -57,8 +61,18 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
     setCompetencia(editData.competencia || editData.vencimento.slice(0, 7));
     setCentroCustoId(editData.centroCustoId || '');
     setFormaPagamentoId(editData.formaPagamentoId || '');
-    setObservacoes(editData.observacoes || '');
+    setObservacoes(editData.observacoes || editData.observacao || '');
+    setCompetenciaManual(true);
   }, [editData]);
+
+  // CORREÇÃO CRÍTICA: ao mudar vencimento, atualiza competência automaticamente
+  // (a menos que o usuário tenha editado manualmente)
+  const handleVencimentoChange = (novoVencimento: string) => {
+    setVencimento(novoVencimento);
+    if (!competenciaManual && novoVencimento) {
+      setCompetencia(novoVencimento.slice(0, 7));
+    }
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -68,8 +82,8 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
       return;
     }
 
-    const centro = centrosAtivos.find(item => item.id === centroCustoId);
-    const forma = formasAtivas.find(item => item.id === formaPagamentoId);
+    const centro = centrosAtivos.find((item: any) => item.id === centroCustoId);
+    const forma = formasAtivas.find((item: any) => item.id === formaPagamentoId);
 
     onSubmit({
       descricao: descricao.trim(),
@@ -80,15 +94,13 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
       competencia,
       observacoes: observacoes.trim() || undefined,
       centroCustoId: centro?.id,
-      centroCustoNome: centro?.nome,
+      centroCusto: centro?.nome,
       formaPagamentoId: forma?.id,
-      formaPagamentoNome: forma?.nome,
+      formaPagamento: forma?.nome,
+      tipo: 'DESPESA',
       paidAt: editData?.paidAt,
-      paidAmount: editData?.paidAmount,
-      reversalReason: editData?.reversalReason,
-      reversedAt: editData?.reversedAt,
-      reversedBy: editData?.reversedBy,
-    });
+      valorPago: editData?.valorPago ?? editData?.paidAmount,
+    } as any);
   };
 
   return (
@@ -108,7 +120,7 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Categoria *</Label>
-              <Select value={categoria} onValueChange={value => setCategoria(value as ContaPagarCategoria)}>
+              <Select value={categoria} onValueChange={value => setCategoria(value)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIAS.map(item => (
@@ -129,11 +141,18 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
             </div>
             <div>
               <Label className="text-xs">Vencimento *</Label>
-              <Input type="date" value={vencimento} onChange={event => setVencimento(event.target.value)} />
+              <Input type="date" value={vencimento} onChange={event => handleVencimentoChange(event.target.value)} />
             </div>
             <div>
               <Label className="text-xs">Competência</Label>
-              <Input type="month" value={competencia} onChange={event => setCompetencia(event.target.value)} />
+              <Input
+                type="month"
+                value={competencia}
+                onChange={event => {
+                  setCompetencia(event.target.value);
+                  setCompetenciaManual(true);
+                }}
+              />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -143,7 +162,7 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
                 <SelectTrigger><SelectValue placeholder={centrosAtivos.length === 0 ? 'Cadastre em Configurações' : 'Selecione'} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem centro de custo</SelectItem>
-                  {centrosAtivos.map(item => (
+                  {centrosAtivos.map((item: any) => (
                     <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>
                   ))}
                 </SelectContent>
@@ -155,7 +174,7 @@ export function ContaPagarForm({ config, editData, onSubmit, onClose }: ContaPag
                 <SelectTrigger><SelectValue placeholder={formasAtivas.length === 0 ? 'Cadastre em Configurações' : 'Selecione'} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem forma padrão</SelectItem>
-                  {formasAtivas.map(item => (
+                  {formasAtivas.map((item: any) => (
                     <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>
                   ))}
                 </SelectContent>

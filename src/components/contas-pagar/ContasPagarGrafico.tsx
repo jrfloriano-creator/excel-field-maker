@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+// src/components/contas-pagar/ContasPagarGrafico.tsx
+import { useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -61,7 +62,6 @@ function DailyTooltip({ active, payload, label }: any) {
   const receitas = Number(payload.find((item: any) => item.dataKey === 'receitas')?.value || 0);
   const pagamentos = Number(payload.find((item: any) => item.dataKey === 'pagamentos')?.value || 0);
   const diferenca = receitas - pagamentos;
-
   return (
     <div className="rounded-lg border bg-background p-3 shadow-md text-sm">
       <div className="font-semibold mb-2">Dia {label}</div>
@@ -91,32 +91,48 @@ export function ContasPagarGrafico({
     [titulos, taxa, multa]
   );
 
+  // CORREÇÃO CRÍTICA: Lista de meses considera apenas contas a pagar (não polui com títulos)
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     contas.forEach(conta => months.add(getMonthKey(conta.vencimento)));
-    titulosCalculados.forEach(titulo => months.add(getMonthKey(titulo.vencimento)));
     return Array.from(months).sort();
-  }, [contas, titulosCalculados]);
+  }, [contas]);
 
-  const effectiveMonth = selectedMonth || availableMonths[availableMonths.length - 1] || new Date().toISOString().slice(0, 7);
+  // CORREÇÃO CRÍTICA: Seletor de ano independente
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const years = useMemo(() => {
+    const yearsSet = new Set<number>();
+    contas.forEach(c => yearsSet.add(new Date(c.vencimento).getFullYear()));
+    yearsSet.add(new Date().getFullYear());
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [contas]);
 
-  const contasDoMes = useMemo(
-    () => effectiveMonth ? contas.filter(conta => getMonthKey(conta.vencimento) === effectiveMonth) : contas,
-    [contas, effectiveMonth]
-  );
+  // CORREÇÃO CRÍTICA: effectiveMonth não tem fallback para último mês
+  // Se selectedMonth === '', mostra TODAS as contas
+  const effectiveMonth = selectedMonth;
 
-  const titulosDoMes = useMemo(
-    () => effectiveMonth ? titulosCalculados.filter(titulo => getMonthKey(titulo.vencimento) === effectiveMonth) : titulosCalculados,
-    [titulosCalculados, effectiveMonth]
-  );
+  // CORREÇÃO CRÍTICA: filtra CANCELADO dos cálculos
+  const contasDoMes = useMemo(() => {
+    const base = contas.filter(c => c.status !== 'CANCELADO');
+    return effectiveMonth
+      ? base.filter(conta => getMonthKey(conta.vencimento) === effectiveMonth)
+      : base;
+  }, [contas, effectiveMonth]);
 
   const overdueCount = useMemo(() => contasDoMes.filter(conta => conta.status === 'VENCIDO').length, [contasDoMes]);
+
+  // CORREÇÃO CRÍTICA: 'A Pagar' só soma PENDENTE e VENCIDO (exclui CANCELADO)
   const pendingTotal = useMemo(
-    () => contasDoMes.filter(conta => conta.status !== 'PAGO').reduce((sum, conta) => sum + conta.valor, 0),
+    () => contasDoMes
+      .filter(conta => conta.status === 'PENDENTE' || conta.status === 'VENCIDO')
+      .reduce((sum, conta) => sum + conta.valor, 0),
     [contasDoMes]
   );
+
   const totalVendas = useMemo(
-    () => vendas.filter(venda => !effectiveMonth || venda.data.startsWith(effectiveMonth)).reduce((sum, venda) => sum + venda.valor, 0),
+    () => vendas
+      .filter(venda => !effectiveMonth || venda.data.startsWith(effectiveMonth))
+      .reduce((sum, venda) => sum + venda.valor, 0),
     [effectiveMonth, vendas]
   );
 
@@ -143,7 +159,6 @@ export function ContasPagarGrafico({
       const pagamentos = contasDoMes
         .filter(conta => conta.vencimento === dayString)
         .reduce((sum, conta) => sum + conta.valor, 0);
-
       return {
         dia: String(day).padStart(2, '0'),
         receitas,
@@ -169,34 +184,61 @@ export function ContasPagarGrafico({
       .sort((a, b) => b.value - a.value);
   }, [contasDoMes]);
 
+  const handleSelectMonth = (monthNumber: number) => {
+    const monthKey = `${selectedYear}-${String(monthNumber).padStart(2, '0')}`;
+    onSelectMonth(monthKey);
+  };
+
+  const handleSelectAll = () => {
+    onSelectMonth('');
+  };
+
+  const activeMonthNumber = selectedMonth ? parseInt(selectedMonth.slice(5, 7), 10) : 0;
+
   return (
     <div className="space-y-6">
-      <div className="overflow-x-auto">
-        <div className="flex gap-2 min-w-max">
-          <Button
-            type="button"
-            variant="outline"
-            className={selectedMonth === '' ? 'bg-primary text-primary-foreground border-primary' : ''}
-            onClick={() => onSelectMonth('')}
+      {/* CORREÇÃO CRÍTICA: Seletor de ano + meses */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium">Ano:</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           >
-            Todos
-          </Button>
-          {MONTH_LABELS.map((label, index) => {
-            const monthNumber = String(index + 1).padStart(2, '0');
-            const monthKey = `${effectiveMonth.slice(0, 4)}-${monthNumber}`;
-            const active = selectedMonth === monthKey;
-            return (
-              <Button
-                key={monthKey}
-                type="button"
-                variant="outline"
-                className={active ? 'bg-primary text-primary-foreground border-primary' : ''}
-                onClick={() => onSelectMonth(monthKey)}
-              >
-                {label}
-              </Button>
-            );
-          })}
+            {years.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="flex gap-2 min-w-max">
+            {/* CORREÇÃO CRÍTICA: Botão "Todos" funciona de verdade */}
+            <Button
+              type="button"
+              variant="outline"
+              className={selectedMonth === '' ? 'bg-primary text-primary-foreground border-primary' : ''}
+              onClick={handleSelectAll}
+            >
+              Todos
+            </Button>
+            {MONTH_LABELS.map((label, index) => {
+              const monthNumber = index + 1;
+              const active = activeMonthNumber === monthNumber;
+              return (
+                <Button
+                  key={label}
+                  type="button"
+                  variant="outline"
+                  className={active ? 'bg-primary text-primary-foreground border-primary' : ''}
+                  onClick={() => handleSelectMonth(monthNumber)}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -215,7 +257,6 @@ export function ContasPagarGrafico({
             </CardContent>
           </Card>
         </button>
-
         <Card>
           <CardContent className="p-5 flex items-center gap-4">
             <div className="rounded-full p-3 bg-blue-500">
@@ -230,7 +271,6 @@ export function ContasPagarGrafico({
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-5 flex items-center gap-4">
             <div className="rounded-full p-3 bg-sky-500">
@@ -239,20 +279,22 @@ export function ContasPagarGrafico({
             <div>
               <div className="text-sm text-muted-foreground">Total de Vendas</div>
               <div className="text-2xl font-bold">{formatCompactCurrency(totalVendas)}</div>
-              <div className="text-xs text-muted-foreground">{vendas.filter(venda => !effectiveMonth || venda.data.startsWith(effectiveMonth)).length} venda(s) no período</div>
+              <div className="text-xs text-muted-foreground">
+                {vendas.filter(venda => !effectiveMonth || venda.data.startsWith(effectiveMonth)).length} venda(s)
+                {effectiveMonth ? ' no período' : ' no total'}
+              </div>
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-5 flex items-center gap-4">
             <div className="rounded-full p-3 bg-orange-500">
               <DollarSign className="h-6 w-6 text-white" />
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">A Pagar</div>
+              <div className="text-sm text-muted-foreground">A Pagar (pendente/vencido)</div>
               <div className="text-2xl font-bold">{formatCompactCurrency(pendingTotal)}</div>
-              <div className="text-xs text-muted-foreground">Contas pendentes e vencidas</div>
+              <div className="text-xs text-muted-foreground">Exclui contas canceladas</div>
             </div>
           </CardContent>
         </Card>
@@ -261,61 +303,92 @@ export function ContasPagarGrafico({
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
         <Card>
           <CardHeader className="pb-2 border-b">
-            <CardTitle className="text-sm font-semibold">Receitas x Pagamentos por dia</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              {effectiveMonth
+                ? `Receitas x Pagamentos — ${MONTH_LABELS[parseInt(effectiveMonth.slice(5, 7), 10) - 1]}/${effectiveMonth.slice(0, 4)}`
+                : 'Receitas x Pagamentos (selecione um mês para ver o detalhamento diário)'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={dailyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value)} />
-                <Tooltip content={<DailyTooltip />} />
-                <Bar dataKey="receitas" fill={RECEITAS_COLOR} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="pagamentos" fill={PAGAMENTOS_COLOR} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {effectiveMonth ? (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={dailyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value))}
+                  />
+                  <Tooltip content={<DailyTooltip />} />
+                  <Bar dataKey="receitas" fill={RECEITAS_COLOR} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="pagamentos" fill={PAGAMENTOS_COLOR} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="py-16 text-center text-muted-foreground">
+                <p className="text-4xl mb-2">📊</p>
+                <p>Selecione um mês para ver o detalhamento diário</p>
+                <p className="text-xs mt-1">Ou clique em "Todos" para ver o panorama geral</p>
+              </div>
+            )}
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2 border-b">
-            <CardTitle className="text-sm font-semibold">Distribuição por credor</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              Distribuição por credor
+              {effectiveMonth && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  — {MONTH_LABELS[parseInt(effectiveMonth.slice(5, 7), 10) - 1]}/{effectiveMonth.slice(0, 4)}
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={credorData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={3}
-                >
+            {credorData.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground text-sm">
+                Nenhuma conta no período selecionado
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie
+                      data={credorData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                    >
+                      {credorData.map(item => (
+                        <Cell key={item.name} fill={item.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-2 max-h-56 overflow-auto pr-1">
                   {credorData.map(item => (
-                    <Cell key={item.name} fill={item.color} />
+                    <div key={item.name} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="truncate">{item.name}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="font-medium">{formatCurrency(item.value)}</div>
+                        <div className="text-xs text-muted-foreground">{item.percent.toFixed(1)}%</div>
+                      </div>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-              </PieChart>
-            </ResponsiveContainer>
-
-            <div className="space-y-2 max-h-56 overflow-auto pr-1">
-              {credorData.map(item => (
-                <div key={item.name} className="flex items-center justify-between gap-3 text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="truncate">{item.name}</span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-medium">{formatCurrency(item.value)}</div>
-                    <div className="text-xs text-muted-foreground">{item.percent.toFixed(1)}%</div>
-                  </div>
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

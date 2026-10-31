@@ -120,7 +120,7 @@ export function useTituloActions({
       const posicao = lote.findIndex(x => x.id === t.id) + 1;
       const tipoTituloFormatado = lote.length > 1
         ? `${t.tipo} ${posicao}/${lote.length}`
-        : `${t.tipo} ${t.numero}`;
+        : `${t.tipo}`;
       const msg = buildPagamentoWhatsMsg({
         apelido,
         dataPagamento: data.dataPagamento,

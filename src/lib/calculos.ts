@@ -1,3 +1,4 @@
+// src/lib/calculos.ts
 import { Titulo, TituloComCalculo, Situacao } from '@/types/titulo';
 
 function parseLocalDate(dateStr: string): Date {
@@ -9,7 +10,6 @@ export function calcularTitulo(titulo: Titulo, taxaMensal: number, multa: number
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const vencimento = parseLocalDate(titulo.vencimento);
-
   const diffMs = vencimento.getTime() - hoje.getTime();
   const diasAVencer = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
@@ -33,7 +33,6 @@ export function calcularTitulo(titulo: Titulo, taxaMensal: number, multa: number
   }
 
   const valorCorrigido = Math.round((titulo.valor + valorJuros + valorMulta) * 100) / 100;
-
   return {
     ...titulo,
     diasAVencer,
@@ -53,6 +52,20 @@ export function formatDate(dateStr: string): string {
   return date.toLocaleDateString('pt-BR');
 }
 
+// ✅ CORREÇÃO: Adicionado alias para compatibilidade com exportacao.ts e outros arquivos
+export function formatarData(dateStr: string): string {
+  return formatDate(dateStr);
+}
+
+// ✅ CORREÇÃO: Adicionado helper hojeLocal para evitar problemas com UTC (ex: depois das 21h)
+export function hojeLocal(): string {
+  const now = new Date();
+  const ano = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, '0');
+  const dia = String(now.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
 export function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 11) {
@@ -61,10 +74,38 @@ export function formatPhone(phone: string): string {
   return phone;
 }
 
-export function buildCobrancaMsg(cliente: string, valor: number, vencimento: string, chavePix?: { nome: string; chave: string }): string {
-  let msg = `*Controle Financeiro ZOOM*\n\nOlá ${cliente}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
+export function buildCobrancaMsg(
+  cliente: string,
+  valor: number,
+  vencimento: string,
+  chavePix?: { nome: string; chave: string },
+  detalhes?: {
+    apelido?: string;
+    valorOriginal?: number;
+    dataEmissao?: string;
+    dataVencimento?: string;
+    diasAtraso?: number;
+    multa?: number;
+    juros?: number;
+    valorCorrigido?: number;
+  }
+): string {
+  const nome = detalhes?.apelido || cliente;
+  let msg: string;
+  if (detalhes) {
+    const valorOrig = detalhes.valorOriginal ?? valor;
+    const emissao = detalhes.dataEmissao ? formatDate(detalhes.dataEmissao) : '-';
+    const venc = detalhes.dataVencimento ? formatDate(detalhes.dataVencimento) : formatDate(vencimento);
+    const dias = detalhes.diasAtraso ?? 0;
+    const multa = detalhes.multa ?? 0;
+    const juros = detalhes.juros ?? 0;
+    const corr = detalhes.valorCorrigido ?? valor;
+    msg = `*Controle Financeiro ZOOM*\n\nOlá ${nome}, identificamos um título no valor de:\nValor original - ${formatCurrency(valorOrig)}\nData de Emissão - ${emissao}\nData de Vencimento - ${venc}\nDias de atraso - ${dias}\nValor de Multa - ${formatCurrency(multa)}\nValor de Juros - ${formatCurrency(juros)}\nValor corrigido do Título - *${formatCurrency(corr)}*\n\nEntre em contato para regularizar.`;
+  } else {
+    msg = `*Controle Financeiro ZOOM*\n\nOlá ${nome}, identificamos um título no valor de ${formatCurrency(valor)} com vencimento em ${formatDate(vencimento)}. Entre em contato para regularizar.`;
+  }
   if (chavePix) {
-    msg += `\n\nou utilize a Chave PIX a seguir para o pagamento:\n${chavePix.nome}: ${chavePix.chave}`;
+    msg += `\nou utilize a Chave PIX a seguir para o pagamento:\n${chavePix.chave}`;
   }
   return msg;
 }
@@ -91,9 +132,37 @@ export function buildPagamentoWhatsMsg(opts: {
   return `Olá ${apelido}, recebemos seu pagamento em ${formaPagamento} no valor de ${formatCurrency(valorPago)}${dataMsg}, referente a/ao ${tipoTitulo}, recebido por ${recebidoPor}.${creditoMsg}\n\nAgradecemos a preferência!`;
 }
 
+// ✅ CORREÇÃO: Normalizador único de telefone para evitar duplicação do DDI 55
+export function normalizarTelefoneWhatsapp(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+  
+  // Remove DDI se já estiver presente
+  if (digits.startsWith('55') && digits.length >= 12) {
+    digits = digits.slice(2);
+  }
+  
+  // Remove 0 inicial (código de operadora antigo)
+  if (digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  
+  // Deve ter 10 ou 11 dígitos (DDD + número). Se tiver, adiciona o 55.
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+  
+  // Se já tem DDI correto (12 ou 13 dígitos), retorna como está
+  if (digits.length === 12 || digits.length === 13) {
+    return digits;
+  }
+  
+  // Fallback: retorna com 55 na frente mesmo assim
+  return `55${digits}`;
+}
+
 export function whatsLink(phone: string, msg: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return `https://api.whatsapp.com/send?phone=55${digits}&text=${encodeURIComponent(msg)}`;
+  const digits = normalizarTelefoneWhatsapp(phone);
+  return `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(msg)}`;
 }
 
 export function getMonthKey(dateStr: string): string {
@@ -107,7 +176,6 @@ export function formatMonthLabel(monthKey: string): string {
   return `${meses[parseInt(month) - 1]}/${year}`;
 }
 
-// Alias para manter compatibilidade — "2026-11" → "Nov/2026"
 export function formatarMesAno(mesAno: string): string {
   return formatMonthLabel(mesAno);
 }

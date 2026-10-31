@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    // ✅ CORREÇÃO CRÍTICA: Ignora a pasta target do Rust para evitar erro EBUSY no Windows
+    watch: {
+      ignored: ["**/src-tauri/target/**", "**/node_modules/**"],
+    },
   },
   plugins: [
     react(),
@@ -32,11 +36,11 @@ export default defineConfig(({ mode }) => ({
         globPatterns: [
           "**/*.{js,css,html,ico,png,svg,woff,woff2,ttf,eot,json}",
         ],
-        globIgnores: ["**/node_modules/**/*", "sw.js", "workbox-*.js"],
+        globIgnores: ["/node_modules/**", "sw.js", "workbox-*.js"],
         // SPA: redirecionar qualquer navegação para index.html
         navigateFallback: "index.html",
         // Não interceptar rotas de API ou arquivos com extensão específica
-        navigateFallbackDenylist: [/^\/api\//, /\.[^/?]+$/],
+        navigateFallbackDenylist: [/^\/api\//, /.[^/?]+$/],
         // Limpeza de cache antigo ao atualizar SW
         cleanupOutdatedCaches: true,
         // Não esperar – ativa o SW imediatamente
@@ -45,7 +49,7 @@ export default defineConfig(({ mode }) => ({
         runtimeCaching: [
           // Cache-first para assets estáticos (imagens, fontes, etc.)
           {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|ico|webp|avif)$/i,
+            urlPattern: /.(?:png|jpg|jpeg|svg|gif|ico|webp|avif)$/i,
             handler: "CacheFirst",
             options: {
               cacheName: "images-cache",
@@ -89,7 +93,7 @@ export default defineConfig(({ mode }) => ({
           },
           // StaleWhileRevalidate para scripts e estilos externos
           {
-            urlPattern: /\.(?:js|css)$/i,
+            urlPattern: /.(?:js|css)$/i,
             handler: "StaleWhileRevalidate",
             options: {
               cacheName: "static-resources",

@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTitulos } from '@/hooks/useTitulos';
 import { useFilters } from '@/hooks/useFilters';
 import { useTituloActions } from '@/hooks/useTituloActions';
-import { calcularTitulo, getMonthKey, formatMonthLabel } from '@/lib/calculos';
+import { calcularTitulo, getMonthKey, formatMonthLabel, formatDate } from '@/lib/calculos';
 import { TitulosFilters } from '@/components/TitulosFilters';
 import { TitulosTable } from '@/components/TitulosTable';
 import { TituloFormModal } from '@/components/modals/TituloFormModal';
@@ -25,9 +25,11 @@ import { ContasPagarTab } from '@/components/contas-pagar/ContasPagarTab';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, ChevronRight, Home, Users, Building2, CreditCard, Database, Bell, Palette, Coins, Tag, Key, Settings, Wrench } from 'lucide-react';
+import { Plus, Search, ChevronRight, Home, Users, Building2, CreditCard, Database, Bell, Palette, Coins, Tag, Key, Settings, Wrench, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { SessionUser, getSession, setSession, appendLog, hasPerm } from '@/lib/auth';
+import { abrirWhatsApp } from '@/lib/whatsapp/whatsappLink';
+import { obterNomeCliente } from '@/lib/whatsapp/message';
 
 type Tab = 'lista' | 'dashboard' | 'relatorios' | 'clientes' | 'promissoria' | 'vendas' | 'config' | 'aniversariantes' | 'contas-pagar';
 type PainelAba = 'cadastros' | 'financeiro' | 'contas-pagar' | 'alertas' | 'aparencia' | 'sistema';
@@ -154,7 +156,7 @@ const Index = () => {
   
   const titulosCalculados = useMemo(
     () => titulos.map(t => calcularTitulo(t, config.taxa, config.contasPagar?.multa || 0)).sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime()),
-    [titulos, config.taxa]
+    [titulos, config.taxa, config.contasPagar?.multa]
   );
   
   const filters = useFilters(titulosCalculados);
@@ -167,6 +169,75 @@ const Index = () => {
   
   const handleEdit = (id: string) => { actions.handleEdit(id); scrollToForm(); };
   const handlePagar = (id: string) => { actions.handlePagar(id); scrollToForm(); };
+
+  // ✅ NOVO: Envia cobranças WhatsApp de TODOS os títulos atrasados (Dashboard)
+  const handleEnviarCobancasAtrasados = async () => {
+    const atrasados: any[] = (titulosCalculados as any[]).filter(t => t.situacao === 'VENCIDO');
+    if (atrasados.length === 0) { toast.info('Nenhum título atrasado encontrado.'); return; }
+    const ativos: any[] = (config.telefonesAlerta as any[]).filter(t => t.ativo && t.numero);
+    if (ativos.length === 0) { toast.error('Nenhum telefone de alerta ativo. Configure em Configurações → Alertas.'); return; }
+
+    const fmtNum = (v: number) => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const celula = (valor: string, largura: number, alinhado: 'left' | 'right' = 'left') =>
+      alinhado === 'right' ? String(valor).padStart(largura) : String(valor).padEnd(largura);
+
+    const header = [
+      celula('Nº Título', 8, 'right'),
+      celula('Cliente', 12, 'left'),
+      celula('Data Vencto.', 12, 'left'),
+      celula('Dias Atraso', 12, 'right'),
+      celula('Vl Original', 12, 'right'),
+      celula('Vl J. M.', 12, 'right'),
+      celula('Vl Corrigido', 12, 'right'),
+    ].join('   ');
+
+    const linhas = atrasados.map((t: any) => {
+      const cli = config.clientes.find(c => c.id === t.clienteId);
+      const cliente = obterNomeCliente((cli || { nome: t.clienteNome } as any) as any);
+      const cells = [
+        celula(String(t.numero ?? ''), 8, 'right'),
+        celula(cliente, 12, 'left'),
+        celula(formatDate(t.vencimento), 12, 'left'),
+        celula(String(Math.abs(t.diasAVencer || 0)), 12, 'right'),
+        celula(fmtNum(t.valorOriginal ?? t.valor ?? 0), 12, 'right'),
+        celula(fmtNum((t.valorJuros || 0) + (t.valorMulta || 0)), 12, 'right'),
+        celula(fmtNum(t.valorCorrigido ?? t.valor ?? 0), 12, 'right'),
+      ];
+      return cells.join('   ');
+    });
+
+    const chavePixAtual = (config.chavesPix || []).find((k: any) => k?.ativa);
+    const pixMsg = chavePixAtual?.valor
+      ? `\n\n💰 ou utilize a Chave PIX a seguir para o pagamento:\n${chavePixAtual.valor}`
+      : '';
+
+    const msg = `*Controle Financeiro ZOOM*
+
+Data: ${formatDate(atrasados[0].vencimento)}
+Horário de envio: ${clockTime}
+Nome usuário: ${user?.nome || '—'}
+
+${header}
+
+${linhas.join('\n')}
+
+Caso tenha mais títulos será enviados na sequência igual a este exemplo que envie.
+
+Entre em contato para regularizar.${pixMsg}`;
+
+    let enviados = 0;
+    try {
+      for (const tel of ativos) {
+        const ok = await abrirWhatsApp(tel.numero, msg, 'web');
+        if (ok) enviados++;
+      }
+    } catch (e) {
+      console.error('[Dashboard] Falha ao enviar cobranças WhatsApp:', e);
+      toast.error('Falha ao enviar cobrança via WhatsApp.');
+      return;
+    }
+    toast.success(`${enviados} cobrança(s) enviada(s) via WhatsApp.`);
+  };
   
   // ✅ ABRIR GRUPO → mostra os cards internos
   const abrirGrupo = (grupoId: PainelAba) => {
@@ -285,6 +356,12 @@ const Index = () => {
                   </select>
                 </div>
               )}
+              <div className="mb-4">
+                <Button type="button" size="sm" className="w-full" onClick={handleEnviarCobancasAtrasados}>
+                  <MessageCircle className="h-4 w-4 mr-1" /> Enviar Cobranças (Atrasados) via WhatsApp
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">Envia cobrança com os dados dos títulos vencidos para os telefones de alerta.</p>
+              </div>
               <DashboardChart titulos={filters.dashboardMonth ? filters.titulosDashboardByProprietario.filter(t => getMonthKey(t.vencimento) === filters.dashboardMonth) : filters.titulosDashboardByProprietario} allTitulos={filters.titulosDashboardByProprietario} showValorTotal={hasPerm(config, user, 'dash.valorTotal')} onClickVencidos={() => { filters.setFiltro('VENCIDO'); setTab('lista'); }} vendas={config.vendas || []} selectedMonth={filters.dashboardMonth ?? undefined} config={config} />
             </>
           )}

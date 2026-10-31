@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 interface Props {
-  logs?: LogEntry[]; // ✅ Tornei opcional
+  logs?: LogEntry[];
 }
 
 function fmt(d: string) {
@@ -20,8 +20,30 @@ function formatCurrencyLocal(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// ============================================================
+// CORREÇÃO CRÍTICA: Blindagem contra objetos corrompidos no banco.
+// Se 'l.tipo' ou 'l.usuario' for um objeto {id, nome, nivel}, 
+// esta função extrai o nome ou converte para string, evitando 
+// o erro "Objects are not valid as a React child".
+// ============================================================
+function safeString(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (typeof val === 'object') {
+    if (val.nome) return String(val.nome);
+    if (val.id) return String(val.id);
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return '[Objeto]';
+    }
+  }
+  return String(val);
+}
+
 function renderVendaDetail(l: LogEntry) {
-  const m = l.metadata;
+  const m = (l as any).metadata;
   if (!m) return null;
   const linhas: string[] = [];
   if (m.clienteNome) linhas.push(`Cliente: ${m.clienteNome}`);
@@ -40,18 +62,18 @@ function renderVendaDetail(l: LogEntry) {
   return linhas;
 }
 
-export function LogPanel({ logs = [] }: Props) { // ✅ Valor padrão = lista vazia
+export function LogPanel({ logs = [] }: Props) {
   const today = new Date().toISOString().split('T')[0];
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState(today);
 
   const filtrados = useMemo(() => {
     return logs.filter(l => {
-      const d = l.data.slice(0, 10);
+      const d = safeString(l.data).slice(0, 10);
       if (ini && d < ini) return false;
       if (fim && d > fim) return false;
       return true;
-    }).sort((a, b) => b.data.localeCompare(a.data));
+    }).sort((a, b) => safeString(b.data).localeCompare(safeString(a.data)));
   }, [logs, ini, fim]);
 
   const exportPDF = () => {
@@ -65,13 +87,18 @@ export function LogPanel({ logs = [] }: Props) { // ✅ Valor padrão = lista va
     pdf.setFontSize(9);
     pdf.text(`Período: ${ini || '—'} a ${fim || '—'} | Registros: ${filtrados.length}`, 14, 26);
 
-    const vendasLogs = filtrados.filter(l => l.tipo === 'venda.vista');
-    const outrosLogs = filtrados.filter(l => l.tipo !== 'venda.vista');
+    const vendasLogs = filtrados.filter(l => safeString(l.tipo) === 'venda.vista');
+    const outrosLogs = filtrados.filter(l => safeString(l.tipo) !== 'venda.vista');
 
     autoTable(pdf, {
       startY: 32,
       head: [['Data/Hora', 'Usuário', 'Tipo', 'Descrição']],
-      body: outrosLogs.map(l => [fmt(l.data), l.usuario, l.tipo, l.descricao]),
+      body: outrosLogs.map(l => [
+        fmt(safeString(l.data)), 
+        safeString(l.usuario), 
+        safeString(l.tipo), 
+        safeString(l.descricao || l.detalhes)
+      ]),
       styles: { fontSize: 7 },
       headStyles: { fillColor: [59, 130, 246] },
       margin: { left: 10, right: 10 },
@@ -88,16 +115,16 @@ export function LogPanel({ logs = [] }: Props) { // ✅ Valor padrão = lista va
         startY: cursorY,
         head: [['Data/Hora', 'Usuário', 'Cliente', 'Valor Compra', 'Desconto', 'Valor Final', 'Pagamento']],
         body: vendasLogs.map(l => {
-          const m = l.metadata || {};
+          const m = (l as any).metadata || {};
           const descontoStr = m.desconto && m.desconto > 0
             ? (m.descontoTipo === 'porcento' ? `${m.desconto}%` : formatCurrencyLocal(m.desconto))
             : '—';
           const pagamento = m.formaPagamento
             ? `${m.formaPagamento}${m.parcelas ? ` ${m.parcelas}x` : ''}${m.maquininha ? ` (${m.maquininha})` : ''}`
-            : l.descricao;
+            : safeString(l.descricao || l.detalhes);
           return [
-            fmt(l.data),
-            l.usuario,
+            fmt(safeString(l.data)),
+            safeString(l.usuario),
             m.clienteNome || '—',
             m.valorCompra != null ? formatCurrencyLocal(m.valorCompra) : '—',
             descontoStr,
@@ -141,13 +168,17 @@ export function LogPanel({ logs = [] }: Props) { // ✅ Valor padrão = lista va
         </div>
         <div className="max-h-72 overflow-y-auto space-y-1 text-xs">
           {filtrados.slice(0, 200).map(l => (
-            <div key={l.id} className="border rounded p-2">
+            <div key={safeString(l.id)} className="border rounded p-2">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{fmt(l.data)}</span>
-                <span>{l.usuario}</span>
+                <span>{fmt(safeString(l.data))}</span>
+                {/* CORREÇÃO: Blindado com safeString */}
+                <span>{safeString(l.usuario)}</span>
               </div>
-              <p><strong>{l.tipo}</strong> — {l.descricao}</p>
-              {l.tipo === 'venda.vista' && (() => {
+              {/* CORREÇÃO CRÍTICA: Blindado com safeString para evitar crash no <strong> */}
+              <p>
+                <strong>{safeString(l.tipo)}</strong> — {safeString(l.descricao || l.detalhes)}
+              </p>
+              {safeString(l.tipo) === 'venda.vista' && (() => {
                 const detalhes = renderVendaDetail(l);
                 if (!detalhes || detalhes.length === 0) return null;
                 return (

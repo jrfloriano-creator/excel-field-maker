@@ -1,3 +1,4 @@
+// src/components/ClientesManager.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Cliente, Titulo, AppConfig } from '@/types/titulo';
 import { Input } from '@/components/ui/input';
@@ -11,10 +12,11 @@ import { generateId } from '@/lib/storage';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/calculos';
 import { obterNomeCliente } from '@/lib/whatsapp/message';
-import { enviarWhatsAppUnico } from '@/lib/whatsapp/whatsappService';
 import { SessionUser, hasPerm } from '@/lib/auth';
 import { RecebimentoTitulosDialog } from '@/components/clientes/RecebimentoTitulosDialog';
 import { ReimprimirTitulosDialog } from '@/components/clientes/ReimprimirTitulosDialog';
+// ✅ Importando o modal de preview do WhatsApp
+import { WhatsAppPreviewModal } from '@/components/modals/WhatsAppPreviewModal';
 
 const ESTADOS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
@@ -60,6 +62,15 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
   const [cpfError, setCpfError] = useState('');
   const [recebendoCliente, setRecebendoCliente] = useState<Cliente | null>(null);
   const [reimprimindoCliente, setReimprimindoCliente] = useState<Cliente | null>(null);
+  
+  // ✅ Estado para controlar o modal de preview do WhatsApp
+  const [previewData, setPreviewData] = useState<{
+    open: boolean;
+    telefone: string;
+    nome: string;
+    mensagem: string;
+  } | null>(null);
+
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const doOpen = (c?: Cliente) => {
@@ -344,7 +355,6 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
       ) : (
         <div className="space-y-2">
           {filtrados.map(c => {
-            // Busca títulos pelo clienteId (preferencial) ou por nome+telefone (legado)
             const titulosDoCliente = titulos.filter(t =>
               t.clienteId === c.id ||
               (!t.clienteId && (
@@ -352,11 +362,14 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
                 (c.telefone && t.telefone === c.telefone)
               ))
             );
-            const enviarRelacao = async (e: React.MouseEvent) => {
+            
+            // ✅ Função para abrir o modal de preview antes de enviar
+            const enviarRelacao = async (e: React.MouseEvent, cliente: Cliente) => {
               e.stopPropagation();
-              if (!c.telefone) { toast.error('Cliente sem telefone'); return; }
+              if (!cliente.telefone) { toast.error('Cliente sem telefone'); return; }
               if (titulosDoCliente.length === 0) { toast.info('Nenhum título cadastrado para este cliente'); return; }
-              const apelido = obterNomeCliente(c);
+              
+              const apelido = obterNomeCliente(cliente);
               const ordenados = [...titulosDoCliente].sort(
                 (a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime()
               );
@@ -365,8 +378,15 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
                 return `${i + 1}. ${t.tipo} | Emissão: ${formatDate(t.dataEmissao)} | Venc.: ${formatDate(t.vencimento)} | Valor: ${formatCurrency(t.valor)} | ${status}`;
               }).join('\n');
               const msg = `*Controle Financeiro ZOOM*\n\nConforme solicitado ${apelido}, segue a relação de suas parcelas:\n\n${linhas}`;
-              await enviarWhatsAppUnico(c.telefone, msg);
+
+              setPreviewData({
+                open: true,
+                telefone: cliente.telefone,
+                nome: apelido,
+                mensagem: msg
+              });
             };
+
             const camposFaltando: string[] = [];
             if (!c.telefone) camposFaltando.push('telefone');
             if (!c.cpfCnpj) camposFaltando.push('CPF/CNPJ');
@@ -374,6 +394,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
             if (!c.logradouro) camposFaltando.push('endereço');
             if (!c.cidade || !c.estado) camposFaltando.push('cidade/UF');
             const incompleto = camposFaltando.length > 0;
+            
             return (
               <Card
                 key={c.id}
@@ -405,7 +426,7 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
                       <Button
                         size="sm"
                         className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-7 text-[10px] px-2"
-                        onClick={enviarRelacao}
+                        onClick={(e) => enviarRelacao(e, c)}
                         title="Enviar títulos em aberto via WhatsApp"
                       >
                         <MessageCircle className="h-3 w-3 mr-1" />
@@ -519,6 +540,17 @@ export function ClientesManager({ clientes, onUpdate, titulos = [], requirePin, 
           titulos={titulos}
           config={config}
           onClose={() => setReimprimindoCliente(null)}
+        />
+      )}
+
+      {/* ✅ Modal de Preview do WhatsApp */}
+      {previewData && (
+        <WhatsAppPreviewModal
+          open={previewData.open}
+          onOpenChange={(open) => !open && setPreviewData(null)}
+          telefone={previewData.telefone}
+          nomeDestinatario={previewData.nome}
+          mensagemInicial={previewData.mensagem}
         />
       )}
     </div>

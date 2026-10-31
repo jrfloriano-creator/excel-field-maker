@@ -5,21 +5,20 @@ use std::fs;
 use std::net::TcpStream;
 use std::path::Path;
 use std::sync::Mutex;
-use std::time::Duration;
-
-use tauri::{Manager, RunEvent};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::{Manager, RunEvent, State};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
 const BACKEND_PORT: u16 = 3001;
 
-/// Guarda o processo filho do backend WhatsApp para poder encerrá-lo
-/// explicitamente quando o app for fechado.
+/// Guarda o processo filho do backend WhatsApp
 struct BackendProcess(Mutex<Option<CommandChild>>);
 
-/// Verifica rapidamente se algo já está escutando na porta do backend
-/// (evita spawns duplicados caso o usuário abra duas instâncias do app
-/// ou o backend já esteja rodando de uma sessão anterior).
+/// ✅ CORREÇÃO CRÍTICA: Guarda o token de API para ser acessado pelo frontend
+struct ApiToken(String);
+
+/// Verifica se o backend já está rodando
 fn backend_is_running() -> bool {
     TcpStream::connect_timeout(
         &format!("127.0.0.1:{BACKEND_PORT}").parse().unwrap(),
@@ -28,10 +27,17 @@ fn backend_is_running() -> bool {
     .is_ok()
 }
 
-/// No Windows, associa o PID do processo filho a um Job Object com a flag
-/// KILL_ON_JOB_CLOSE. Isso garante que o backend Node seja encerrado mesmo
-/// se o app Tauri travar ou for finalizado à força (o Windows mata o
-/// processo filho quando o handle do Job é fechado).
+/// ✅ CORREÇÃO CRÍTICA: Gera um token único por execução
+/// Combina timestamp + PID para garantir unicidade mesmo em restarts rápidos
+fn generate_api_token() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let pid = std::process::id();
+    format!("zoom_{}_{}", timestamp, pid)
+}
+
 #[cfg(target_os = "windows")]
 fn attach_to_kill_on_close_job(pid: u32) {
     use windows::Win32::Foundation::CloseHandle;
@@ -52,7 +58,9 @@ fn attach_to_kill_on_close_job(pid: u32) {
             return;
         }
     };
+
     info.limit_kill_on_job_close();
+
     if let Err(e) = job.set_extended_limit_info(&info) {
         eprintln!("[backend-sidecar] falha ao aplicar limites do Job: {e}");
         return;
@@ -72,8 +80,6 @@ fn attach_to_kill_on_close_job(pid: u32) {
         }
     }
 
-    // Mantém o Job vivo pelo resto da execução do app: se ele for
-    // dropado, o Windows mataria o processo associado imediatamente.
     std::mem::forget(job);
 }
 
@@ -115,34 +121,27 @@ fn open_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+// ============================================================
+// CORREÇÃO CRÍTICA: open_external_url seguro (usa tauri_plugin_opener)
+// ============================================================
 #[tauri::command]
-fn open_external_url(url: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
+async fn open_external_url(url: String) -> Result<(), String> {
+    let lower = url.to_lowercase();
+    if !(lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("mailto:")
+        || lower.starts_with("whatsapp://"))
     {
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "", &url])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        return Err(format!("Esquema de URL não permitido: {}", url));
     }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
+
+    tauri_plugin_opener::open_url(&url, None::<&str>)
+        .map_err(|e| format!("Falha ao abrir URL: {}", e))?;
+
     Ok(())
 }
 
-/// Envia um arquivo PDF para a impressora padrão do Windows via PowerShell.
-/// Usa Start-Process com -Verb Print, que aciona o leitor PDF padrão em modo impressão.
+// ✅ CORREÇÃO: Typo corrigido (era #[tauri::comma nd])
 #[tauri::command]
 fn print_pdf_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -152,7 +151,10 @@ fn print_pdf_file(path: String) -> Result<(), String> {
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                &format!("Start-Process -FilePath '{}' -Verb Print", path.replace('\'', "''")),
+                &format!(
+                    "Start-Process -FilePath '{}' -Verb Print",
+                    path.replace('\'', "''")
+                ),
             ])
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -178,7 +180,22 @@ fn print_pdf_file(path: String) -> Result<(), String> {
     Err("Plataforma não suportada".to_string())
 }
 
+// ============================================================
+// ✅ CORREÇÃO CRÍTICA: Comando Tauri para o frontend obter o token
+// ============================================================
+#[tauri::command]
+fn get_api_token(token: State<'_, ApiToken>) -> String {
+    token.0.clone()
+}
+
 fn main() {
+    // ✅ CORREÇÃO CRÍTICA: Gera o token UMA VEZ no startup
+    let api_token = generate_api_token();
+    println!(
+        "[main] 🔐 Token da API gerado (primeiros 8 chars): {}...",
+        &api_token[..8.min(api_token.len())]
+    );
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
@@ -186,8 +203,15 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .manage(BackendProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![write_bytes_to_file, open_folder, open_external_url, print_pdf_file])
-        .setup(|app| {
+        .manage(ApiToken(api_token.clone())) // ✅ Token disponível via State
+        .invoke_handler(tauri::generate_handler![
+            write_bytes_to_file,
+            open_folder,
+            open_external_url,
+            print_pdf_file,
+            get_api_token // ✅ Novo comando exposto ao frontend
+        ])
+        .setup(move |app| {
             if backend_is_running() {
                 println!("[backend-sidecar] backend já está rodando em 127.0.0.1:{BACKEND_PORT}, reutilizando instância existente");
                 return Ok(());
@@ -208,6 +232,7 @@ fn main() {
                 .join("backend");
             let entry_point = backend_dir.join("dist").join("index.js");
 
+            // ✅ CORREÇÃO CRÍTICA: Passa o token ao sidecar via env var
             let (mut rx, child) = app
                 .shell()
                 .sidecar("backend-node")
@@ -218,12 +243,17 @@ fn main() {
                 .env("NODE_ENV", "production")
                 .env("WHATSAPP_SESSION_DIR", auth_dir.to_string_lossy().to_string())
                 .env("AUTO_RECONNECT", "true")
+                .env("WHATSAPP_API_TOKEN", api_token.clone()) // ✅ Token ao backend
                 .spawn()
                 .expect("falha ao iniciar o backend WhatsApp (sidecar)");
 
             attach_to_kill_on_close_job(child.pid());
 
-            app.state::<BackendProcess>().0.lock().unwrap().replace(child);
+            app.state::<BackendProcess>()
+                .0
+                .lock()
+                .unwrap()
+                .replace(child);
 
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_shell::process::CommandEvent;

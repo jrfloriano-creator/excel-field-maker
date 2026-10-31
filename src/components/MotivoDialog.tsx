@@ -13,9 +13,15 @@ interface MotivoDialogProps {
 
 export function MotivoDialog({ acao, motivos = [], onConfirm, onClose }: MotivoDialogProps) {
   const [motivo, setMotivo] = useState('');
-  
+
   // Garante que motivos é sempre um array ✅
   const listaMotivos = Array.isArray(motivos) ? motivos : [];
+
+  // ✅ CORREÇÃO: normaliza itens que podem ser string ou objeto {id, texto}
+  const textoDoMotivo = (m: any): string => {
+    if (typeof m === 'string') return m;
+    return m?.texto || m?.motivo || '';
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -24,7 +30,7 @@ export function MotivoDialog({ acao, motivos = [], onConfirm, onClose }: MotivoD
           <DialogTitle>Confirmação</DialogTitle>
           <DialogDescription>{acao}</DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Informe o motivo</Label>
@@ -34,22 +40,25 @@ export function MotivoDialog({ acao, motivos = [], onConfirm, onClose }: MotivoD
               placeholder="Descreva o motivo..."
             />
           </div>
-          
+
           {/* Lista de motivos salvos — com proteção ✅ */}
           {listaMotivos.length > 0 && (
             <div className="space-y-2">
               <Label>Motivos frequentes</Label>
               <div className="flex flex-wrap gap-2">
-                {listaMotivos.map((m, i) => (
-                  <Button
-                    key={i}
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setMotivo(m)}
-                  >
-                    {m}
-                  </Button>
-                ))}
+                {listaMotivos.map((m, i) => {
+                  const texto = textoDoMotivo(m);
+                  return (
+                    <Button
+                      key={i}
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setMotivo(texto)}
+                    >
+                      {texto}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
           )}

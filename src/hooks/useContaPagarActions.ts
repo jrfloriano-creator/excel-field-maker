@@ -1,6 +1,7 @@
+// src/hooks/useContaPagarActions.ts
 import { useMemo, useState } from 'react';
 import { AppConfig, ContaPagar, ContaPagarComCalculo } from '@/types/titulo';
-import { SessionUser, appendLog } from '@/lib/auth';
+import { SessionUser, appendLog, hasPerm } from '@/lib/auth';
 import { toast } from 'sonner';
 
 interface UseContaPagarActionsProps {
@@ -31,76 +32,140 @@ export function useContaPagarActions({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const payingConta = useMemo(
-    () => payingContaId ? contasCalculadas.find(conta => conta.id === payingContaId) ?? null : null,
+    () => (payingContaId ? contasCalculadas.find(conta => conta.id === payingContaId) ?? null : null),
     [contasCalculadas, payingContaId]
   );
 
   const reversingConta = useMemo(
-    () => reversingContaId ? contasCalculadas.find(conta => conta.id === reversingContaId) ?? null : null,
+    () => (reversingContaId ? contasCalculadas.find(conta => conta.id === reversingContaId) ?? null : null),
     [contasCalculadas, reversingContaId]
   );
 
+  // ============================================================
+  // CORREÇÃO CRÍTICA: Checagem de permissões em todas as ações.
+  // Antes: qualquer usuário podia editar/excluir sem checagem.
+  // Agora: cada ação valida hasPerm() e mostra toast se não autorizado.
+  // ============================================================
   const handleSubmit = async (data: Omit<ContaPagar, 'id' | 'numero' | 'createdAt' | 'updatedAt' | 'status'>) => {
-    if (!user) return;
-    if (editingConta) {
-      await updateConta(editingConta.id, {
-        ...data,
-        status: editingConta.status === 'PAGO' ? 'PAGO' : 'PENDENTE',
-      });
-      appendLog(config, updateConfig, user, 'conta-pagar.editar', `Editou conta a pagar #${editingConta.numero} (${editingConta.favorecido})`);
-      toast.success('Conta atualizada!');
-    } else {
-      const created = await addConta(data);
-      appendLog(config, updateConfig, user, 'conta-pagar.criar', `Criou conta a pagar #${created.numero} (${created.favorecido})`);
-      toast.success('Conta adicionada!');
+    if (!user) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return;
     }
-    setEditingConta(null);
-    setShowForm(false);
+    // CORREÇÃO: checa permissão de edição
+    if (!hasPerm(config, user, 'contasPagar.editar')) {
+      toast.error('Você não tem permissão para editar contas a pagar.');
+      return;
+    }
+
+    try {
+      if (editingConta) {
+        await updateConta(editingConta.id, {
+          ...data,
+          status: editingConta.status === 'PAGO' ? 'PAGO' : 'PENDENTE',
+        });
+        await appendLog('info', user, `Editou conta a pagar #${editingConta.numero} (${editingConta.favorecido})`);
+        toast.success('Conta atualizada!');
+      } else {
+        const created = await addConta(data);
+        await appendLog('info', user, `Criou conta a pagar #${created.numero} (${created.favorecido})`);
+        toast.success('Conta adicionada!');
+      }
+      setEditingConta(null);
+      setShowForm(false);
+    } catch (e) {
+      console.error('[useContaPagarActions] erro ao salvar', e);
+      toast.error('Erro ao salvar conta');
+    }
   };
 
   const handleConfirmPagamento = async (data: { paidAt: string; paidAmount: number; formaPagamentoId?: string; formaPagamentoNome?: string }) => {
-    if (!payingContaId || !user) return;
-    const conta = contas.find(item => item.id === payingContaId);
-    await updateConta(payingContaId, {
-      status: 'PAGO',
-      paidAt: data.paidAt,
-      paidAmount: data.paidAmount,
-      formaPagamentoId: data.formaPagamentoId,
-      formaPagamentoNome: data.formaPagamentoNome,
-      reversalReason: undefined,
-      reversedAt: undefined,
-      reversedBy: undefined,
-    });
-    appendLog(config, updateConfig, user, 'conta-pagar.pagar', `Baixou conta a pagar #${conta?.numero} (${conta?.favorecido}) no valor de ${data.paidAmount}`);
-    setPayingContaId(null);
-    toast.success('Pagamento registrado!');
+    if (!payingContaId || !user) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return;
+    }
+    // CORREÇÃO: checa permissão de edição (pagar é uma edição)
+    if (!hasPerm(config, user, 'contasPagar.editar')) {
+      toast.error('Você não tem permissão para baixar contas.');
+      return;
+    }
+
+    try {
+      const conta = contas.find(item => item.id === payingContaId);
+      await updateConta(payingContaId, {
+        status: 'PAGO',
+        dataPagamento: data.paidAt,
+        valorPago: data.paidAmount,
+        paidAt: data.paidAt,
+        paidAmount: data.paidAmount,
+        formaPagamento: data.formaPagamentoNome,
+        formaPagamentoId: data.formaPagamentoId,
+      });
+      await appendLog('sucesso', user, `Baixou conta a pagar #${conta?.numero} (${conta?.favorecido}) no valor de ${data.paidAmount}`);
+      setPayingContaId(null);
+      toast.success('Pagamento registrado!');
+    } catch (e) {
+      console.error('[useContaPagarActions] erro ao pagar', e);
+      toast.error('Erro ao registrar pagamento');
+    }
   };
 
   const handleConfirmReversao = async (motivo: string) => {
-    if (!reversingContaId || !user) return;
-    const conta = contas.find(item => item.id === reversingContaId);
-    await updateConta(reversingContaId, {
-      status: 'PENDENTE',
-      paidAt: undefined,
-      paidAmount: undefined,
-      reversalReason: motivo,
-      reversedAt: new Date().toISOString(),
-      reversedBy: user.nome,
-      formaPagamentoId: undefined,
-      formaPagamentoNome: undefined,
-    });
-    appendLog(config, updateConfig, user, 'conta-pagar.reverter', `Reverteu baixa da conta #${conta?.numero} (${conta?.favorecido}). Motivo: ${motivo}`);
-    setReversingContaId(null);
-    toast.success('Baixa revertida!');
+    if (!reversingContaId || !user) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return;
+    }
+    if (!hasPerm(config, user, 'contasPagar.editar')) {
+      toast.error('Você não tem permissão para reverter baixas.');
+      return;
+    }
+
+    try {
+      const conta = contas.find(item => item.id === reversingContaId);
+      await updateConta(reversingContaId, {
+        status: 'PENDENTE',
+        dataPagamento: undefined,
+        valorPago: undefined,
+        paidAt: undefined,
+        paidAmount: undefined,
+        formaPagamento: undefined,
+        formaPagamentoId: undefined,
+        motivoExclusao: `Reversão: ${motivo}`,
+      });
+      await appendLog('aviso', user, `Reverteu baixa da conta #${conta?.numero} (${conta?.favorecido}). Motivo: ${motivo}`);
+      setReversingContaId(null);
+      toast.success('Baixa revertida!');
+    } catch (e) {
+      console.error('[useContaPagarActions] erro ao reverter', e);
+      toast.error('Erro ao reverter baixa');
+    }
   };
 
   const handleConfirmDelete = async (motivo: string) => {
-    if (!pendingDeleteId || !user) return;
-    const conta = contas.find(item => item.id === pendingDeleteId);
-    await deleteConta(pendingDeleteId);
-    appendLog(config, updateConfig, user, 'conta-pagar.excluir', `Excluiu conta a pagar #${conta?.numero} (${conta?.favorecido}). Motivo: ${motivo}`);
-    setPendingDeleteId(null);
-    toast.success('Conta removida!');
+    if (!pendingDeleteId || !user) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return;
+    }
+    // CORREÇÃO: checa permissão específica de exclusão
+    if (!hasPerm(config, user, 'contasPagar.excluir')) {
+      toast.error('Você não tem permissão para excluir contas.');
+      return;
+    }
+
+    try {
+      const conta = contas.find(item => item.id === pendingDeleteId);
+      // CORREÇÃO: bloqueia exclusão de contas PAGAS
+      if (conta?.status === 'PAGO') {
+        toast.error('Não é possível excluir uma conta já paga. Reverta a baixa primeiro.');
+        return;
+      }
+      await deleteConta(pendingDeleteId);
+      await appendLog('aviso', user, `Excluiu conta a pagar #${conta?.numero} (${conta?.favorecido}). Motivo: ${motivo}`);
+      setPendingDeleteId(null);
+      toast.success('Conta removida!');
+    } catch (e) {
+      console.error('[useContaPagarActions] erro ao excluir', e);
+      toast.error('Erro ao excluir conta');
+    }
   };
 
   return {

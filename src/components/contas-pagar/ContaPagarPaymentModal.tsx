@@ -1,3 +1,4 @@
+// src/components/contas-pagar/ContaPagarPaymentModal.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { AppConfig, ContaPagarComCalculo } from '@/types/titulo';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/calculos';
+import { formatCurrency, hojeLocal } from '@/lib/calculos';
 
 interface ContaPagarPaymentModalProps {
   conta: ContaPagarComCalculo | null;
@@ -25,28 +26,39 @@ function diasDeAtraso(vencimento: string, paidAt: string): number {
 }
 
 export function ContaPagarPaymentModal({ conta, config, onSubmit, onClose }: ContaPagarPaymentModalProps) {
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().split('T')[0]);
+  // CORREÇÃO CRÍTICA: usa hojeLocal() em vez de new Date().toISOString().split('T')[0]
+  const [paidAt, setPaidAt] = useState(hojeLocal());
   const [paidAmount, setPaidAmount] = useState(conta ? String(conta.valor) : '');
   const [formaPagamentoId, setFormaPagamentoId] = useState(conta?.formaPagamentoId || '');
   const [semJurosMulta, setSemJurosMulta] = useState(false);
 
   const formasAtivas = useMemo(
-    () => (config.contasPagar?.formasPagamento || []).filter(item => item.ativo),
-    [config.contasPagar?.formasPagamento]
+    () => ((config.contasPagar as any)?.formasPagamento || []).filter((item: any) => item.ativo),
+    [config.contasPagar]
   );
 
+  // CORREÇÃO: usa config.taxa (percentual, ex: 1 = 1% ao mês)
   const taxaMensal = config.taxa || 0;
   const multaConfig = config.contasPagar?.multa || 0;
-
   const diasAtraso = conta ? diasDeAtraso(conta.vencimento, paidAt) : 0;
+
+  // CORREÇÃO CRÍTICA: taxa como percentual (1% = 1, não 0,01)
   const valorJuros = (!semJurosMulta && conta && diasAtraso > 0)
-    ? Math.round(conta.valor * (taxaMensal / 30) * diasAtraso * 100) / 100
+    ? Math.round(conta.valor * (taxaMensal / 30 / 100) * diasAtraso * 100) / 100
     : 0;
-  const valorMulta = (!semJurosMulta && conta && diasAtraso > 0) ? multaConfig : 0;
+  // CORREÇÃO: multa também como percentual
+  const valorMulta = (!semJurosMulta && conta && diasAtraso > 0)
+    ? Math.round(conta.valor * (multaConfig / 100) * 100) / 100
+    : 0;
   const valorSugerido = conta ? Math.round((conta.valor + valorJuros + valorMulta) * 100) / 100 : 0;
 
+  // CORREÇÃO CRÍTICA: key={conta?.id} para resetar estado ao trocar de conta
   useEffect(() => {
-    if (conta) setPaidAmount(String(valorSugerido));
+    if (conta) {
+      setPaidAmount(String(valorSugerido));
+      setFormaPagamentoId(conta.formaPagamentoId || '');
+      setSemJurosMulta(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paidAt, semJurosMulta, conta?.id]);
 
@@ -59,7 +71,7 @@ export function ContaPagarPaymentModal({ conta, config, onSubmit, onClose }: Con
       toast.error('Informe um valor pago válido.');
       return;
     }
-    const forma = formasAtivas.find(item => item.id === formaPagamentoId);
+    const forma = formasAtivas.find((item: any) => item.id === formaPagamentoId);
     onSubmit({
       paidAt,
       paidAmount: valor,
@@ -69,7 +81,7 @@ export function ContaPagarPaymentModal({ conta, config, onSubmit, onClose }: Con
   };
 
   return (
-    <Card className="border-paid/20 shadow-lg">
+    <Card className="border-paid/20 shadow-lg" key={conta.id}>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Baixar conta a pagar</CardTitle>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -97,7 +109,8 @@ export function ContaPagarPaymentModal({ conta, config, onSubmit, onClose }: Con
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="sem-juros-multa" checked={semJurosMulta} onCheckedChange={(checked) => setSemJurosMulta(checked === true)} />
-            <Label htmlFor="sem-juros-multa" className="text-sm font-normal cursor-pointer">Receber sem juros e multa</Label>
+            {/* CORREÇÃO: Rótulo correto (antes era "Receber", agora "Pagar") */}
+            <Label htmlFor="sem-juros-multa" className="text-sm font-normal cursor-pointer">Pagar sem juros e multa</Label>
           </div>
           {diasAtraso > 0 && (
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs space-y-1">
@@ -113,7 +126,7 @@ export function ContaPagarPaymentModal({ conta, config, onSubmit, onClose }: Con
               <SelectTrigger><SelectValue placeholder={formasAtivas.length === 0 ? 'Cadastre em Configurações' : 'Selecione'} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sem forma informada</SelectItem>
-                {formasAtivas.map(item => (
+                {formasAtivas.map((item: any) => (
                   <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>
                 ))}
               </SelectContent>

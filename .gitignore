@@ -7,17 +7,26 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencias
 node_modules
+
+# Build e artefatos gerados
 dist
 dist-ssr
+dev-dist
 *.local
 
-# Tauri build output
+# Tauri: alvos de build e recursos empacotados
 src-tauri/target/
 src-tauri/binaries/
 src-tauri/resources/
 
-# Editor directories and files
+# Variaveis de ambiente (nunca commitar)
+.env
+.env.*
+!.env.example
+
+# Editores e sistema operacional
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -28,9 +37,5 @@ src-tauri/resources/
 *.sln
 *.sw?
 
-*.log
+# Notas e anotacoes locais
 *.txt
-node_modules
-dist
-src-tauri/target
-.env

@@ -72,7 +72,7 @@ export async function abrirWhatsApp(telefone: string, mensagem: string, modoForc
   if (url.length > LIMITE_URL) {
     const ok = await copiar(mensagem);
     // ✅ Abre o link COMPLETO (com a mensagem no parâmetro text) — não abre sem a mensagem
-    await openExternalUrl(url);
+    await openExternalUrl(url, { forcarBrowser: true });
     toast.message(ok
       ? 'Mensagem com a chave PIX copiada. Abra a conversa e cole o texto manualmente para enviar.'
       : 'Mensagem longa: abra a conversa e cole o texto manualmente.');
@@ -89,9 +89,9 @@ export async function abrirWhatsApp(telefone: string, mensagem: string, modoForc
   }
 
   // Modo Web (padrão): abre o WhatsApp Web com a mensagem via link (wa.me -> web.whatsapp.com).
-  // ✅ NOTA: NÃO forçamos window.open aqui — dentro do Tauri o caminho confiável é o
-  //    comando customizado 'open_external_url' (via opener do sistema -> navegador).
-  //    Forçar window.open quebrou a abertura no WebView do Tauri.
-  await openExternalUrl(url);
+  // ✅ NOTA: forçamos window.open (forcarBrowser) — dentro do Tauri o comando via invoke
+  //    (opener) vinha falhando (IPC/shell), e o window.open é quem abre a aba com sucesso.
+  //    A mensagem (tabela + PIX) vai no parâmetro "text" do link wa.me.
+  await openExternalUrl(url, { forcarBrowser: true });
   return true;
 }

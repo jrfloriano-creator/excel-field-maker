@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { generateId } from '@/lib/storage';
-import { formatCurrency } from '@/lib/calculos';
+import { formatCurrency, montarMensagemVendasDia } from '@/lib/financeiro';
 import { toast } from 'sonner';
 import { UserPlus, Save, Calendar, FileText, Printer, MessageCircle, X } from 'lucide-react';
 import { SessionUser } from '@/lib/auth';
@@ -247,10 +247,11 @@ export function VendasTab({ config, onUpdate, user, onNewCliente }: Props) {
       return;
     }
     const dataFormatada = new Date(today + 'T12:00:00').toLocaleDateString('pt-BR');
-    const linhas = vendasDia.map((v, i) =>
-      `${i + 1}. ${v.clienteNome} - ${formatCurrency(v.valor)} - ${v.formaPagamento}${v.parcelas ? ` ${v.parcelas}x` : ''} - ${v.hora || '—'}`
-    ).join('\n');
-    const msg = `📊 *Vendas do Dia — ${dataFormatada}*\n\n${linhas}\n\n*Total: ${formatCurrency(totalDia)}*`;
+    const msg = montarMensagemVendasDia({
+      vendas: vendasDia.map((v) => ({ clienteNome: v.clienteNome, valor: v.valor, formaPagamento: v.formaPagamento, parcelas: v.parcelas, hora: v.hora })),
+      dataFormatada,
+      total: totalDia,
+    });
     for (const tel of ativos) {
       await enviarWhatsAppUnico(tel.numero, msg);
     }

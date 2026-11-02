@@ -7,7 +7,7 @@ import { MessageCircle, Cake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dbDriver } from '@/lib/database';
 import { toast } from 'sonner';
-import { criarMensagemAniversario } from '@/lib/comunicacao';
+import { montarMensagemAniversario } from '@/lib/financeiro';
 import { WhatsAppPreviewModal } from '@/components/modals/WhatsAppPreviewModal';
 
 interface AniversariantesPageProps {
@@ -66,7 +66,7 @@ export function AniversariantesPage({ config }: AniversariantesPageProps) {
       return;
     }
     
-    const mensagem = criarMensagemAniversario(cliente, mensagemBase);
+    const mensagem = montarMensagemAniversario({ cliente, mensagemBase });
 
     // ✅ Abre o modal para revisão em vez de enviar direto
     setPreviewData({

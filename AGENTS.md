@@ -293,3 +293,15 @@ não torne campos opcionais em massa — isso esconde bugs reais.
 
 Canônica: `package.json` e `src-tauri/tauri.conf.json` (hoje `2.10.0`).
 Mensagens de commit antigas e o `CHANGELOG.md` podem estar defasados.
+
+---
+
+## 12. Política de atualização do GitHub
+
+- **Não faça push** para `origin` (`github.com/jrfloriano-creator/excel-field-maker`)
+  sem instrução explícita do usuário.
+- Instrução registrada pelo usuário: *"Atualizar o GitHub somente a meu pedido"* —
+  ou seja, pushes só quando ele autorizar; ao final de uma fase concluída ele
+  autoriza explicitamente (ex.: "Pode atualizar o GitHub com tudo que já foi feito?").
+- Ao final de uma fase concluída, confirme: `git status` limpo, branch `main`,
+  e `git log -1 --oneline` antes/depois do push.

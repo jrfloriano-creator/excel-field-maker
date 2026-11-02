@@ -12,6 +12,7 @@ import { hashPin, generateId } from './storage';
 import { dbDriver } from './database';
 
 const SESSION_KEY = 'app_session_user_v2';
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // ✅ SEGURANÇA: sessão expira após 8h
 let sessionKey: CryptoKey | null = null;
 
 async function getCryptoKey() {
@@ -52,13 +53,26 @@ export async function getSession(): Promise<SessionUser | null> {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const { payload, signature } = JSON.parse(raw);
-    const isValid = await verifySessionIntegrity(payload, signature);
+    const parsed = JSON.parse(raw);
+    const payload = parsed?.payload;
+    const signature = parsed?.signature;
+    if (!payload || !signature) return null;
+    if (typeof payload.exp !== 'number' || payload.exp < Date.now()) {
+      // ✅ SEGURANÇA: sessão expirada → invalida
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    const user = JSON.parse(payload);
+    if (user?.exp && user.exp < Date.now()) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    const isValid = await verifySessionIntegrity(JSON.stringify(user), signature);
     if (!isValid) {
       sessionStorage.removeItem(SESSION_KEY);
       return null;
     }
-    return JSON.parse(payload);
+    return user;
   } catch {
     return null;
   }
@@ -71,7 +85,7 @@ export async function setSession(u: SessionUser | null): Promise<void> {
   }
   const key = await getCryptoKey();
   const enc = new TextEncoder();
-  const payload = JSON.stringify(u);
+  const payload = JSON.stringify({ ...u, exp: Date.now() + SESSION_TTL_MS });
   const signatureBuffer = await crypto.subtle.sign('HMAC', key, enc.encode(payload));
   const signature = bufferToBase64(signatureBuffer);
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({ payload, signature }));

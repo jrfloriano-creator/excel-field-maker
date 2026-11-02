@@ -255,9 +255,9 @@ export async function hashPin(pin: string, providedSalt?: Uint8Array): Promise<s
 
 export async function verifyPin(pin: string, storedHash: string): Promise<boolean> {
   if (!storedHash) return false;
+  // ✅ SEGURANÇA: apenas hashes no formato v1: são aceitos (fallback plain-text removido)
   if (!storedHash.startsWith('v1:')) {
-    if (storedHash === pin) return true;
-    return legacyHashPin(pin) === storedHash;
+    return false;
   }
   const parts = storedHash.split(':');
   if (parts.length !== 3) return false;

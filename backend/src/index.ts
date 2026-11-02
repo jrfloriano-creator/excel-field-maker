@@ -25,6 +25,23 @@ const PORT = process.env.PORT || 3001;
 const API_TOKEN = process.env.WHATSAPP_API_TOKEN || crypto.randomBytes(32).toString('hex');
 console.log(`🔐 Token da API gerado: ${API_TOKEN.slice(0, 8)}...`);
 
+// ✅ SEGURANÇA: rate limit simples por IP para endpoints que enviam mensagens
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX = parseInt(process.env.WHATSAPP_RATE_LIMIT_MAX || '50', 10);
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const rec = rateLimitMap.get(ip);
+  if (!rec || rec.resetAt < now) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (rec.count >= RATE_LIMIT_MAX) return false;
+  rec.count += 1;
+  return true;
+}
+
 const allowedOrigins = [
   'tauri://localhost',
   'http://localhost:8080',
@@ -59,11 +76,11 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-app.get('/status', (req: Request, res: Response) => {
+app.get('/status', authMiddleware, (req: Request, res: Response) => {
   res.json({ success: true, ...getConnectionState() });
 });
 
-app.get('/qr', (req: Request, res: Response) => {
+app.get('/qr', authMiddleware, (req: Request, res: Response) => {
   const state = getConnectionState();
   if (state.status === 'qr' && state.qrCode) {
     res.json({ success: true, qrCode: state.qrCode });
@@ -126,6 +143,15 @@ app.post('/send', authMiddleware, async (req: Request, res: Response) => {
     if (!phoneNumber || !message) {
       return res.status(400).json({ success: false, error: 'Número e mensagem são obrigatórios' });
     }
+    if (typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Mensagem obrigatória' });
+    }
+    if (typeof phoneNumber !== 'string' || phoneNumber.replace(/\D/g, '').length < 10) {
+      return res.status(400).json({ success: false, error: 'Número de telefone inválido' });
+    }
+    if (!checkRateLimit(req.ip)) {
+      return res.status(429).json({ success: false, error: 'Rate limit excedido' });
+    }
     const result = await sendTextMessage(phoneNumber, message);
     if (result.success) {
       res.json({ success: true, messageId: result.messageId, message: 'Mensagem enviada com sucesso!' });
@@ -142,6 +168,9 @@ app.post('/send-batch', authMiddleware, async (req: Request, res: Response) => {
     const { messages } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ success: false, error: 'Lista de mensagens é obrigatória' });
+    }
+    if (!checkRateLimit(req.ip)) {
+      return res.status(429).json({ success: false, error: 'Rate limit excedido' });
     }
     const results = await sendBatchMessages(messages);
     const successCount = results.filter((r) => r.success).length;
@@ -171,7 +200,7 @@ app.post('/verify', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-app.get('/events', (req: Request, res: Response) => {
+app.get('/events', authMiddleware, (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

@@ -28,7 +28,8 @@ export default defineConfig(({ mode }) => ({
       manifest: false,
       // Habilita suporte a Dev (modo development)
       devOptions: {
-        enabled: mode === "development",
+        // Desabilita SW em dev para não cachear imagens/assets (CacheFirst + 30 dias)
+        enabled: false,
         type: "module",
       },
       workbox: {

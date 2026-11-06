@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <linearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#cfe8ff"/>
+      <stop offset="55%" stop-color="#e8f4ff"/>
+      <stop offset="100%" stop-color="#f4fafe"/>
+    </linearGradient>
+    <linearGradient id="curva" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1440" height="900" fill="url(#ceu)"/>
+  <!-- Cidade (esquerda) -->
+  <g fill="#b9d9f5">
+    <rect x="60" y="470" width="120" height="260"/>
+    <rect x="200" y="520" width="90" height="210"/>
+    <rect x="300" y="440" width="140" height="290"/>
+    <rect x="450" y="500" width="80" height="230"/>
+  </g>
+  <g fill="#9cc4ef">
+    <rect x="110" y="510" width="70" height="220"/>
+    <rect x="350" y="470" width="90" height="260"/>
+    <rect x="540" y="540" width="60" height="190"/>
+  </g>
+  <!-- Arvore -->
+  <g fill="#8fbf9a">
+    <circle cx="80" cy="700" r="70"/>
+    <circle cx="150" cy="680" r="60"/>
+  </g>
+  <rect x="105" y="700" width="16" height="70" fill="#7a6b5a"/>
+  <!-- Loja de roupas (direita) -->
+  <g>
+    <!-- Cabide -->
+    <path d="M980 360 h60" stroke="#7a89a3" stroke-width="6"/>
+    <path d="M980 360 c -14 10, -14 24, 0 34" stroke="#7a89a3" stroke-width="6" fill="none"/>
+    <path d="M1040 360 c 14 10, 14 24, 0 34" stroke="#7a89a3" stroke-width="6" fill="none"/>
+    <!-- Camisa (vestido) -->
+    <path d="M980 400 c 14 -8, 46 -8, 60 0 l 22 40 l -20 12 l 0 120 l -64 0 l 0 -120 l -20 -12 z" fill="#b56576"/>
+    <!-- Cabide 2 -->
+    <path d="M1100 360 h60" stroke="#7a89a3" stroke-width="6"/>
+    <path d="M1100 360 c -14 10, -14 24, 0 34" stroke="#7a89a3" stroke-width="6" fill="none"/>
+    <path d="M1160 360 c 14 10, 14 24, 0 34" stroke="#7a89a3" stroke-width="6" fill="none"/>
+    <!-- Camiseta -->
+    <path d="M1100 400 c 14 -8, 46 -8, 60 0 l 22 40 l -20 12 l 0 110 l -64 0 l 0 -110 l -20 -12 z" fill="#6d8ea0"/>
+    <!-- Manequim (suporte) -->
+    <rect x="1240" y="380" width="14" height="220" fill="#a9b7c6"/>
+    <ellipse cx="1247" cy="372" rx="26" ry="14" fill="#a9b7c6"/>
+    <path d="M1200 470 q47 -60 94 0 q -47 40 -94 0 z" fill="#c1664a"/>
+    <!-- Cabide 3 -->
+    <path d="M1300 360 h60" stroke="#7a89a3" stroke-width="6"/>
+    <path d="M1300 360 c -14 10, -14 24, 0 34" stroke="#7a89a3" stroke-width="6" fill="none"/>
+    <path d="M1360 360 c 14 10, 14 24, 0 34" stroke="#7a89a3" stroke-width="6" fill="none"/>
+    <!-- Camisa 3 -->
+    <path d="M1300 400 c 14 -8, 46 -8, 60 0 l 22 40 l -20 12 l 0 120 l -64 0 l 0 -120 l -20 -12 z" fill="#8a6fa8"/>
+  </g>
+  <!-- Curva branca inferior -->
+  <path d="M0 640 C 400 600, 900 660, 1440 620 L1440 900 L0 900 Z" fill="url(#curva)"/>
+</svg>

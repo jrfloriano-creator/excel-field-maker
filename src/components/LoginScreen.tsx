@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { AppConfig, Usuario } from '@/types/titulo';
 import { verifyPin, hashPin } from '@/lib/storage';
 import { SessionUser, ensureMasterUser } from '@/lib/auth';
 import { toast } from 'sonner';
+import { User, Lock } from 'lucide-react';
 
 interface Props {
   config: AppConfig;
@@ -22,7 +22,7 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
     ensureMasterUser(config.usuarios).then(u => {
       setUsuarios(u);
       setLoadingUsers(false);
-      const hasMaster = (config.usuarios || []).some(x => x.master);
+      const hasMaster = (config.usuarios || []).some(x => (x as any).master);
       if (!hasMaster) onUpdate({ usuarios: u });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -31,7 +31,7 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
   const [userId, setUserId] = useState('');
   useEffect(() => {
     if (!userId && usuarios.length > 0) {
-      setUserId(usuarios.find(u => u.master)?.id || usuarios[0]?.id || '');
+      setUserId(usuarios.find(u => (u as any).master)?.id || usuarios[0]?.id || '');
     }
   }, [usuarios, userId]);
   const [pin, setPin] = useState('');
@@ -65,7 +65,9 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'linear-gradient(135deg, #1a2035 0%, #2d3561 50%, #1a2035 100%)',
+        backgroundImage: "url('/fundo-loja-roupas.svg')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
@@ -76,73 +78,60 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
     >
       <div
         style={{
-          background: 'white',
-          borderRadius: '20px',
-          padding: '40px 36px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           width: '100%',
-          maxWidth: '400px',
-          boxShadow: '0 20px 60px rgba(0,0,0,.4)',
+          maxWidth: '420px',
           animation: 'loginSlideUp .35s ease',
         }}
       >
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          {config.logoEmpresa ? (
-            <img
-              src={config.logoEmpresa}
-              alt="Logo"
-              style={{
-                width: '64px',
-                height: '64px',
-                objectFit: 'contain',
-                borderRadius: '16px',
-                margin: '0 auto 14px',
-                display: 'block',
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px',
-                fontWeight: 800,
-                color: 'white',
-                margin: '0 auto 14px',
-                boxShadow: '0 6px 20px rgba(79,172,254,.45)',
-                letterSpacing: '1px',
-              }}
-            >
-              ZOOM
-            </div>
-          )}
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a202c', marginBottom: '4px' }}>
-            Controle Financeiro
-          </h2>
-          <p style={{ fontSize: '12px', color: '#718096' }}>Faça login para continuar</p>
-        </div>
+        {/* Logo Z */}
+        <img
+          src="/logo-zoom-loja.svg"
+          alt="Zoom Loja"
+          style={{ width: '150px', height: '150px', marginBottom: '8px' }}
+        />
+
+        {/* Título */}
+        <h1
+          style={{
+            fontSize: '44px',
+            fontWeight: 800,
+            color: '#1a6fe8',
+            margin: '0 0 36px 0',
+            letterSpacing: '-1px',
+          }}
+        >
+          Zoom Loja
+        </h1>
 
         {/* Form */}
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <Label style={{ fontSize: '12px', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Usuário
-            </Label>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px', width: '100%' }}>
+          {/* Usuário */}
+          <div style={{ position: 'relative' }}>
+            <User
+              size={22}
+              style={{
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#1a6fe8',
+                pointerEvents: 'none',
+              }}
+            />
             {loadingUsers ? (
-              <div style={{
-                border: '1px solid #e2e8f0',
-                borderRadius: '9px',
-                padding: '8px 12px',
-                marginTop: '5px',
-                fontSize: '14px',
-                color: '#a0aec0',
-                background: '#f7fafc',
-              }}>
+              <div
+                style={{
+                  border: '1px solid #d7e3f0',
+                  borderRadius: '14px',
+                  padding: '15px 16px 15px 50px',
+                  fontSize: '15px',
+                  color: '#a0aec0',
+                  background: '#f4f8fc',
+                }}
+              >
                 Carregando...
               </div>
             ) : (
@@ -152,95 +141,110 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
                 style={{
                   width: '100%',
                   fontFamily: "'Poppins', sans-serif",
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '9px',
-                  padding: '8px 12px',
-                  marginTop: '5px',
-                  fontSize: '14px',
+                  border: '1px solid #d7e3f0',
+                  borderRadius: '14px',
+                  padding: '15px 16px 15px 50px',
+                  fontSize: '15px',
                   color: '#1a202c',
                   background: 'white',
                   cursor: 'pointer',
                   outline: 'none',
                   appearance: 'auto',
+                  boxShadow: '0 2px 8px rgba(0,0,0,.04)',
                 }}
               >
                 {usuarios.map(u => (
                   <option key={u.id} value={u.id}>
-                    {u.nome} {u.master ? '(MASTER)' : `(${u.nivel})`}
+                    {u.nome} {(u as any).master ? '(MASTER)' : `(${u.nivel})`}
                   </option>
                 ))}
               </select>
             )}
           </div>
 
-          <div>
-            <Label style={{ fontSize: '12px', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Senha (4 dígitos)
-            </Label>
+          {/* Senha */}
+          <div style={{ position: 'relative' }}>
+            <Lock
+              size={22}
+              style={{
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#1a6fe8',
+                pointerEvents: 'none',
+              }}
+            />
             <Input
               type="password"
               inputMode="numeric"
               maxLength={4}
               value={pin}
               onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }}
+              placeholder="Senha"
               style={{
-                textAlign: 'center',
-                fontSize: '24px',
+                paddingLeft: '50px',
+                paddingRight: '50px',
+                fontSize: '16px',
                 letterSpacing: '0.5em',
-                fontWeight: 700,
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '9px',
+                fontWeight: 600,
+                padding: '15px 16px 15px 50px',
+                border: '1px solid #d7e3f0',
+                borderRadius: '14px',
                 fontFamily: "'Poppins', sans-serif",
-                marginTop: '5px',
+                boxShadow: '0 2px 8px rgba(0,0,0,.04)',
+                height: 'auto',
               }}
               autoFocus
             />
           </div>
 
           {error && (
-            <div style={{
-              fontSize: '12px',
-              color: '#e53e3e',
-              textAlign: 'center',
-              padding: '8px 12px',
-              background: '#fff5f5',
-              borderRadius: '8px',
-              border: '1px solid #feb2b2',
-            }}>
+            <div
+              style={{
+                fontSize: '13px',
+                color: '#e53e3e',
+                textAlign: 'center',
+                padding: '10px 12px',
+                background: '#fff5f5',
+                borderRadius: '10px',
+                border: '1px solid #feb2b2',
+              }}
+            >
               {error}
             </div>
           )}
 
+          {/* Botão Entrar */}
           <button
             type="submit"
             style={{
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              background: 'linear-gradient(135deg, #1a6fe8 0%, #2b8ef0 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '10px',
-              padding: '12px',
-              fontSize: '14px',
-              fontWeight: 600,
+              borderRadius: '14px',
+              padding: '16px',
+              fontSize: '16px',
+              fontWeight: 700,
               cursor: 'pointer',
               fontFamily: "'Poppins', sans-serif",
-              boxShadow: '0 2px 8px rgba(79,172,254,.3)',
+              boxShadow: '0 4px 16px rgba(26,111,232,.35)',
               transition: 'all 0.2s ease',
               marginTop: '4px',
             }}
             onMouseEnter={e => {
-              (e.target as HTMLButtonElement).style.boxShadow = '0 4px 14px rgba(79,172,254,.5)';
+              (e.target as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(26,111,232,.5)';
               (e.target as HTMLButtonElement).style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={e => {
-              (e.target as HTMLButtonElement).style.boxShadow = '0 2px 8px rgba(79,172,254,.3)';
+              (e.target as HTMLButtonElement).style.boxShadow = '0 4px 16px rgba(26,111,232,.35)';
               (e.target as HTMLButtonElement).style.transform = 'translateY(0)';
             }}
           >
             Entrar
           </button>
 
-          <p style={{ fontSize: '11px', color: '#718096', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', color: '#718096', textAlign: 'center', marginTop: '4px' }}>
             Primeiro acesso: usuário <strong>MASTER</strong>, senha <strong>1111</strong>
           </p>
         </form>

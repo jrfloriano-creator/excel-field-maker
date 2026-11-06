@@ -130,4 +130,19 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
+  optimizeDeps: {
+    // Pacotes Tauri usam formatos que o dep optimizer do Vite nao resolve bem
+    exclude: [
+      '@tauri-apps/api',
+      '@tauri-apps/api/core',
+      '@tauri-apps/api/window',
+      '@tauri-apps/api/path',
+      '@tauri-apps/plugin-sql',
+      '@tauri-apps/plugin-fs',
+      '@tauri-apps/plugin-dialog',
+      '@tauri-apps/plugin-opener',
+      'tauri-plugin-printer-v2',
+      '@tauri-apps/plugin-printer-v2',
+    ],
+  },
 }));

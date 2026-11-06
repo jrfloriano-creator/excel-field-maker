@@ -88,9 +88,15 @@ export function LoginScreen({ config, onUpdate, onLogin, loading = false }: Prop
       >
         {/* Logo Z */}
         <img
-          src="/logo-zoom-loja.svg"
-          alt="Zoom Loja"
-          style={{ width: '150px', height: '150px', marginBottom: '8px' }}
+          src="/logo-zoom-rest.png"
+          alt="Zoom Rest"
+          style={{ 
+            width: '180px', 
+            height: '180px', 
+            marginBottom: '4px',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 4px 12px rgba(26, 111, 232, 0.15))'
+          }}
         />
 
         {/* Título */}

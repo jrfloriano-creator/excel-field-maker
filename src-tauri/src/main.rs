@@ -202,6 +202,7 @@ fn main() {
         .plugin(tauri_plugin_printer_v2::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::Builder::default().build())
         .manage(BackendProcess(Mutex::new(None)))
         .manage(ApiToken(api_token.clone())) // ✅ Token disponível via State
         .invoke_handler(tauri::generate_handler![

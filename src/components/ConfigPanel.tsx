@@ -14,6 +14,8 @@ import {
   CheckCircle2, AlertTriangle, Info, Moon, Sun
 } from 'lucide-react';
 import { generateId } from '@/lib/storage';
+import { openFolder } from '@/lib/savePdf';
+import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 import { calcularTitulo, formatCurrency, formatDate } from '@/lib/calculos';
 import { obterNomeCliente } from '@/lib/whatsapp/message';
@@ -297,6 +299,28 @@ export function ConfigPanel({
   const hasNivelPerm = (n: NivelUsuario, p: Permissao) => {
     if (n === 'MASTER') return true;
     return (permissoes[n] || []).includes(p);
+  };
+
+  // 📁 Seleciona pasta no computador (dialog nativo) para salvar PDFs ou Backups
+  const selecionarPasta = async (tipo: 'pdf' | 'backup') => {
+    try {
+      const path = await open({
+        directory: true,
+        defaultPath: tipo === 'pdf' ? (config.caminhoSalvarDados || undefined) : (config.caminhoBackup || undefined),
+      });
+      if (path) {
+        if (tipo === 'pdf') {
+          onUpdate({ caminhoSalvarDados: path });
+          toast.success(`Pasta de salvamento de PDFs definida: ${path}`);
+        } else {
+          onUpdate({ caminhoBackup: path });
+          toast.success(`Pasta de salvamento de backups definida: ${path}`);
+        }
+      }
+    } catch (e) {
+      console.error('[ConfigPanel] falha ao selecionar pasta', e);
+      toast.error('Falha ao selecionar a pasta');
+    }
   };
 
   return (
@@ -837,6 +861,52 @@ export function ConfigPanel({
         </TabsContent>
 
         <TabsContent value="sistema" className="space-y-4 mt-2">
+          {/* 📁 Pasta de Salvamento de PDFs */}
+          <Card data-secao="pasta-salvar-dados">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                📁 Pasta de Salvamento de PDFs
+                <TooltipInfo>Onde os documentos/PDFs gerados pelo sistema serão salvos</TooltipInfo>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Input value={config.caminhoSalvarDados || ''} readOnly placeholder="Ex.: C:\Users\...\Documentos" className="flex-1" />
+                <Button size="sm" className="gap-1" onClick={() => selecionarPasta('pdf')}>
+                  <FolderOpen className="h-4 w-4" /> Procurar no Computador
+                </Button>
+              </div>
+              {config.caminhoSalvarDados && (
+                <Button size="sm" variant="outline" className="w-full" onClick={() => openFolder(config.caminhoSalvarDados)}>
+                  Abrir Pasta
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 📁 Pasta de Salvamento de Backups */}
+          <Card data-secao="pasta-backup">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                💾 Pasta de Salvamento de Backups
+                <TooltipInfo>Onde os arquivos de backup (.json) exportados serão salvos</TooltipInfo>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Input value={config.caminhoBackup || ''} readOnly placeholder="Ex.: C:\Users\...\Backups" className="flex-1" />
+                <Button size="sm" className="gap-1" onClick={() => selecionarPasta('backup')}>
+                  <FolderOpen className="h-4 w-4" /> Procurar no Computador
+                </Button>
+              </div>
+              {config.caminhoBackup && (
+                <Button size="sm" variant="outline" className="w-full" onClick={() => openFolder(config.caminhoBackup)}>
+                  Abrir Pasta
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
           <WhatsAppConnection />
           <BackupPanel titulos={titulos} config={config} onImportTitulos={onImportTitulos} onImportConfig={onUpdate} />
           {/* ✅ CORRIGIDO: Passando logs com valor seguro */}

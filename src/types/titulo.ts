@@ -378,6 +378,9 @@ export interface AppConfig {
   clientes?: Cliente[];
   logs?: LogEntry[];
   permissoes?: Record<string, Permissao[]>;
+  // CORREÇÃO: pastas de salvamento (documentos/PDFs e backups)
+  caminhoSalvarDados?: string;
+  caminhoBackup?: string;
 }
 
 export interface ProjecaoSemanal {

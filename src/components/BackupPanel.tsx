@@ -18,7 +18,7 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
 
   const stamp = () => new Date().toISOString().slice(0, 10);
 
-  const exportTudo = () => {
+  const exportTudo = async () => {
     const payload = {
       versao: 1,
       exportadoEm: new Date().toISOString(),
@@ -28,6 +28,25 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
     const blob = new Blob(['\uFEFF' + JSON.stringify(payload, null, 2)], {
       type: 'application/json;charset=utf-8',
     });
+    const backupFolder = config.caminhoBackup;
+
+    // ✅ Salva o backup na pasta configurada (Tauri) ou faz download (browser)
+    const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
+    if (isTauri && backupFolder) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const buf = await blob.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const sep = backupFolder.includes('\\') ? '\\' : '/';
+        const fullPath = backupFolder.replace(/[\\/]$/, '') + sep + `backup-financeiro-${stamp()}.json`;
+        await invoke('write_bytes_to_file', { path: fullPath, data: Array.from(bytes) });
+        toast.success(`Backup completo gerado em: ${fullPath}`);
+        return;
+      } catch (err) {
+        console.warn('[BackupPanel] falha ao salvar backup no caminho configurado, usando download padrão', err);
+      }
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

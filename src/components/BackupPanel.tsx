@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Titulo, AppConfig } from '@/types/titulo';
-import { importBackup } from '@/lib/storage';
+import { importBackup, saveContasPagar, getConfig, saveConfig } from '@/lib/storage';
+import { realizarBackup } from '@/lib/backup';
 
 interface Props {
   titulos: Titulo[];
@@ -16,46 +17,14 @@ interface Props {
 export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const stamp = () => new Date().toISOString().slice(0, 10);
-
-  const exportTudo = async () => {
-    const payload = {
-      versao: 1,
-      exportadoEm: new Date().toISOString(),
-      titulos,
-      config,
-    };
-    const blob = new Blob(['\uFEFF' + JSON.stringify(payload, null, 2)], {
-      type: 'application/json;charset=utf-8',
-    });
-    const backupFolder = config.caminhoBackup;
-
-    // ✅ Salva o backup na pasta configurada (Tauri) ou faz download (browser)
-    const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
-    if (isTauri && backupFolder) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const buf = await blob.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        const sep = backupFolder.includes('\\') ? '\\' : '/';
-        const fullPath = backupFolder.replace(/[\\/]$/, '') + sep + `backup-financeiro-${stamp()}.json`;
-        await invoke('write_bytes_to_file', { path: fullPath, data: Array.from(bytes) });
-        toast.success(`Backup completo gerado em: ${fullPath}`);
-        return;
-      } catch (err) {
-        console.warn('[BackupPanel] falha ao salvar backup no caminho configurado, usando download padrão', err);
-      }
+  const exportarBackup = async (modulo: 'financeiro' | 'contas-pagar') => {
+    try {
+      const info = await realizarBackup('manual', modulo);
+      toast.success(`Backup ${modulo === 'financeiro' ? 'Financeiro' : 'Contas a Pagar'} gerado com sucesso!`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Falha ao gerar backup');
     }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup-financeiro-${stamp()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Backup completo gerado');
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,10 +35,24 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
       const data = JSON.parse(text.replace(/^\uFEFF/, ''));
       if (!data || typeof data !== 'object') throw new Error('Arquivo inválido');
 
-      const backupTitulos: Titulo[] = Array.isArray(data.titulos) ? data.titulos : [];
+      // ✅ Módulo isolado: Backup de Contas a Pagar
+      if (data.modulo === 'contas-pagar') {
+        const contas = Array.isArray(data.contasPagar) ? data.contasPagar : [];
+        await saveContasPagar(contas);
+        // Restaura as configurações do módulo Contas a Pagar (multa, juros, categorias, motivos) sem tocar títulos
+        const cfgContas = data.config?.contasPagar;
+        if (cfgContas) {
+          const current = await getConfig();
+          await saveConfig({ ...current, contasPagar: cfgContas });
+        }
+        toast.success('Backup de Contas a Pagar restaurado com sucesso! Recarregando...');
+        setTimeout(() => window.location.reload(), 1000);
+        return;
+      }
 
-      // Determina config base: data.config se existir, senão config prop atual
-      let backupConfig: AppConfig = (data.config && typeof data.config === 'object')
+      // Backup Financeiro / Completo: restaura títulos + config (+ contas se completo/legado)
+      const backupTitulos: Titulo[] = Array.isArray(data.titulos) ? data.titulos : [];
+      const backupConfig: AppConfig = (data.config && typeof data.config === 'object')
         ? { ...data.config }
         : { ...config };
 
@@ -78,10 +61,12 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
         backupConfig.clientes = data.clientes;
       }
 
-      // Usa transação atômica única para evitar "database is locked"
       await importBackup(backupTitulos, backupConfig);
+      if (!data.modulo) {
+        await saveContasPagar(Array.isArray(data.contasPagar) ? data.contasPagar : []);
+      }
 
-      toast.success('Backup restaurado com sucesso! Recarregando...');
+      toast.success('Backup financeiro restaurado com sucesso! Recarregando...');
       setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
       console.error(err);
@@ -94,14 +79,17 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">💾 Backup Completo</CardTitle>
+        <CardTitle className="text-sm">💾 Backup</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Exporte ou importe todo o aplicativo em um único arquivo
+          Exporte por módulo (Financeiro ou Contas a Pagar) ou importe um backup completo
         </p>
       </CardHeader>
       <CardContent className="space-y-2">
-        <Button className="w-full" onClick={exportTudo}>
-          <Download className="h-4 w-4 mr-1" /> Exportar Backup (.json)
+        <Button className="w-full" onClick={() => exportarBackup('financeiro')}>
+          <Download className="h-4 w-4 mr-1" /> Backup Financeiro (.json)
+        </Button>
+        <Button className="w-full" variant="outline" onClick={() => exportarBackup('contas-pagar')}>
+          <Download className="h-4 w-4 mr-1" /> Backup Contas a Pagar (.json)
         </Button>
         <Button
           className="w-full"
@@ -111,7 +99,7 @@ export function BackupPanel({ titulos, config, onImportTitulos, onImportConfig }
           <Upload className="h-4 w-4 mr-1" /> Importar Backup (.json)
         </Button>
         <p className="text-[10px] text-muted-foreground pt-1">
-          ⚠️ A importação <strong>substitui</strong> todos os dados existentes.
+          ⚠️ A importação <strong>substitui</strong> os dados existentes. Use o módulo correto para cada restauração.
         </p>
         <input
           ref={inputRef}

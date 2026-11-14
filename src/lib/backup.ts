@@ -1,6 +1,6 @@
 // src/lib/backup.ts
 import { Titulo, AppConfig, ContaPagar } from '@/types/titulo';
-import { getTitulos, getContasPagar, getConfig, saveContasPagar, importBackup } from './storage';
+import { getTitulos, getContasPagar, getConfig, saveContasPagar, importBackup, saveConfig } from './storage';
 import { isTauri } from './database'; // CORREÇÃO: usa isTauri centralizado
 
 // CORREÇÃO: tenta importar catálogo (credores, tipos, grupos) se disponível
@@ -27,12 +27,15 @@ const INTERVALO_BACKUP_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 export type TipoBackup = 'manual' | 'automatico';
 
+export type ModuloBackup = 'financeiro' | 'contas-pagar';
+
 export interface BackupInfo {
   nome: string;
   caminho?: string;
   data: string;
   tipo: TipoBackup;
   tamanho?: number;
+  modulo?: ModuloBackup;
 }
 
 // ============================================================
@@ -46,6 +49,8 @@ interface BackupPayload {
   titulos: Titulo[];
   contasPagar: ContaPagar[];
   config: AppConfig;
+  // Módulo do backup: 'financeiro' (títulos) | 'contas-pagar' (contas a pagar) | undefined (completo/legado)
+  modulo?: 'financeiro' | 'contas-pagar';
   // CORREÇÃO: campos do catálogo (versao 2+)
   credores?: any[];
   tituloConfigs?: any[];
@@ -121,7 +126,7 @@ export async function criarPastaBackup(): Promise<string | null> {
 }
 
 /* ============= Coleta de dados ============= */
-async function coletarDadosBackup(): Promise<BackupPayload> {
+async function coletarDadosBackup(modulo?: 'financeiro' | 'contas-pagar'): Promise<BackupPayload> {
   const [titulos, contasPagar, config] = await Promise.all([
     getTitulos(),
     getContasPagar(),
@@ -156,12 +161,28 @@ async function coletarDadosBackup(): Promise<BackupPayload> {
     }
   }
 
+  // ============================================================
+  // Módulo do backup: 'financeiro' (títulos) | 'contas-pagar' (contas a pagar) | completo
+  // - 'financeiro': titulos + config financeira (sem registros nem config de Contas a Pagar)
+  // - 'contas-pagar': contas + taxas/categorias/credores do módulo (sem títulos)
+  // - undefined: completo (padrão/legado)
+  // ============================================================
+  if (modulo === 'contas-pagar') {
+    // Backup exclusivo do módulo Contas a Pagar (inclui taxas, categorias, motivos e catálogo)
+    const configContas = config.contasPagar ?? { multa: 0, jurosDia: 0, categorias: [], credores: [], motivoExclusao: [] };
+    return { ...payload, modulo: 'contas-pagar', titulos: [], config: { ...config, contasPagar: configContas } };
+  }
+  if (modulo === 'financeiro') {
+    // Backup exclusivo do módulo Financeiro (títulos) — sem registros nem config de Contas a Pagar
+    return { ...payload, modulo: 'financeiro', contasPagar: [], config: { ...config, contasPagar: undefined } };
+  }
+  // Backup completo (padrão/legado)
   return payload;
 }
 
 /* ============= Realizar backup ============= */
-export async function realizarBackup(tipo: TipoBackup = 'manual'): Promise<BackupInfo> {
-  const dados = await coletarDadosBackup();
+export async function realizarBackup(tipo: TipoBackup = 'manual', modulo?: 'financeiro' | 'contas-pagar'): Promise<BackupInfo> {
+  const dados = await coletarDadosBackup(modulo);
   dados.tipo = tipo;
   dados.exportadoEm = new Date().toISOString();
 
@@ -203,6 +224,9 @@ export async function realizarBackup(tipo: TipoBackup = 'manual'): Promise<Backu
     tipo,
     tamanho: conteudo.length,
   };
+  if (modulo) {
+    info.modulo = modulo;
+  }
 
   await salvarHistoricoBackup(info);
 
@@ -258,16 +282,42 @@ function validarPayload(dados: any): { valido: boolean; erro?: string } {
   if (typeof dados.versao !== 'number') {
     return { valido: false, erro: 'Backup inválido: campo "versao" ausente' };
   }
+  if (dados.modulo === 'contas-pagar') {
+    if (!Array.isArray(dados.contasPagar)) {
+      return { valido: false, erro: 'Backup inválido: "contasPagar" não é um array' };
+    }
+    return { valido: true };
+  }
   if (!Array.isArray(dados.titulos)) {
     return { valido: false, erro: 'Backup inválido: "titulos" não é um array' };
-  }
-  if (!Array.isArray(dados.contasPagar)) {
-    return { valido: false, erro: 'Backup inválido: "contasPagar" não é um array' };
   }
   if (!dados.config || typeof dados.config !== 'object') {
     return { valido: false, erro: 'Backup inválido: "config" ausente ou inválido' };
   }
   return { valido: true };
+}
+
+/* ============= Restaurar catálogo (credores, tipos, grupos/despesas) — versão 2+ ============= */
+async function restaurarCatalogo(dados: any): Promise<void> {
+  if (dados.versao < 2) return;
+  const catDb = await getCatalogoDb();
+  if (!catDb) return;
+  try {
+    if (Array.isArray(dados.credores) && catDb.importCredores) {
+      await catDb.importCredores(dados.credores);
+    }
+    if (Array.isArray(dados.tituloConfigs) && catDb.importTituloConfigs) {
+      await catDb.importTituloConfigs(dados.tituloConfigs);
+    }
+    if (Array.isArray(dados.gruposDespesa) && catDb.importGruposDespesa) {
+      await catDb.importGruposDespesa(dados.gruposDespesa);
+    }
+    if (Array.isArray(dados.despesasFixas) && catDb.importDespesasFixas) {
+      await catDb.importDespesasFixas(dados.despesasFixas);
+    }
+  } catch (e) {
+    console.warn('[backup] falha ao restaurar catálogo', e);
+  }
 }
 
 /* ============= Restaurar backup ============= */
@@ -308,32 +358,28 @@ export async function restaurarBackup(backupInfo: BackupInfo): Promise<void> {
   const contasPagar: ContaPagar[] = Array.isArray(dados.contasPagar) ? dados.contasPagar : [];
   const config = dados.config as AppConfig;
 
-  // CORREÇÃO: importBackup agora é atômico (dentro de transação)
-  await importBackup(titulos, config);
-  await saveContasPagar(contasPagar);
-
-  // CORREÇÃO: restaura catálogo se disponível (versao 2+)
-  if (dados.versao >= 2) {
-    const catDb = await getCatalogoDb();
-    if (catDb) {
-      try {
-        if (Array.isArray(dados.credores) && catDb.importCredores) {
-          await catDb.importCredores(dados.credores);
-        }
-        if (Array.isArray(dados.tituloConfigs) && catDb.importTituloConfigs) {
-          await catDb.importTituloConfigs(dados.tituloConfigs);
-        }
-        if (Array.isArray(dados.gruposDespesa) && catDb.importGruposDespesa) {
-          await catDb.importGruposDespesa(dados.gruposDespesa);
-        }
-        if (Array.isArray(dados.despesasFixas) && catDb.importDespesasFixas) {
-          await catDb.importDespesasFixas(dados.despesasFixas);
-        }
-      } catch (e) {
-        console.warn('[backup] falha ao restaurar catálogo', e);
-      }
+  // ============================================================
+  // Módulo isolado: backup de Contas a Pagar
+  // ============================================================
+  if (dados.modulo === 'contas-pagar') {
+    await saveContasPagar(contasPagar);
+    // Restaura as configurações do módulo Contas a Pagar (multa, juros, categorias, motivos) sem tocar títulos
+    const cfgContas = config?.contasPagar;
+    if (cfgContas) {
+      const current = await getConfig();
+      await saveConfig({ ...current, contasPagar: cfgContas });
     }
+    await restaurarCatalogo(dados);
+    return;
   }
+
+  // Backup Financeiro / Completo: restaura títulos + config (+ contas se completo/legado)
+  const configParaImportar: AppConfig = dados.modulo === 'financeiro' ? { ...config, contasPagar: undefined } : config;
+  await importBackup(titulos, configParaImportar);
+  if (!dados.modulo) {
+    await saveContasPagar(contasPagar);
+  }
+  await restaurarCatalogo(dados);
 }
 
 /* ============= Listagem de backups ============= */

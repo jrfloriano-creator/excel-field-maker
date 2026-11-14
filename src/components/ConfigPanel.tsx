@@ -857,7 +857,10 @@ export function ConfigPanel({
               </CardContent>
             </Card>
           )}
-          <LogoPanel config={config} onUpdate={onUpdate} />
+          <LogoPanel
+            logo={config?.empresa?.logo}
+            onUpdate={(logo) => onUpdate({ empresa: { ...(config?.empresa ?? { nome: '', cpfCnpj: '', endereco: '', telefone: '', email: '' }), logo } })}
+          />
         </TabsContent>
 
         <TabsContent value="sistema" className="space-y-4 mt-2">

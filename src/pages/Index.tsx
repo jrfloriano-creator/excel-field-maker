@@ -294,7 +294,7 @@ Entre em contato para regularizar.${pixMsg}`;
   
   return (
     <div className="zoom-layout">
-      <Sidebar tab={tab} onTabChange={(t) => { setTab(t); setGrupoAtivo(null); setBuscaConfig(''); }} onLogout={logout} userName={user.nome} userLevel={user.nivel} logoEmpresa={config.logoEmpresa} />
+      <Sidebar tab={tab} onTabChange={(t) => { setTab(t); setGrupoAtivo(null); setBuscaConfig(''); }} onLogout={logout} userName={user.nome} userLevel={user.nivel} logoEmpresa={config?.empresa?.logo} />
       
       <div className="zoom-main">
         <header className="zoom-top-header">
